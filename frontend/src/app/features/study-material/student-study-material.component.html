@@ -1,0 +1,103 @@
+<div class="max-w-7xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
+    <!-- Header Section -->
+    <div class="relative overflow-hidden rounded-[2rem] sm:rounded-[3rem] bg-gradient-to-br from-primary-600 to-primary-900 p-8 sm:p-16 text-white shadow-premium">
+        <!-- Decorative Elements -->
+        <div class="absolute -top-10 -right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute -bottom-10 -left-10 w-48 h-48 bg-primary-400/20 rounded-full blur-2xl"></div>
+        
+        <div class="relative z-10 flex flex-col md:flex-row items-center md:items-end justify-between gap-10">
+            <div class="text-center md:text-left space-y-4">
+                <div class="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-black uppercase tracking-[0.2em]">
+                    Academic Repository
+                </div>
+                <h1 class="text-4xl sm:text-6xl font-black tracking-tighter leading-none">Curated Resources</h1>
+                <p class="text-primary-100 text-sm sm:text-lg font-medium max-w-lg opacity-80 leading-relaxed">Systematic access to your curriculum, assignments, and architectural reference documents.</p>
+            </div>
+            <div class="flex items-center gap-6 bg-white/10 backdrop-blur-xl p-4 sm:p-6 rounded-[2rem] border border-white/20 w-full md:w-auto justify-center md:justify-start">
+                <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-4xl shadow-2xl shadow-primary-900/40 transform -rotate-6">📚</div>
+                <div>
+                    <div class="text-3xl font-black leading-none mb-1">{{ materials.length }}</div>
+                    <div class="text-[10px] uppercase tracking-widest font-black opacity-60">Total Intelligence</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search & Filter Bar -->
+    <div class="flex flex-col md:flex-row gap-4">
+        <div class="relative flex-1 group">
+            <span class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-xl group-focus-within:text-primary-500 transition-colors">🔍</span>
+            <input type="text" [(ngModel)]="searchTerm" (input)="processMaterials()"
+                   placeholder="Search your materials..." 
+                   class="w-full pl-14 pr-6 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-soft focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-700 dark:text-slate-200">
+        </div>
+        
+        <select [(ngModel)]="selectedCourse" (change)="processMaterials()"
+                class="px-8 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-soft focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-700 dark:text-slate-200 font-bold min-w-[200px] appearance-none cursor-pointer">
+            <option value="all">All Courses</option>
+            <option *ngFor="let course of getCourseList()" [value]="course">{{ course }}</option>
+        </select>
+    </div>
+
+    <!-- Content Sections -->
+    <div class="space-y-12 pb-20">
+        <div *ngFor="let course of courses" class="space-y-6">
+            <div class="flex items-center gap-4">
+                <h2 class="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{{ course }}</h2>
+                <div class="h-1 flex-1 bg-slate-100 dark:bg-slate-800/50 rounded-full"></div>
+                <span class="text-slate-400 font-bold text-sm bg-slate-50 dark:bg-slate-900 px-4 py-1.5 rounded-full border border-slate-200/50 dark:border-slate-800/50">
+                    {{ groupedMaterials[course].length }} items
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div *ngFor="let m of groupedMaterials[course]" 
+                     class="group bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 hover:border-primary-500/30 shadow-soft hover:shadow-premium transition-all duration-500 relative overflow-hidden">
+                    
+                    <!-- Hover Background Polish -->
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-primary-50 dark:bg-primary-900/10 rounded-full -mr-16 -mt-16 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                    <div class="flex items-start gap-5 relative z-10">
+                        <div class="w-16 h-16 shrink-0 bg-slate-50 dark:bg-slate-800 group-hover:bg-primary-500 group-hover:scale-110 rounded-2xl flex items-center justify-center text-3xl transition-all duration-500 shadow-sm">
+                            {{ getFileIcon(m.fileType) }}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-black text-slate-800 dark:text-white text-lg leading-snug mb-1 truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                {{ m.title }}
+                            </h3>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 h-10">{{ m.description || 'Reference material for your curriculum.' }}</p>
+                            
+                            <div class="flex items-center gap-3">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ m.uploadedAt | date:'mediumDate' }}</span>
+                                <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ m.fileType.split('/')[1] || 'FILE' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex gap-3">
+                        <button (click)="openFile(m.fileUrl)" 
+                                class="flex-1 py-3 bg-slate-50 dark:bg-slate-800 hover:bg-primary-600 text-slate-700 dark:text-slate-200 hover:text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 group/btn">
+                            <span>Open Content</span>
+                            <span class="group-hover/btn:translate-x-1 transition-transform">➡️</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- No Content State -->
+        <div *ngIf="materials.length === 0" class="flex flex-col items-center justify-center py-32 text-center bg-white/50 dark:bg-slate-900/50 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <div class="w-32 h-32 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-6xl mb-8 animate-bounce">🔭</div>
+            <h3 class="text-3xl font-black text-slate-800 dark:text-white mb-4 tracking-tight">Nothing here yet!</h3>
+            <p class="text-lg text-slate-500 dark:text-slate-400 max-w-md mx-auto px-6 font-medium">Your instructors haven't shared any study materials with you yet. Check back soon!</p>
+        </div>
+        
+        <div *ngIf="materials.length > 0 && courses.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
+            <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-4xl mb-6">🏜️</div>
+            <h3 class="text-2xl font-black text-slate-800 dark:text-white">No results found</h3>
+            <p class="text-slate-500 dark:text-slate-400 mt-2 font-medium">No materials match your current search or filter.</p>
+            <button (click)="searchTerm = ''; selectedCourse = 'all'; processMaterials()" class="mt-6 text-primary-600 font-bold hover:underline">Clear all filters</button>
+        </div>
+    </div>
+</div>

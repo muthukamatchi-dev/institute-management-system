@@ -1,0 +1,22 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.institute:institute-api >---------------------
+[INFO] Building Institute Management API 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.3.2:clean (default-clean) @ institute-api ---
+[INFO] Deleting C:\Users\ammug\OneDrive\AMMU CLOUD\LANGUAGE PROGRAMMES\ANTIGRAVITY\upgraded_project\backend\springboot-app\target
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.257 s
+[INFO] Finished at: 2026-03-21T23:04:07+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-clean-plugin:3.3.2:clean (default-clean) on project institute-api: Failed to clean project: Failed to delete C:\Users\ammug\OneDrive\AMMU CLOUD\LANGUAGE PROGRAMMES\ANTIGRAVITY\upgraded_project\backend\springboot-app\target\institute-api-1.0.0.jar -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

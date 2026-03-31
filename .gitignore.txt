@@ -1,0 +1,11 @@
+# Angular
+node_modules/
+dist/
+
+# Spring Boot
+target/
+*.log
+
+# IDE
+.vscode/
+.idea/

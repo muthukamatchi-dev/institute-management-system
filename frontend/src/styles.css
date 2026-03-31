@@ -1,0 +1,319 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Default Blue Theme Variables (RGB) */
+  --color-primary-50: 239 246 255;
+  --color-primary-100: 219 234 254;
+  --color-primary-200: 191 219 254;
+  --color-primary-300: 147 197 253;
+  --color-primary-400: 96 165 250;
+  --color-primary-500: 59 130 246;
+  --color-primary-600: 37 99 235;
+  --color-primary-700: 29 78 216;
+  --color-primary-800: 30 64 175;
+  --color-primary-900: 30 58 138;
+
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+}
+
+/* Dark Mode Overrides */
+.dark {
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+}
+
+/* Theme Presets */
+[data-theme="purple"] {
+  --color-primary-50: 250 245 255;
+  --color-primary-100: 243 232 255;
+  --color-primary-200: 233 213 255;
+  --color-primary-300: 216 180 254;
+  --color-primary-400: 192 132 252;
+  --color-primary-500: 168 85 247;
+  --color-primary-600: 147 51 234;
+  --color-primary-700: 126 34 206;
+  --color-primary-800: 107 33 168;
+  --color-primary-900: 88 28 135;
+}
+
+[data-theme="green"] {
+  --color-primary-50: 236 253 245;
+  --color-primary-100: 209 250 229;
+  --color-primary-200: 167 243 208;
+  --color-primary-300: 110 231 183;
+  --color-primary-400: 52 211 153;
+  --color-primary-500: 16 185 129;
+  --color-primary-600: 5 150 105;
+  --color-primary-700: 4 120 87;
+  --color-primary-800: 6 95 70;
+  --color-primary-900: 6 78 59;
+}
+
+[data-theme="rose"] {
+  --color-primary-50: 255 241 242;
+  --color-primary-100: 255 228 230;
+  --color-primary-200: 254 205 211;
+  --color-primary-300: 253 164 175;
+  --color-primary-400: 251 113 133;
+  --color-primary-500: 244 63 94;
+  --color-primary-600: 225 29 72;
+  --color-primary-700: 190 18 60;
+  --color-primary-800: 159 18 57;
+  --color-primary-900: 136 19 55;
+}
+
+[data-theme="amber"] {
+  --color-primary-50: 255 251 235;
+  --color-primary-100: 254 243 199;
+  --color-primary-200: 253 230 138;
+  --color-primary-300: 252 211 77;
+  --color-primary-400: 251 191 36;
+  --color-primary-500: 245 158 11;
+  --color-primary-600: 217 119 6;
+  --color-primary-700: 180 83 9;
+  --color-primary-800: 146 64 14;
+  --color-primary-900: 120 53 15;
+}
+
+body {
+  background-color: var(--bg-main);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text-main);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Base Card Class */
+.base-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+}
+
+.dark .base-card {
+  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Global Button Visibility Enhancement for Light Mode */
+button:not([class*="bg-transparent"]):not([class*="bg-none"]):not([class*="bg-primary"]):not([class*="bg-slate-900"]):not(.dark *) {
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:not([class*="bg-transparent"]):not([class*="bg-none"]):not(.dark *):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+.dark button {
+  box-shadow: none !important;
+}
+
+/* Global Container Visibility (Light Mode) */
+:not(.dark) [class*="bg-white"],
+:not(.dark) [class*="bg-slate-50"] {
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+:not(.dark) .shadow-soft {
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1), 0 5px 20px -8px rgba(0, 0, 0, 0.08) !important;
+}
+
+:not(.dark) .shadow-xl,
+:not(.dark) .shadow-2xl {
+  box-shadow: 0 25px 80px -15px rgba(0, 0, 0, 0.15), 0 10px 40px -15px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Global Form Visibility (Light Mode) */
+:not(.dark) input,
+:not(.dark) select,
+:not(.dark) textarea {
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+:not(.dark) input:focus,
+:not(.dark) select:focus,
+:not(.dark) textarea:focus {
+  border-color: rgba(var(--color-primary-500), 1) !important;
+  box-shadow: 0 0 0 4px rgba(var(--color-primary-500), 0.1) !important;
+}
+
+/* Global Elegant Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--color-primary-500), 0.15);
+  border-radius: 99px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--color-primary-500), 0.4);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--color-primary-500), 0.15) transparent;
+}
+
+/* Dark Mode Scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dark {
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+/* Custom Scrollbar Utility */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.4);
+  border-radius: 10px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.5);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+@keyframes float-3d {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(15px, -30px) rotate(5deg); }
+  66% { transform: translate(-15px, 15px) rotate(-3deg); }
+}
+
+@keyframes float-3d-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); rotate: 0deg; }
+  50% { transform: translate(-30px, 30px) scale(1.1); rotate: -10deg; }
+}
+
+.animate-float-3d {
+  animation: float-3d 6s ease-in-out infinite;
+}
+
+.animate-float-3d-slow {
+  animation: float-3d-slow 15s ease-in-out infinite;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+@keyframes mesh-pulse {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(10%, 10%) scale(1.2); }
+}
+
+@keyframes text-shine {
+  from { background-position: 0% center; }
+  to { background-position: 200% center; }
+}
+
+@keyframes flow {
+  from { background-position: 0% 0%; }
+  to { background-position: 100% 100%; }
+}
+
+.animate-text-shine {
+  background-size: 200% auto;
+  animation: text-shine 4s linear infinite;
+}
+
+/* Global Dropdown Visibility Fix */
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+.dark select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+}
+
+/* Ensure options are visible clearly */
+option {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  padding: 12px;
+}
+
+.dark option {
+  background-color: #1e293b; /* slate-800 */
+  color: #f1f5f9; /* slate-100 */
+}
+
+/* Fix for Safari/Chrome on Mac/iOS and Windows browsers that ignore inherit on options */
+select option {
+  font-weight: 500;
+}
+
+.shadow-button {
+  box-shadow: 0 10px 25px -5px rgba(var(--color-primary-500), 0.3);
+}
+
+.shadow-premium {
+  box-shadow: 0 20px 50px -10px rgba(var(--color-primary-500), 0.4);
+}

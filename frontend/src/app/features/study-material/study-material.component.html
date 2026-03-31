@@ -1,0 +1,374 @@
+<div class="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-140px)] gap-6 animate-in fade-in duration-700">
+    <!-- Sidebar: Course Selection -->
+    <div
+        class="w-full lg:w-80 flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] lg:rounded-[2.5rem] border border-slate-200/50 dark:border-slate-800/50 shadow-soft overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-xl font-black text-slate-800 dark:text-white mb-4">Courses</h3>
+            <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                <input type="text" [(ngModel)]="courseSearchTerm" placeholder="Find course..."
+                    class="w-full pl-10 pr-4 py-2.5 bg-slate-100/50 dark:bg-slate-800/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-primary-500 transition-all outline-none">
+            </div>
+        </div>
+        <div
+            class="flex-1 lg:overflow-y-auto p-4 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-hidden custom-scrollbar">
+            <button *ngFor="let course of filteredCourses" (click)="selectCourse(course)"
+                [class.bg-primary-600]="selectedCourse?.id === course.id"
+                [class.text-white]="selectedCourse?.id === course.id"
+                [class.shadow-premium]="selectedCourse?.id === course.id"
+                class="whitespace-nowrap flex-shrink-0 lg:w-full text-left px-5 py-3 lg:py-4 rounded-2xl lg:rounded-3xl transition-all duration-300 group hover:translate-x-1 border-2 border-transparent"
+                [class.border-primary-500]="selectedCourse?.id === course.id">
+                <p class="font-bold truncate" [class.text-slate-700]="selectedCourse?.id !== course.id"
+                    [class.dark:text-slate-200]="selectedCourse?.id !== course.id">
+                    {{ course.name }}
+                </p>
+                <p class="hidden sm:block text-[10px] uppercase tracking-widest font-bold opacity-60 mt-1">
+                    {{ course.duration }} • ₹{{ course.fees | number }}
+                </p>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content: Materials -->
+    <div class="flex-1 flex flex-col gap-6 overflow-hidden">
+        <!-- Dashboard Header -->
+        <div
+            class="bg-white dark:bg-slate-900 rounded-[2rem] lg:rounded-[2.5rem] p-6 lg:p-8 border border-slate-200/50 dark:border-slate-800/50 shadow-soft flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-4 lg:gap-6 w-full sm:w-auto">
+                <div
+                    class="w-14 h-14 lg:w-16 lg:h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center text-2xl lg:text-3xl shadow-inner shrink-0">
+                    📁
+                </div>
+                <div class="min-w-0">
+                    <h2 class="text-xl lg:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                        {{ selectedCourse?.name }}
+                    </h2>
+                    <p
+                        class="text-slate-500 dark:text-slate-400 font-bold text-[10px] lg:text-sm uppercase tracking-widest mt-1">
+                        {{ filteredMaterials.length }} Materials
+                    </p>
+                </div>
+            </div>
+            <button (click)="openAddModal()"
+                class="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-2xl sm:rounded-3xl font-black transition-all shadow-button hover:shadow-premium flex items-center justify-center gap-2 group text-sm lg:text-base">
+                <span class="group-hover:rotate-180 transition-transform duration-500">➕</span>
+                Create Material
+            </button>
+        </div>
+
+        <!-- Materials Grid -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2">
+            <!-- Search & Actions -->
+            <div class="flex items-center gap-4 mb-6">
+                <div class="relative flex-1 group">
+                    <span
+                        class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-500 transition-colors">🔎</span>
+                    <input type="text" [(ngModel)]="materialSearchTerm" placeholder="Search materials in this course..."
+                        class="w-full pl-14 pr-6 py-4 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl shadow-soft focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
+                <div *ngFor="let m of filteredMaterials"
+                    class="group bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-800/50 shadow-soft hover:shadow-premium transition-all duration-500 p-6 flex flex-col relative overflow-hidden">
+
+                    <!-- Decorative Type Indicator -->
+                    <div
+                        class="absolute -top-4 -right-4 w-12 h-12 bg-primary-500/5 rounded-full blur-xl group-hover:scale-150 transition-transform">
+                    </div>
+
+                    <div class="flex items-start gap-4 mb-4">
+                        <div
+                            class="w-14 h-14 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform shrink-0">
+                            {{ getFileIcon(m.fileType) }}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-black text-slate-800 dark:text-white text-lg line-clamp-1 mb-1">{{ m.title
+                                }}</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">{{
+                                m.fileType.split('/')[1] || 'FILE' }}</p>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-slate-500 dark:text-slate-400 font-medium line-clamp-2 mb-6 h-10">
+                        {{ m.description || 'No description provided for this resource.' }}
+                    </p>
+
+                    <div class="mt-auto space-y-4">
+                        <!-- Assignment Info -->
+                        <div class="flex flex-wrap gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <app-badge
+                                *ngIf="m.targetType === 'none' || (!m.batch_target_ids?.length && !m.student_target_ids?.length)"
+                                label="⚠️ Not Shared" type="warning"></app-badge>
+
+                            <app-badge *ngIf="m.targetType === 'all'" label="🌍 Shared with All"
+                                type="info"></app-badge>
+
+                            <app-badge *ngIf="m.targetType === 'batch'"
+                                [label]="'👥 ' + m.batch_target_ids?.length + ' Batches'" type="info"></app-badge>
+
+                            <app-badge *ngIf="m.targetType === 'student'"
+                                [label]="'👤 ' + m.student_target_ids?.length + ' Students'" type="success"></app-badge>
+
+                            <app-badge *ngIf="m.targetType === 'mixed'"
+                                [label]="'🔗 Mixed Allocation (' + ((m.batch_target_ids?.length || 0) + (m.student_target_ids?.length || 0)) + ')'"
+                                type="info"></app-badge>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button (click)="viewMaterial(m)"
+                                class="flex-1 h-12 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl transition-all flex items-center justify-center gap-2">
+                                👀 View
+                            </button>
+                            <button (click)="openShareModal(m)"
+                                class="flex-1 h-12 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-2xl transition-all shadow-button hover:shadow-premium flex items-center justify-center gap-2">
+                                🔗 Share
+                            </button>
+                            <button (click)="deleteMaterial(m.id)"
+                                class="w-12 h-12 bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-600 hover:text-white font-bold rounded-2xl transition-all flex items-center justify-center shadow-sm">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div *ngIf="filteredMaterials.length === 0"
+                    class="col-span-full py-20 flex flex-col items-center justify-center text-center opacity-60">
+                    <div
+                        class="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-5xl mb-6">
+                        🏝️</div>
+                    <h3 class="text-xl font-bold text-slate-800 dark:text-white">Empty Course Shelf</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto font-medium">No study
+                        materials have been created for this course yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Creation Modal -->
+<app-modal [isOpen]="isAddModalOpen" (onClose)="isAddModalOpen = false" [showFooter]="false"
+    title="Create New Study Material" size="lg">
+    <div class="space-y-8 p-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="md:col-span-2 space-y-4">
+                <label class="block text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Material Title</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg">📝</span>
+                    <input type="text" [(ngModel)]="newMaterial.title" placeholder="e.g., Advanced JavaScript PDF"
+                        class="w-full pl-12 pr-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent focus:border-primary-500 rounded-[1.5rem] transition-all outline-none font-bold text-slate-700 dark:text-slate-200">
+                </div>
+            </div>
+
+            <div class="md:col-span-2 space-y-4">
+                <label class="block text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Detailed
+                    Description</label>
+                <textarea [(ngModel)]="newMaterial.description" rows="4"
+                    placeholder="What does this material cover? Any instructions for the students?"
+                    class="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent focus:border-primary-500 rounded-[1.5rem] transition-all outline-none font-medium text-slate-700 dark:text-slate-200"></textarea>
+            </div>
+
+            <div class="md:col-span-2 space-y-4">
+                <label class="block text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Resource File</label>
+                <div class="relative group">
+                    <input type="file" (change)="onFileSelected($event)"
+                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                    <div
+                        class="px-8 py-10 bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 group-hover:border-primary-500/50 rounded-[2rem] flex flex-col items-center justify-center transition-all text-center">
+                        <span class="text-4xl mb-4 transition-transform group-hover:scale-125 duration-500">
+                            {{ selectedFile ? '✅' : '📤' }}
+                        </span>
+                        <p class="font-black text-slate-700 dark:text-slate-300">
+                            {{ selectedFile ? selectedFile.name : 'Drag & Drop or Click to Select File' }}
+                        </p>
+                        <p class="text-xs text-slate-400 mt-2 font-bold uppercase tracking-widest">Supports PDF, DOCX,
+                            ZIP, IMAGES (MAX 50MB)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Fields Section -->
+        <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <app-custom-fields-renderer location="study_material"
+                [entityId]="newMaterial.id"></app-custom-fields-renderer>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-6">
+            <button (click)="isAddModalOpen = false"
+                class="px-8 py-4 font-black text-slate-400 hover:text-slate-600 transition-colors">Abort</button>
+            <button (click)="saveMaterial()" [disabled]="isUploading || !newMaterial.title || !selectedFile"
+                class="bg-primary-600 hover:bg-primary-700 text-white px-12 py-4 rounded-3xl font-black transition-all shadow-button hover:shadow-premium disabled:opacity-50 flex items-center gap-3">
+                <span *ngIf="isUploading" class="animate-spin text-xl">⏳</span>
+                {{ isUploading ? 'Uploading Virtual Shelf...' : 'Save & Prepare Sharing' }}
+            </button>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Sharing Modal -->
+<app-modal [isOpen]="isShareModalOpen" (onClose)="isShareModalOpen = false" [showFooter]="false"
+    title="Allocate Study Material" size="lg">
+    <div class="space-y-10 p-2">
+        <div class="flex items-center gap-6 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem]">
+            <div
+                class="w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center text-3xl shadow-soft">
+                {{ getFileIcon(sharingMaterial?.fileType || '') }}
+            </div>
+            <div>
+                <h4 class="text-lg font-black text-slate-800 dark:text-white truncate">{{ sharingMaterial?.title }}</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest mt-1">Resource
+                    for {{ selectedCourse?.name }}</p>
+            </div>
+        </div>
+
+        <!-- Allocation Tabs -->
+        <div
+            class="bg-primary-50 dark:bg-primary-900/10 p-5 rounded-3xl border border-primary-100 dark:border-primary-900/30">
+            <div class="flex items-center gap-2">
+                <button (click)="switchAssignTab('unassigned')" [class.bg-primary-500]="assignTab === 'unassigned'"
+                    [class.text-white]="assignTab === 'unassigned'"
+                    [class.bg-white]="assignTab !== 'unassigned' && assignTab !== 'assigned'"
+                    [class.dark:bg-slate-900]="assignTab !== 'unassigned'"
+                    [class.text-slate-400]="assignTab !== 'unassigned'"
+                    class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                    Unassigned {{ shareTargetType === 'batch' ? 'Batches' : 'Candidates' }}
+                </button>
+                <button (click)="switchAssignTab('assigned')" [class.bg-primary-500]="assignTab === 'assigned'"
+                    [class.text-white]="assignTab === 'assigned'" [class.dark:bg-slate-900]="assignTab !== 'assigned'"
+                    [class.text-slate-400]="assignTab !== 'assigned'"
+                    class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                    Assigned History
+                </button>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <!-- Search & Filter -->
+            <div class="flex-1 relative">
+                <input type="text" [(ngModel)]="studentSearchQuery" placeholder="Search by name or info..."
+                    class="w-full pl-12 pr-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔍</span>
+            </div>
+
+            <div class="flex p-2 bg-slate-100 dark:bg-slate-800 rounded-2xl shadow-inner shrink-0">
+                <button (click)="onShareTargetTypeChange('batch')" [class.bg-white]="shareTargetType === 'batch'"
+                    [class.dark:bg-slate-900]="shareTargetType === 'batch'"
+                    [class.text-primary-600]="shareTargetType === 'batch'"
+                    class="px-5 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2">
+                    👥 Batches
+                </button>
+                <button (click)="onShareTargetTypeChange('one-one')" [class.bg-white]="shareTargetType === 'one-one'"
+                    [class.dark:bg-slate-900]="shareTargetType === 'one-one'"
+                    [class.text-primary-600]="shareTargetType === 'one-one'"
+                    class="px-5 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2">
+                    👤 One:One
+                </button>
+            </div>
+
+            <!-- List View -->
+            <div class="max-h-[40vh] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                <div *ngFor="let opt of getShareOptions()"
+                    (click)="assignTab === 'unassigned' ? toggleTargetSelection(opt.id) : null"
+                    [class.ring-2]="selectedTargetIds.includes(opt.id) && assignTab === 'unassigned'"
+                    [class.bg-primary-50/10]="selectedTargetIds.includes(opt.id) && assignTab === 'unassigned'"
+                    class="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-between group transition-all hover:border-primary-500/30">
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-slate-400 group-hover:bg-primary-500 group-hover:text-white transition-all">
+                            {{ (opt.name || opt.batchName || '?').charAt(0) }}
+                        </div>
+                        <div>
+                            <p class="font-black text-slate-800 dark:text-white text-sm line-clamp-1">{{ opt.name ||
+                                opt.batchName }}</p>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                                {{ opt.regNumber ? opt.regNumber + ' • ' : '' }} {{ opt.courseName ||
+                                selectedCourse?.name }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div *ngIf="assignTab === 'unassigned'"
+                        class="w-6 h-6 rounded-full border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center transition-all"
+                        [class.bg-primary-500]="selectedTargetIds.includes(opt.id)"
+                        [class.border-primary-500]="selectedTargetIds.includes(opt.id)">
+                        <span *ngIf="selectedTargetIds.includes(opt.id)"
+                            class="text-[10px] text-white font-bold">✓</span>
+                    </div>
+
+                    <div *ngIf="assignTab === 'assigned'">
+                        <button (click)="revokeAccess(opt.id)"
+                            class="px-4 py-2 bg-red-50 dark:bg-red-900/10 text-red-600 text-[10px] font-black uppercase rounded-xl border border-red-100 dark:border-red-900/30 hover:bg-red-600 hover:text-white transition-all">
+                            Revoke
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Empty state for list -->
+                <div *ngIf="getShareOptions().length === 0" class="py-12 text-center opacity-40">
+                    <p class="text-sm font-bold uppercase tracking-widest">No matching {{ assignTab }} items</p>
+                </div>
+            </div>
+
+            <p *ngIf="assignTab === 'unassigned'"
+                class="text-[10px] text-center text-slate-500 font-bold uppercase tracking-widest bg-slate-100/50 dark:bg-slate-800/50 py-3 rounded-2xl">
+                Ready to assign to {{ selectedTargetIds.length }} new recipients
+            </p>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <button (click)="isShareModalOpen = false"
+                class="px-8 py-4 font-black text-slate-400 hover:text-slate-600 transition-colors">Cancel</button>
+            <button *ngIf="assignTab === 'unassigned'" (click)="confirmShare()"
+                [disabled]="selectedTargetIds.length === 0"
+                class="bg-primary-600 hover:bg-primary-700 text-white px-12 py-4 rounded-3xl font-black transition-all shadow-button hover:shadow-premium disabled:opacity-50 flex items-center gap-3">
+                🔗 Finalize Allocation
+            </button>
+        </div>
+    </div>
+</app-modal>
+
+<!-- View Modal -->
+<app-modal [isOpen]="isViewModalOpen" (onClose)="isViewModalOpen = false" [showFooter]="false" title="Resource Details"
+    size="md">
+    <div class="space-y-8 p-2" *ngIf="sharingMaterial">
+        <div class="flex flex-col items-center text-center">
+            <div
+                class="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center text-5xl mb-6 shadow-inner">
+                {{ getFileIcon(sharingMaterial.fileType) }}
+            </div>
+            <h3 class="text-2xl font-black text-slate-800 dark:text-white leading-tight mb-2">{{ sharingMaterial.title
+                }}</h3>
+            <p class="text-xs text-slate-500 uppercase font-black tracking-widest">{{ sharingMaterial.courseName }} • {{
+                sharingMaterial.fileType.split('/')[1] || 'FILE' }}</p>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800">
+            <p class="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                {{ sharingMaterial.description || 'No detailed description provided for this resource.' }}
+            </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div
+                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-soft">
+                <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Uploaded By</p>
+                <p class="font-bold text-slate-700 dark:text-slate-200 truncate">{{ sharingMaterial.uploadedByName ||
+                    'Staff Member' }}</p>
+            </div>
+            <div
+                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-soft">
+                <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Upload Date</p>
+                <p class="font-bold text-slate-700 dark:text-slate-200 truncate">{{ sharingMaterial.uploadedAt |
+                    date:'mediumDate' }}</p>
+            </div>
+        </div>
+
+        <button (click)="openFile(sharingMaterial.fileUrl)"
+            class="w-full bg-primary-600 hover:bg-primary-700 text-white py-4 rounded-2xl font-black shadow-button hover:shadow-premium transition-all flex items-center justify-center gap-2">
+            📥 Download / Open Resource
+        </button>
+    </div>
+</app-modal>

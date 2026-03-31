@@ -1,0 +1,335 @@
+<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-4 lg:px-0">
+        <div>
+            <h2 class="text-3xl lg:text-4xl font-black text-slate-800 dark:text-white tracking-tight">Question Bank</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm lg:text-base">Manage and conduct exams from your reusable question templates.</p>
+        </div>
+        <button (click)="openCreateModal()"
+            class="w-full lg:w-auto group relative flex items-center justify-center gap-3 px-8 py-4 bg-primary-600 dark:bg-primary-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 dark:hover:bg-primary-400 transition-all shadow-xl shadow-primary-500/20 active:scale-95">
+            <span class="text-lg group-hover:rotate-90 transition-transform">+</span>
+            New Template
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Courses Navigation -->
+        <div class="lg:col-span-3 space-y-4">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-6 shadow-sm border border-slate-100 dark:border-slate-800/50 overflow-hidden">
+                <h3 class="hidden lg:block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6 px-4">
+                    Navigation</h3>
+
+                <!-- Search Course (Hidden on mobile scroll) -->
+                <div class="hidden lg:block relative mb-6 px-2">
+                    <input type="text" [(ngModel)]="courseSearchTerm" placeholder="Find course..."
+                        class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-xs font-bold text-slate-700 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-primary-500/10 transition-all">
+                    <span class="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+                </div>
+
+                <div class="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:max-h-[60vh] custom-scrollbar pb-2 lg:pb-0">
+                    <button *ngFor="let course of filteredCourses" (click)="selectCourse(course)"
+                        [class.bg-slate-50]="selectedCourse?.id === course.id"
+                        [class.dark:bg-slate-800]="selectedCourse?.id === course.id"
+                        [class.text-primary-600]="selectedCourse?.id === course.id"
+                        [class.dark:text-primary-400]="selectedCourse?.id === course.id"
+                        class="whitespace-nowrap flex-shrink-0 flex items-center gap-3 lg:gap-4 px-4 lg:px-6 py-3 lg:py-4 rounded-xl lg:rounded-3xl text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800 group relative border-2 border-transparent"
+                        [class.border-primary-500]="selectedCourse?.id === course.id">
+                        <div
+                            class="w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-50Group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors text-xs lg:text-base">
+                            {{ course.name.charAt(0) }}
+                        </div>
+                        <span class="font-bold text-xs lg:text-sm truncate">{{ course.name }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Templates List -->
+        <div class="lg:col-span-9 space-y-6">
+            <div *ngIf="!selectedCourse"
+                class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-100 dark:border-slate-800">
+                <div
+                    class="w-24 h-24 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center text-4xl mb-6">
+                    📚</div>
+                <h3 class="text-2xl font-black text-slate-800 dark:text-white">Select a Course</h3>
+                <p class="text-slate-400 dark:text-slate-500 max-w-xs mt-2">Choose a course from the sidebar to view its
+                    question templates.</p>
+            </div>
+
+            <div *ngIf="selectedCourse" class="space-y-6">
+                <div
+                    class="flex flex-col sm:flex-row sm:items-center justify-between bg-white dark:bg-slate-900 px-6 sm:px-10 py-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800/50 gap-6">
+                    <div class="flex items-center gap-4 sm:gap-6">
+                        <div
+                            class="w-12 h-12 sm:w-16 sm:h-16 bg-primary-50 dark:bg-primary-900/20 rounded-2xl sm:rounded-3xl flex items-center justify-center text-primary-600 dark:text-primary-400 text-xl sm:text-2xl font-black flex-shrink-0">
+                            {{ selectedCourse.name.charAt(0) }}
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white truncate">{{ selectedCourse.name }}
+                            </h3>
+                            <p class="text-slate-400 dark:text-slate-500 font-medium text-xs sm:text-sm">Available Templates</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+                        <!-- Search Template -->
+                        <div class="relative w-full sm:w-64">
+                            <input type="text" [(ngModel)]="templateSearchTerm" placeholder="Search templates..."
+                                class="w-full pl-12 pr-6 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-[10px] sm:text-xs font-black text-slate-800 dark:text-white placeholder-slate-400 outline-none focus:ring-4 focus:ring-primary-500/5 transition-all shadow-inner">
+                            <span class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                        </div>
+
+                        <span
+                            class="px-6 py-3.5 bg-primary-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary-500/20 whitespace-nowrap text-center">
+                            {{ filteredTemplates.length }} Templates
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div *ngFor="let template of filteredTemplates"
+                        class="group bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-slate-200 dark:hover:shadow-none border border-slate-100 dark:border-slate-800/50 transition-all active:scale-[0.98]">
+                        <div class="flex justify-between items-start mb-6">
+                            <div
+                                class="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-xl">
+                                📄
+                            </div>
+                            <div
+                                class="flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                <button (click)="editTemplate(template)"
+                                    class="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-primary-600 dark:hover:text-primary-400">✏️</button>
+                                <button (click)="copyTemplate(template)"
+                                    class="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">📋</button>
+                                <button (click)="deleteTemplate(template.id)"
+                                    class="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-600 dark:hover:text-red-400">🗑️</button>
+                            </div>
+                        </div>
+
+                        <h4 class="text-xl font-black text-slate-800 dark:text-white mb-2">{{ template.title }}</h4>
+                        <p class="text-slate-400 dark:text-slate-500 font-medium text-sm mb-8">Contains {{
+                            template.questions.length }} questions</p>
+
+                        <div
+                            class="pt-6 border-t border-slate-50 dark:border-slate-800/50 flex items-center justify-between gap-4">
+                            <button (click)="viewTemplate(template)"
+                                class="flex-1 px-4 py-4 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                View Paper
+                            </button>
+                            <button (click)="openConductModal(template)"
+                                class="flex-1 px-4 py-4 bg-emerald-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
+                                Conduct Exam
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State for Templates -->
+                    <div *ngIf="filteredTemplates.length === 0"
+                        class="col-span-1 md:col-span-2 bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-16 flex flex-col items-center justify-center text-center">
+                        <div
+                            class="w-20 h-20 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm">
+                            ➕</div>
+                        <h4 class="text-lg font-black text-slate-400 dark:text-slate-600">No Templates Found</h4>
+                        <p class="text-slate-400 dark:text-slate-700 text-sm mt-1 mb-6">Start by creating your first
+                            question template for this course.</p>
+                        <button (click)="openCreateModal()"
+                            class="text-primary-600 dark:text-primary-400 font-black text-xs uppercase tracking-widest hover:underline">Create
+                            Template Now</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Create/Edit Template -->
+<app-modal [isOpen]="isCreateModalOpen" (onClose)="isCreateModalOpen = false" (onSubmit)="saveTemplate()"
+    [title]="newTemplate.id ? 'Edit Template' : 'Create Template'"
+    [actionLabel]="newTemplate.id ? 'Update Template' : 'Save Template'" size="huge">
+    <div class="space-y-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-2">
+                <label
+                    class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-4">Template
+                    Title</label>
+                <input type="text" [(ngModel)]="newTemplate.title" placeholder="e.g., Sample Test 1, Slip Test..."
+                    class="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-3xl text-lg font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/10 transition-all">
+            </div>
+            <div class="space-y-2">
+                <label
+                    class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-4">Associated
+                    Course</label>
+                <select [(ngModel)]="newTemplate.courseId"
+                    class="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl text-lg font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/10 transition-all cursor-pointer">
+                    <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="px-4 py-6 bg-slate-50/50 dark:bg-slate-800/20 rounded-[2rem] border border-slate-100 dark:border-slate-800/50">
+            <app-custom-fields-renderer location="question_template" [entityId]="newTemplate.id"></app-custom-fields-renderer>
+        </div>
+
+        <div class="space-y-6">
+            <div class="flex items-center justify-between px-4">
+                <h4 class="text-xl font-black text-slate-800 dark:text-white">Questions ({{ newTemplate.questions.length
+                    }})</h4>
+            </div>
+
+            <div *ngIf="newTemplate.questions.length > 0"
+                class="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                <div *ngFor="let q of newTemplate.questions; let i = index"
+                    class="group bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 flex justify-between items-center transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80">
+                    <div class="flex items-center gap-6">
+                        <div
+                            class="w-12 h-12 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center font-black text-primary-600">
+                            Q{{ i + 1 }}
+                        </div>
+                        <div>
+                            <p class="font-bold text-slate-800 dark:text-white line-clamp-1">{{ q.question_text }}</p>
+                            <div class="flex gap-4 mt-1">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">{{
+                                    q.question_type }}</span>
+                                <span class="text-xs font-bold text-emerald-500 uppercase tracking-widest">{{ q.marks }}
+                                    Marks</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button (click)="startEditQuestion(i)"
+                            class="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:text-primary-500 transition-colors">✏️</button>
+                        <button (click)="removeQuestion(i)"
+                            class="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors">🗑️</button>
+                    </div>
+                </div>
+
+                <div class="h-px bg-slate-100 dark:bg-slate-800/50 my-10"></div>
+            </div>
+
+            <app-question-builder (onQuestionAdd)="onQuestionAdded($event)"
+                (onQuestionUpdate)="onQuestionUpdated($event)"></app-question-builder>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Modal: Conduct Exam -->
+<app-modal [isOpen]="isConductModalOpen" (onClose)="isConductModalOpen = false" (onSubmit)="confirmConduct()"
+    title="Conduct Assessment" actionLabel="Launch Assessment" size="huge">
+    <div class="space-y-8 p-4">
+        <div
+            class="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 p-6 rounded-[2rem] flex items-center gap-6 mb-4">
+            <div
+                class="w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center text-2xl shadow-sm">
+                🚀</div>
+            <div>
+                <h4 class="font-black text-emerald-800 dark:text-emerald-400">Launch Assessment</h4>
+                <p class="text-emerald-600/70 dark:text-emerald-400/50 text-sm font-medium">Creating an exam instance
+                    from: <b>{{ selectedTemplate?.title }}</b></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-2">
+                <label
+                    class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-4">Assessment
+                    Title</label>
+                <input type="text" [(ngModel)]="conductSettings.title"
+                    class="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-3xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all">
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-4">Exam
+                    Category</label>
+                <div class="flex gap-4">
+                    <button (click)="conductSettings.examType = 'internal'"
+                        [class.bg-primary-600]="conductSettings.examType === 'internal'"
+                        [class.text-white]="conductSettings.examType === 'internal'"
+                        [class.bg-slate-50]="conductSettings.examType !== 'internal'"
+                        [class.dark:bg-slate-800]="conductSettings.examType !== 'internal'"
+                        class="flex-1 py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all">
+                        Internal Exam
+                    </button>
+                    <button (click)="conductSettings.examType = 'external'"
+                        [class.bg-primary-600]="conductSettings.examType === 'external'"
+                        [class.text-white]="conductSettings.examType === 'external'"
+                        [class.bg-slate-50]="conductSettings.examType !== 'external'"
+                        [class.dark:bg-slate-800]="conductSettings.examType !== 'external'"
+                        class="flex-1 py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all">
+                        External Exam
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-4">Time
+                    Limit (Minutes)</label>
+                <div class="relative">
+                    <input type="number" [(ngModel)]="conductSettings.duration_minutes"
+                        class="w-full pl-8 pr-16 py-5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-3xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all">
+                    <span
+                        class="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest">MIN</span>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-4">Pass
+                    Percentage</label>
+                <div class="relative">
+                    <input type="number" [(ngModel)]="conductSettings.pass_percentage"
+                        class="w-full pl-8 pr-16 py-5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-3xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all">
+                    <span
+                        class="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest">%</span>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-4">Date
+                    of Conducting</label>
+                <input type="date" [(ngModel)]="conductSettings.date"
+                    class="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-3xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all">
+            </div>
+
+            <div class="space-y-2">
+                <label
+                    class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-4">Initial
+                    Status</label>
+                <select [(ngModel)]="conductSettings.status"
+                    class="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all cursor-pointer">
+                    <option value="active">Active (Start immediately)</option>
+                    <option value="draft">Draft (Prepare only)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</app-modal>
+
+<!-- View Paper Modal -->
+<app-modal [isOpen]="isViewModalOpen" (onClose)="isViewModalOpen = false"
+    [title]="selectedTemplate?.title + ' - Question Paper'" size="huge" [showFooter]="false">
+    <div class="space-y-6 max-h-[70vh] overflow-y-auto pr-4 custom-scrollbar">
+        <app-branding-header [settings]="settings" [title]="selectedTemplate?.title || ''"></app-branding-header>
+        
+        <div *ngFor="let q of selectedTemplate?.questions; let i = index"
+            class="p-8 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4">
+            <div class="flex items-center justify-between">
+                <span
+                    class="px-4 py-2 bg-white dark:bg-slate-900 rounded-xl text-xs font-black text-slate-400 uppercase tracking-widest">Question
+                    {{ i + 1 }}</span>
+                <span class="text-xs font-black text-emerald-500 uppercase tracking-widest">{{ q.marks }} Marks | {{
+                    q.question_type }}</span>
+            </div>
+            <p class="text-lg font-bold text-slate-800 dark:text-white leading-relaxed">{{ q.question_text }}</p>
+
+            <div *ngIf="q.question_type === 'mcq'" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <div *ngFor="let opt of q.options" [class.bg-emerald-50]="opt.is_correct"
+                    [class.dark:bg-emerald-900/10]="opt.is_correct" [class.border-emerald-200]="opt.is_correct"
+                    [class.dark:border-emerald-800/50]="opt.is_correct"
+                    class="px-5 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center justify-between">
+                    {{ opt.option_text }}
+                    <span *ngIf="opt.is_correct" class="text-emerald-500">✓</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</app-modal>
+

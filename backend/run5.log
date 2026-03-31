@@ -1,0 +1,86 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.institute:institute-api >---------------------
+[INFO] Building Institute Management API 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.2.5:run (default-cli) > test-compile @ institute-api >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ institute-api ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ institute-api ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ institute-api ---
+[INFO] skip non existing resourceDirectory C:\Users\ammug\OneDrive\AMMU CLOUD\LANGUAGE PROGRAMMES\ANTIGRAVITY\upgraded_project\backend\springboot-app\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ institute-api ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:3.2.5:run (default-cli) < test-compile @ institute-api <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.2.5:run (default-cli) @ institute-api ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-03-22T19:56:53.888+05:30  INFO 20000 --- [institute-api] [           main] com.institute.InstituteApplication       : Starting InstituteApplication using Java 25.0.2 with PID 20000 (C:\Users\ammug\OneDrive\AMMU CLOUD\LANGUAGE PROGRAMMES\ANTIGRAVITY\upgraded_project\backend\springboot-app\target\classes started by ammug in C:\Users\ammug\OneDrive\AMMU CLOUD\LANGUAGE PROGRAMMES\ANTIGRAVITY\upgraded_project\backend\springboot-app)
+2026-03-22T19:56:53.892+05:30  INFO 20000 --- [institute-api] [           main] com.institute.InstituteApplication       : No active profile set, falling back to 1 default profile: "default"
+2026-03-22T19:56:54.668+05:30  INFO 20000 --- [institute-api] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-22T19:56:54.915+05:30  INFO 20000 --- [institute-api] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 239 ms. Found 33 JPA repository interfaces.
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.apache.tomcat.jni.Library in an unnamed module (file:/C:/Users/ammug/.m2/repository/org/apache/tomcat/embed/tomcat-embed-core/10.1.20/tomcat-embed-core-10.1.20.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+2026-03-22T19:56:55.712+05:30  INFO 20000 --- [institute-api] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-03-22T19:56:55.724+05:30  INFO 20000 --- [institute-api] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-22T19:56:55.725+05:30  INFO 20000 --- [institute-api] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-03-22T19:56:55.872+05:30  INFO 20000 --- [institute-api] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-03-22T19:56:55.873+05:30  INFO 20000 --- [institute-api] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1926 ms
+2026-03-22T19:56:56.003+05:30  INFO 20000 --- [institute-api] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-03-22T19:56:56.046+05:30  INFO 20000 --- [institute-api] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-03-22T19:56:56.073+05:30  INFO 20000 --- [institute-api] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-03-22T19:56:56.268+05:30  INFO 20000 --- [institute-api] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-22T19:56:56.309+05:30  WARN 20000 --- [institute-api] [           main] com.zaxxer.hikari.HikariConfig           : Hikari-Pool-default - idleTimeout has been set but has no effect because the pool is operating as a fixed size pool.
+2026-03-22T19:56:56.309+05:30  INFO 20000 --- [institute-api] [           main] com.zaxxer.hikari.HikariDataSource       : Hikari-Pool-default - Starting...
+2026-03-22T19:56:56.544+05:30  INFO 20000 --- [institute-api] [           main] com.zaxxer.hikari.pool.HikariPool        : Hikari-Pool-default - Added connection com.mysql.cj.jdbc.ConnectionImpl@3bc20984
+2026-03-22T19:56:56.548+05:30  INFO 20000 --- [institute-api] [           main] com.zaxxer.hikari.HikariDataSource       : Hikari-Pool-default - Start completed.
+2026-03-22T19:56:56.573+05:30  WARN 20000 --- [institute-api] [           main] org.hibernate.orm.deprecation            : HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-22T19:56:56.573+05:30  WARN 20000 --- [institute-api] [           main] org.hibernate.orm.deprecation            : HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2026-03-22T19:56:57.938+05:30  INFO 20000 --- [institute-api] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-22T19:56:57.943+05:30  INFO 20000 --- [institute-api] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-22T19:56:58.173+05:30  INFO 20000 --- [institute-api] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-22T19:56:59.177+05:30  WARN 20000 --- [institute-api] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-22T19:56:59.192+05:30  WARN 20000 --- [institute-api] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 69c5cf1d-a5dc-45e0-8b14-bd53a498f281
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-03-22T19:56:59.470+05:30  INFO 20000 --- [institute-api] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@3ff00c4c, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@152f96e5, org.springframework.security.web.context.SecurityContextHolderFilter@fcdad9a, org.springframework.security.web.header.HeaderWriterFilter@240f4328, org.springframework.web.filter.CorsFilter@2168ed92, org.springframework.security.web.authentication.logout.LogoutFilter@18c9291e, com.institute.security.TokenAuthFilter@38ad8c75, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@4d97c12c, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@c9ebdb, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@4d27716b, org.springframework.security.web.session.SessionManagementFilter@7094dc0, org.springframework.security.web.access.ExceptionTranslationFilter@77d68b94, org.springframework.security.web.access.intercept.AuthorizationFilter@e74903f]
+2026-03-22T19:56:59.662+05:30  INFO 20000 --- [institute-api] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
+2026-03-22T19:56:59.669+05:30  INFO 20000 --- [institute-api] [           main] com.institute.InstituteApplication       : Started InstituteApplication in 6.195 seconds (process running for 6.635)
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:20 min
+[INFO] Finished at: 2026-03-22T19:58:11+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.2.5:run (default-cli) on project institute-api: Process terminated with exit code: 1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

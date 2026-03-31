@@ -1,0 +1,408 @@
+<div class="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans">
+    <!-- Login View -->
+    <div *ngIf="view === 'login'" class="flex items-center justify-center min-h-screen p-4">
+        <div
+            class="w-full max-w-md bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
+            <div class="bg-slate-900 border-b border-slate-800">
+                <app-branding-header [settings]="settings" [title]="'Candidate Portal'"></app-branding-header>
+            </div>
+
+            <div class="p-10 space-y-8">
+                <div class="space-y-5">
+                    <div>
+                        <label
+                            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Identity
+                            (Email/ID)</label>
+                        <input type="email" [(ngModel)]="loginData.email"
+                            class="w-full px-6 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl outline-none font-bold text-slate-700 dark:text-white transition-all focus:ring-4 focus:ring-primary-500/10"
+                            placeholder="your@email.com">
+                    </div>
+                    <div>
+                        <label
+                            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Security
+                            Key (Password)</label>
+                        <input type="password" [(ngModel)]="loginData.password"
+                            class="w-full px-6 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl outline-none font-bold text-slate-700 dark:text-white transition-all focus:ring-4 focus:ring-primary-500/10"
+                            placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button (click)="login()"
+                    class="w-full py-6 bg-primary-600 text-white font-black uppercase tracking-[0.2em] rounded-3xl shadow-xl shadow-primary-200 dark:shadow-none hover:bg-primary-700 active:scale-95 transition-all">
+                    Authorize & Enter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions View -->
+    <div *ngIf="view === 'instructions'" class="flex items-center justify-center min-h-screen p-4">
+        <div
+            class="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl p-14 space-y-10 border border-slate-100 dark:border-slate-800">
+            <div class="text-center space-y-4">
+                <div
+                    class="inline-block px-4 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-2">
+                    Login Successful</div>
+                <h2 class="text-4xl font-black text-slate-800 dark:text-white leading-tight">Review Your Strategy</h2>
+                <div class="flex justify-center gap-6 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                    <span class="flex items-center gap-2"><i class="text-primary-500">Q</i> {{ exam?.questions?.length
+                        }} Questions</span>
+                    <span class="text-slate-200">|</span>
+                    <span class="flex items-center gap-2"><i class="text-primary-500">T</i> {{ exam?.duration_minutes }}
+                        Minutes</span>
+                    <span class="text-slate-200">|</span>
+                    <span class="flex items-center gap-2"><i class="text-primary-500">M</i> {{ exam?.total_marks }}
+                        Total Marks</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[2.5rem]">
+                <div class="flex gap-4">
+                    <div class="text-2xl">⏳</div>
+                    <div>
+                        <p class="font-bold text-slate-800 dark:text-white text-sm">Strict Timing</p>
+                        <p class="text-xs text-slate-500">System auto-submits when time expires.</p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="text-2xl">🚧</div>
+                    <div>
+                        <p class="font-bold text-slate-800 dark:text-white text-sm">Secure Environment</p>
+                        <p class="text-xs text-slate-500">Do not refresh or exit the fullscreen mode.</p>
+                    </div>
+                </div>
+            </div>
+
+            <button (click)="startExam()"
+                class="w-full py-6 bg-emerald-600 text-white font-black uppercase tracking-[0.3em] rounded-3xl shadow-2xl shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all flex items-center justify-center gap-3">
+                Commence Assessment <span>→</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Ongoing Exam View -->
+    <div *ngIf="view === 'ongoing'" class="flex flex-col h-screen overflow-hidden relative bg-slate-900">
+        <header
+            class="bg-slate-900 border-b border-slate-800 p-6 px-12 flex items-center justify-between z-20 shadow-xl">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-xl shadow-inner">
+                    📝</div>
+                <h1 class="font-black text-white uppercase tracking-tighter text-lg">{{ exam?.title
+                    }}</h1>
+            </div>
+
+            <div class="flex items-center gap-10">
+                <app-exam-timer [durationMinutes]="exam.duration_minutes" (onTimeUp)="handleTimeUp()"></app-exam-timer>
+
+                <button (click)="submit()"
+                    class="bg-primary-600 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary-500/10 hover:scale-105 transition-all active:scale-95">
+                    Finalize Submission
+                </button>
+            </div>
+        </header>
+
+        <!-- Side Navigations (Absolute) -->
+        <button (click)="prev()" *ngIf="currentQuestionIndex > 0"
+            class="fixed left-8 top-1/2 -translate-y-1/2 w-20 h-20 bg-white/5 backdrop-blur-2xl rounded-3xl border border-white/10 flex items-center justify-center text-white text-3xl z-30 hover:bg-primary-600/20 hover:border-primary-500/40 hover:-translate-x-2 transition-all shadow-2xl group">
+            <span class="opacity-40 group-hover:opacity-100 transition-all">←</span>
+        </button>
+
+        <button (click)="next()" *ngIf="currentQuestionIndex < (exam?.questions?.length || 0)-1"
+            class="fixed right-8 top-1/2 -translate-y-1/2 w-20 h-20 bg-white/5 backdrop-blur-2xl rounded-3xl border border-white/10 flex items-center justify-center text-white text-3xl z-30 hover:bg-primary-600/20 hover:border-primary-500/40 hover:translate-x-2 transition-all shadow-2xl group">
+            <span class="opacity-40 group-hover:opacity-100 transition-all">→</span>
+        </button>
+
+        <main class="flex-1 overflow-y-auto scrollbar-hidden p-12 lg:p-20 flex justify-center bg-slate-900">
+            <div class="w-full max-w-4xl space-y-12 pb-20 relative">
+                <!-- Question Context -->
+                <div class="flex items-center justify-between px-2">
+                    <div class="flex items-center gap-6">
+                        <div
+                            class="w-16 h-16 bg-primary-600 rounded-3xl flex items-center justify-center text-white font-black text-2xl shadow-2xl shadow-primary-500/30">
+                            {{ currentQuestionIndex + 1 }}
+                        </div>
+                        <div>
+                            <p class="text-xs font-black text-primary-500 uppercase tracking-[0.2em] mb-1">Question
+                                Module</p>
+                            <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest leading-none">Part {{
+                                currentQuestionIndex + 1 }} of {{ exam?.questions?.length }}</h2>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Point
+                            Weight</p>
+                        <p class="text-2xl font-black text-white italic tracking-tighter">{{ currentQuestion?.marks }}
+                            Marks
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Content Area -->
+                <div class="space-y-12">
+                    <h2 class="text-5xl font-black text-white leading-tight italic tracking-tight">
+                        "{{ currentQuestion?.question_text }}"
+                    </h2>
+
+                    <!-- MCQ Interface -->
+                    <div *ngIf="currentQuestion?.question_type === 'mcq'"
+                        class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-10">
+                        <div *ngFor="let opt of currentQuestion?.options"
+                            (click)="answers[currentQuestionIndex].selected_option_id = opt.id"
+                            [class.ring-4]="answers[currentQuestionIndex].selected_option_id === opt.id"
+                            [class.bg-primary-600/10]="answers[currentQuestionIndex].selected_option_id === opt.id"
+                            [class.border-primary-500]="answers[currentQuestionIndex].selected_option_id === opt.id"
+                            class="p-10 bg-slate-800/40 border-2 border-transparent rounded-[2.5rem] cursor-pointer hover:bg-slate-800 transition-all font-bold text-2xl text-slate-300 ring-primary-500/20 shadow-2xl">
+                            <div class="flex items-center gap-8">
+                                <div class="w-10 h-10 rounded-full border-2 border-slate-600 flex items-center justify-center"
+                                    [class.bg-primary-500]="answers[currentQuestionIndex].selected_option_id === opt.id"
+                                    [class.border-primary-500]="answers[currentQuestionIndex].selected_option_id === opt.id">
+                                    <div *ngIf="answers[currentQuestionIndex].selected_option_id === opt.id"
+                                        class="w-3 h-3 bg-white rounded-full transition-transform"></div>
+                                </div>
+                                {{ opt.option_text }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subjective Interface -->
+                    <div *ngIf="currentQuestion?.question_type === 'text'" class="pt-10">
+                        <textarea [(ngModel)]="answers[currentQuestionIndex].answer_text" rows="8"
+                            class="w-full p-12 bg-slate-800/40 border-2 border-transparent rounded-[3.5rem] outline-none font-bold text-3xl text-white focus:ring-4 focus:ring-primary-500/10 transition-all shadow-2xl leading-relaxed"
+                            placeholder="Formulate your detailed response..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Progress Dots (Simplified) -->
+                <div class="flex flex-col items-center gap-6 pt-20">
+                    <div class="flex gap-3">
+                        <div *ngFor="let q of exam?.questions; let i = index"
+                            [class.bg-primary-500]="i === currentQuestionIndex"
+                            [class.scale-125]="i === currentQuestionIndex"
+                            [class.bg-slate-700]="i !== currentQuestionIndex && !answers[i].selected_option_id && !answers[i].answer_text"
+                            [class.bg-emerald-500/40]="i !== currentQuestionIndex && (answers[i].selected_option_id || answers[i].answer_text)"
+                            class="w-3 h-1 rounded-full transition-all duration-300"></div>
+                    </div>
+
+                    <button (click)="submit()" *ngIf="currentQuestionIndex === (exam?.questions?.length || 0)-1"
+                        class="px-16 py-6 bg-emerald-600 text-white font-black uppercase tracking-[0.2em] rounded-[2rem] shadow-2xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all text-sm">
+                        Finalize Assessment
+                    </button>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Result View -->
+    <div *ngIf="view === 'result'" class="flex items-center justify-center min-h-screen p-4 flex-col gap-8">
+        <div class="text-center">
+            <h4 class="text-primary-500 font-black uppercase tracking-[0.5em] text-xs mb-2">{{ instituteName }}</h4>
+            <div class="w-1 h-12 bg-primary-500 mx-auto rounded-full opacity-20"></div>
+        </div>
+        <div
+            class="w-full max-w-xl text-center bg-white dark:bg-slate-900 rounded-[4rem] p-16 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.1)] border border-slate-100 dark:border-slate-800">
+
+            <!-- Result Icon/Status -->
+            <div *ngIf="submissionResult?.is_evaluated == 1 || submissionResult?.status_eval === 'evaluated'"
+                class="mb-10">
+                <div *ngIf="((submissionResult?.score || submissionResult?.total_score) / exam?.total_marks) * 100 >= (exam?.pass_percentage || 40)"
+                    class="w-24 h-24 bg-emerald-500 rounded-[2rem] mx-auto flex items-center justify-center text-4xl text-white shadow-2xl shadow-emerald-500/30 animate-bounce">
+                    🏆</div>
+                <div *ngIf="((submissionResult?.score || submissionResult?.total_score) / exam?.total_marks) * 100 < (exam?.pass_percentage || 40)"
+                    class="w-24 h-24 bg-rose-500 rounded-[2rem] mx-auto flex items-center justify-center text-4xl text-white shadow-2xl shadow-rose-500/30 animate-pulse">
+                    ⚠️</div>
+            </div>
+
+            <div *ngIf="submissionResult?.is_evaluated != 1 && submissionResult?.status_eval !== 'evaluated'"
+                class="w-24 h-24 bg-amber-500 rounded-[2rem] mx-auto mb-10 flex items-center justify-center text-4xl text-white shadow-2xl shadow-amber-500/30 animate-pulse">
+                🕐</div>
+
+            <h2 class="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter mb-2">
+                {{ (submissionResult?.is_evaluated == 1 || submissionResult?.status_eval === 'evaluated') ?
+                (((submissionResult?.score || submissionResult?.total_score) / exam?.total_marks) * 100 >=
+                (exam?.pass_percentage || 40) ?
+                'Examination Passed' : 'Assessment Failed') :
+                'Verification Pending' }}
+            </h2>
+            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mb-10">Official Transcript Issued</p>
+
+            <div *ngIf="participant?.results_published == 1 && submissionResult?.is_evaluated == 1"
+                class="p-8 bg-slate-50 dark:bg-slate-800 rounded-[2.5rem] mb-10">
+                <div class="grid grid-cols-2 gap-8">
+                    <div class="text-left">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Performance</p>
+                        <p class="text-3xl font-black text-slate-800 dark:text-white">
+                            {{ submissionResult?.score || 0 }} <span class="text-slate-300 text-lg">/ {{
+                                exam?.total_marks }}</span>
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Percentage</p>
+                        <p class="text-3xl font-black text-slate-800 dark:text-white">
+                            {{ ((submissionResult?.score / exam?.total_marks) * 100).toFixed(1) }}%
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div *ngIf="participant?.results_published == 0"
+                class="p-8 bg-amber-50 dark:bg-amber-900/10 rounded-[2.5rem] mb-10 border border-amber-100 dark:border-amber-900/30 text-center">
+                <p
+                    class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest leading-relaxed">
+                    Results are currently under review. <br> Please check back later for your official scorecard.
+                </p>
+            </div>
+
+            <div class="flex flex-col gap-4 mb-8">
+                <button *ngIf="participant?.results_published == 1 && submissionResult?.is_evaluated == 1"
+                    (click)="viewReport()"
+                    class="w-full py-6 bg-rose-600 text-white rounded-3xl text-xs font-black uppercase tracking-[0.3em] hover:bg-rose-700 active:scale-95 transition-all shadow-xl shadow-rose-200 dark:shadow-none">
+                    View My Scorecard & Review
+                </button>
+                <button (click)="goToDashboard()"
+                    class="w-full py-6 bg-slate-900 dark:bg-white dark:text-slate-900 text-white rounded-3xl text-xs font-black uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all shadow-2xl">
+                    Return to Login
+                </button>
+            </div>
+
+            <p class="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.4em]">
+                Assessment Cycle Completed Successfully
+            </p>
+        </div>
+    </div>
+
+    <!-- Official Scorecard Overlay -->
+    <div *ngIf="isReviewMode"
+        class="fixed inset-0 z-[100] bg-white dark:bg-slate-950 overflow-y-auto p-4 lg:p-12 print:p-0">
+        <div class="max-w-4xl mx-auto space-y-12">
+            <!-- Overlay Header -->
+            <div class="flex items-center justify-between print:hidden">
+                <button (click)="isReviewMode = false"
+                    class="flex items-center gap-3 text-slate-400 hover:text-rose-500 transition-all group">
+                    <span
+                        class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all">←</span>
+                    <span class="text-[10px] font-black uppercase tracking-widest">Back to Results</span>
+                </button>
+                <div class="flex gap-4">
+                    <button (click)="exportPDF()"
+                        class="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shadow-xl">
+                        Export as PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Printable Certificate Area -->
+            <div
+                class="bg-white dark:bg-slate-900 shadow-2xl rounded-[4rem] overflow-hidden border-8 border-slate-50 dark:border-slate-800 print:shadow-none print:border-none">
+                <!-- Brand Banner -->
+                <div class="bg-slate-900 p-12 text-center relative overflow-hidden">
+                    <div class="relative z-10">
+                        <app-branding-header [settings]="settings" [title]="'Examination Review Report'"></app-branding-header>
+                        <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-4">Official Candidate
+                            Transcript</p>
+                    </div>
+                </div>
+
+                <!-- Snapshot -->
+                <div class="p-12 space-y-12">
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-2 gap-12 border-b border-slate-50 dark:border-slate-800 pb-12">
+                        <div>
+                            <div class="space-y-4">
+                                <div>
+                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+                                        Candidate Profile</p>
+                                    <h2
+                                        class="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
+                                        {{ reviewData?.name }}</h2>
+                                    <p class="text-sm font-bold text-slate-500">{{ reviewData?.email }}</p>
+                                </div>
+                                <div class="pt-4">
+                                    <div>
+                                        <p
+                                            class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+                                            Assessment Track</p>
+                                        <h3
+                                            class="text-xl font-bold text-slate-800 dark:text-white italic underline decoration-primary-500 underline-offset-4 tracking-tight">
+                                            {{ reviewData?.title }}</h3>
+                                    </div>
+                                </div>
+                                <div class="pt-4">
+                                    <div>
+                                        <p
+                                            class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+                                            Date of Examination</p>
+                                        <h3 class="text-xl font-bold text-slate-800 dark:text-white tracking-tight">{{
+                                            reviewData?.exam_date | date:'dd MMM yyyy' }}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-[3rem] flex flex-col items-center justify-center text-center relative overflow-hidden group">
+                            <div class="text-6xl font-black text-slate-900 dark:text-white mb-5 tabular-nums">
+                                {{ reviewData?.score }}<span class="text-2xl text-slate-300">/{{ reviewData?.total_marks
+                                    }}</span>
+                            </div>
+                            <div class="absolute top-4">
+                                <span
+                                    class="text-[15px] font-black text-primary-500 tracking-widest opacity-40 group-hover:opacity-100 transition-opacity">PERCENTAGE:
+                                    {{ ((reviewData?.score/reviewData?.total_marks)*100).toFixed(1) }}%</span>
+                            </div>
+                            <div class="px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest"
+                                [class.bg-emerald-500/10]="(reviewData?.score/reviewData?.total_marks)*100 >= reviewData?.pass_percentage"
+                                [class.text-emerald-600]="(reviewData?.score/reviewData?.total_marks)*100 >= reviewData?.pass_percentage"
+                                [class.bg-rose-500/10]="(reviewData?.score/reviewData?.total_marks)*100 < reviewData?.pass_percentage"
+                                [class.text-rose-600]="(reviewData?.score/reviewData?.total_marks)*100 < reviewData?.pass_percentage">
+                                Status: {{ (reviewData?.score/reviewData?.total_marks)*100 >=
+                                reviewData?.pass_percentage ? 'PASSED' : 'FAILED' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question Breakdown -->
+                    <div class="space-y-10">
+                        <h5
+                            class="text-xs font-black text-slate-500 uppercase tracking-widest px-4 border-l-4 border-primary-500">
+                            Response Verification Feed</h5>
+
+                        <div *ngFor="let ans of reviewData?.answers; let i = index"
+                            class="p-8 rounded-[2rem] border transition-all"
+                            [class.border-emerald-500/20]="ans.is_correct == 1"
+                            [class.bg-emerald-500/5]="ans.is_correct == 1"
+                            [class.border-rose-500/20]="ans.is_correct == 0"
+                            [class.bg-rose-500/5]="ans.is_correct == 0">
+
+                            <div class="flex justify-between items-start mb-4">
+                                <span
+                                    class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs font-black">{{
+                                    i + 1 }}</span>
+                                <span class="text-[10px] font-black uppercase tracking-widest"
+                                    [class.text-emerald-600]="ans.is_correct == 1"
+                                    [class.text-rose-600]="ans.is_correct == 0">
+                                    Score: {{ ans.marks_obtained }} / {{ ans.question_marks }}
+                                </span>
+                            </div>
+
+                            <p class="text-lg font-bold text-slate-800 dark:text-white mb-6 leading-tight">Q: "{{
+                                ans.question_text }}"</p>
+
+                            <div
+                                class="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 italic">
+                                    Participant Input:</p>
+                                <p class="text-sm font-medium text-slate-600 dark:text-slate-300 italic">"{{
+                                    ans.answer_text || 'System recorded blank selection.' }}"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-10 text-center border-t border-slate-50 dark:border-slate-800">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">End of Official Record
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,8 @@
+{
+    "autoLogin": {
+        "enabled": true,
+        "username": "admin",
+        "password": "admin@123",
+        "tenantId": "default"
+    }
+}
