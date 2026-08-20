@@ -68,7 +68,7 @@
                             <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-3 h-10">{{ m.description || 'Reference material for your curriculum.' }}</p>
                             
                             <div class="flex items-center gap-3">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ m.uploadedAt | date:'mediumDate' }}</span>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ m.uploadedAt | date:'dd-MM-yyyy' }}</span>
                                 <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
                                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ m.fileType.split('/')[1] || 'FILE' }}</span>
                             </div>

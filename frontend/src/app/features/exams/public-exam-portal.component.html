@@ -38,11 +38,69 @@
     <!-- Instructions View -->
     <div *ngIf="view === 'instructions'" class="flex items-center justify-center min-h-screen p-4">
         <div
-            class="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl p-14 space-y-10 border border-slate-100 dark:border-slate-800">
+            class="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl p-10 lg:p-14 space-y-10 border border-slate-100 dark:border-slate-800">
+            <div
+                class="relative overflow-hidden rounded-[2.5rem] border border-primary-100/60 dark:border-primary-900/40 bg-gradient-to-br from-white via-primary-50/80 to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 p-8 lg:p-10 shadow-xl">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.16),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_28%)]"></div>
+                <div class="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="flex items-start gap-5">
+                        <div *ngIf="settings?.logo_path"
+                            class="w-20 h-20 lg:w-24 lg:h-24 rounded-[1.75rem] bg-white dark:bg-slate-950 border border-white/70 dark:border-slate-800 shadow-xl flex items-center justify-center p-3 shrink-0">
+                            <img [src]="getImageUrl(settings.logo_path)"
+                                class="w-full h-full object-contain rounded-2xl">
+                        </div>
+
+                        <div class="space-y-3">
+                            <div
+                                class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-600/10 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 text-[10px] font-black uppercase tracking-[0.25em]">
+                                Official Institute Assessment
+                            </div>
+                            <div>
+                                <h1 class="text-2xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                                    {{ settings?.institute_name || instituteName }}
+                                </h1>
+                                <p *ngIf="settings?.address"
+                                    class="mt-2 max-w-2xl text-sm lg:text-base font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
+                                    {{ settings.address }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <div *ngIf="settings?.phone"
+                            class="px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-950/70 border border-white/70 dark:border-slate-800 shadow-sm">
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Phone</p>
+                            <p>{{ settings.phone }}</p>
+                        </div>
+                        <div *ngIf="settings?.email"
+                            class="px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-950/70 border border-white/70 dark:border-slate-800 shadow-sm">
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Email</p>
+                            <p class="break-all">{{ settings.email }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="text-center space-y-4">
                 <div
                     class="inline-block px-4 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-2">
                     Login Successful</div>
+                <div
+                    class="relative overflow-hidden max-w-3xl mx-auto rounded-[2rem] border border-primary-500/20 bg-gradient-to-r from-primary-600/12 via-fuchsia-500/10 to-cyan-400/10 px-6 py-7 shadow-[0_20px_60px_-30px_rgba(59,130,246,0.55)]">
+                    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.16),transparent_32%)]"></div>
+                    <div class="relative space-y-3">
+                        <p
+                            class="text-[10px] font-black uppercase tracking-[0.45em] text-primary-400 dark:text-primary-300">
+                            Assessment Title
+                        </p>
+                        <h3
+                            class="text-3xl md:text-5xl font-black tracking-tight leading-[0.95] text-white drop-shadow-[0_8px_20px_rgba(15,23,42,0.45)]">
+                            {{ exam?.title || 'Exam Ready' }}
+                        </h3>
+                    </div>
+                </div>
                 <h2 class="text-4xl font-black text-slate-800 dark:text-white leading-tight">Review Your Strategy</h2>
                 <div class="flex justify-center gap-6 text-[11px] font-black uppercase tracking-widest text-slate-400">
                     <span class="flex items-center gap-2"><i class="text-primary-500">Q</i> {{ exam?.questions?.length
@@ -139,27 +197,27 @@
 
                 <!-- Content Area -->
                 <div class="space-y-12">
-                    <h2 class="text-5xl font-black text-white leading-tight italic tracking-tight">
+                    <h2 class="text-3xl lg:text-4xl font-black text-white leading-snug italic tracking-tight">
                         "{{ currentQuestion?.question_text }}"
                     </h2>
 
                     <!-- MCQ Interface -->
                     <div *ngIf="currentQuestion?.question_type === 'mcq'"
-                        class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-10">
+                        class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8">
                         <div *ngFor="let opt of currentQuestion?.options"
                             (click)="answers[currentQuestionIndex].selected_option_id = opt.id"
                             [class.ring-4]="answers[currentQuestionIndex].selected_option_id === opt.id"
                             [class.bg-primary-600/10]="answers[currentQuestionIndex].selected_option_id === opt.id"
                             [class.border-primary-500]="answers[currentQuestionIndex].selected_option_id === opt.id"
-                            class="p-10 bg-slate-800/40 border-2 border-transparent rounded-[2.5rem] cursor-pointer hover:bg-slate-800 transition-all font-bold text-2xl text-slate-300 ring-primary-500/20 shadow-2xl">
-                            <div class="flex items-center gap-8">
-                                <div class="w-10 h-10 rounded-full border-2 border-slate-600 flex items-center justify-center"
+                            class="p-7 lg:p-8 bg-slate-800/40 border-2 border-transparent rounded-[2.5rem] cursor-pointer hover:bg-slate-800 transition-all font-bold text-lg lg:text-xl text-slate-300 ring-primary-500/20 shadow-2xl">
+                            <div class="flex items-center gap-5">
+                                <div class="w-8 h-8 lg:w-9 lg:h-9 rounded-full border-2 border-slate-600 flex items-center justify-center shrink-0"
                                     [class.bg-primary-500]="answers[currentQuestionIndex].selected_option_id === opt.id"
                                     [class.border-primary-500]="answers[currentQuestionIndex].selected_option_id === opt.id">
                                     <div *ngIf="answers[currentQuestionIndex].selected_option_id === opt.id"
                                         class="w-3 h-3 bg-white rounded-full transition-transform"></div>
                                 </div>
-                                {{ opt.option_text }}
+                                <span class="leading-snug">{{ opt.option_text }}</span>
                             </div>
                         </div>
                     </div>
@@ -167,7 +225,7 @@
                     <!-- Subjective Interface -->
                     <div *ngIf="currentQuestion?.question_type === 'text'" class="pt-10">
                         <textarea [(ngModel)]="answers[currentQuestionIndex].answer_text" rows="8"
-                            class="w-full p-12 bg-slate-800/40 border-2 border-transparent rounded-[3.5rem] outline-none font-bold text-3xl text-white focus:ring-4 focus:ring-primary-500/10 transition-all shadow-2xl leading-relaxed"
+                            class="w-full p-8 lg:p-10 bg-slate-800/40 border-2 border-transparent rounded-[3.5rem] outline-none font-bold text-xl lg:text-2xl text-white focus:ring-4 focus:ring-primary-500/10 transition-all shadow-2xl leading-relaxed"
                             placeholder="Formulate your detailed response..."></textarea>
                     </div>
                 </div>
@@ -183,10 +241,6 @@
                             class="w-3 h-1 rounded-full transition-all duration-300"></div>
                     </div>
 
-                    <button (click)="submit()" *ngIf="currentQuestionIndex === (exam?.questions?.length || 0)-1"
-                        class="px-16 py-6 bg-emerald-600 text-white font-black uppercase tracking-[0.2em] rounded-[2rem] shadow-2xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all text-sm">
-                        Finalize Assessment
-                    </button>
                 </div>
             </div>
         </main>
@@ -224,7 +278,24 @@
                 'Examination Passed' : 'Assessment Failed') :
                 'Verification Pending' }}
             </h2>
-            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mb-10">Official Transcript Issued</p>
+            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mb-10">
+                {{ participant?.has_submitted && participant?.results_published != 1 ? 'Attempt Locked • Results Awaited' : 'Official Transcript Issued' }}
+            </p>
+
+            <div *ngIf="participant?.has_submitted && participant?.results_published != 1"
+                class="p-8 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 rounded-[2.5rem] mb-10 border border-amber-100 dark:border-amber-900/30 text-center shadow-xl">
+                <div class="flex justify-center mb-4">
+                    <div class="w-16 h-16 rounded-[1.5rem] bg-amber-500 text-white flex items-center justify-center text-3xl shadow-2xl shadow-amber-500/30">
+                        ⏳
+                    </div>
+                </div>
+                <p class="text-lg font-black text-amber-700 dark:text-amber-300 uppercase tracking-[0.15em] mb-2">
+                    You Already Attempted This Exam
+                </p>
+                <p class="text-sm font-semibold text-amber-600 dark:text-amber-200 leading-relaxed">
+                    Your submission is safely recorded. Please wait for the institute to review and publish your results.
+                </p>
+            </div>
 
             <div *ngIf="participant?.results_published == 1 && submissionResult?.is_evaluated == 1"
                 class="p-8 bg-slate-50 dark:bg-slate-800 rounded-[2.5rem] mb-10">
@@ -245,7 +316,7 @@
                 </div>
             </div>
 
-            <div *ngIf="participant?.results_published == 0"
+            <div *ngIf="participant?.results_published == 0 && !participant?.has_submitted"
                 class="p-8 bg-amber-50 dark:bg-amber-900/10 rounded-[2.5rem] mb-10 border border-amber-100 dark:border-amber-900/30 text-center">
                 <p
                     class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest leading-relaxed">

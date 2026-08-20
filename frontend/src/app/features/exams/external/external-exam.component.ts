@@ -62,7 +62,11 @@ export class ExternalExamComponent implements OnInit {
     }
 
     viewSubmissionDetail(submission: any) {
-        this.router.navigate(['/exams/external/results', submission.id]);
+        this.router.navigate(['/exams/external/results', submission.id], { queryParams: { mode: 'view' } });
+    }
+
+    reEvaluateSubmission(submission: any) {
+        this.router.navigate(['/exams/external/results', submission.id], { queryParams: { mode: 'edit' } });
     }
 
 
@@ -412,10 +416,21 @@ export class ExternalExamComponent implements OnInit {
         return `${baseUrl}/#/public/exam/${exam.id}`;
     }
 
+    getResultLink(exam: any): string {
+        const baseUrl = window.location.origin;
+        return `${baseUrl}/#/public/exam/${exam.id}?portal=results`;
+    }
+
     copyLink(exam: any) {
         const link = this.getPublicLink(exam);
         navigator.clipboard.writeText(link);
         this.toastService.info('Public link copied to clipboard!');
+    }
+
+    copyResultLink(exam: any) {
+        const link = this.getResultLink(exam);
+        navigator.clipboard.writeText(link);
+        this.toastService.info('Result link copied to clipboard!');
     }
 
     getStatusType(status: string): any {

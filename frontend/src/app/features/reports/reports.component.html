@@ -7,7 +7,21 @@
                 your academy.</p>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Branch Selector -->
+            <div *ngIf="isMultiBranchEnabled"
+                class="w-full sm:w-auto p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-xl">🏢</div>
+                <div class="flex-1 min-w-[140px]">
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">View Scope</p>
+                    <select [(ngModel)]="selectedBranchId" (change)="onBranchFilterChange()"
+                        class="bg-transparent border-none p-0 text-sm font-black text-slate-800 dark:text-white outline-none w-full cursor-pointer">
+                        <option value="all">All Branches</option>
+                        <option *ngFor="let b of activeBranches" [value]="b.id">{{b.name}}</option>
+                    </select>
+                </div>
+            </div>
+
             <div
                 class="w-full sm:w-auto p-4 bg-primary-50 dark:bg-primary-900/20 rounded-2xl border border-primary-100 dark:border-primary-900/50 flex items-center gap-4">
                 <div
@@ -18,9 +32,8 @@
                         class="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest leading-none mb-1.5">
                         Growth Index</p>
                     <p class="text-xl font-black text-primary-900 dark:text-primary-100 flex items-baseline gap-2">
-                        +12%
-                        <span class="text-[10px] font-bold opacity-60 text-primary-700 dark:text-primary-300">this
-                            month</span>
+                        {{ growthInsight }}
+                        <span class="text-[10px] font-bold opacity-60 text-primary-700 dark:text-primary-300">{{ growthPeriod }}</span>
                     </p>
                 </div>
             </div>
@@ -50,6 +63,14 @@
                     class="flex-1 sm:flex-none px-6 py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg flex items-center justify-center gap-2">
                     Excel
                 </button>
+                <button (click)="exportToCSV()"
+                    class="flex-1 sm:flex-none px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2">
+                    CSV
+                </button>
+                <button (click)="printReport()"
+                    class="flex-1 sm:flex-none px-6 py-3 bg-slate-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-all shadow-lg flex items-center justify-center gap-2">
+                    Print
+                </button>
             </ng-container>
 
             <button *ngIf="activeReport !== 'attendance-glancer'" (click)="exportReport()"
@@ -59,8 +80,18 @@
         </div>
     </div>
 
-    <div *ngIf="activeReport && !['fees-diary', 'attendance-glancer', 'system-logs', 'staff-activity'].includes(activeReport)"
-        class="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft mb-8 flex flex-col sm:flex-row sm:items-end gap-6">
+    <div *ngIf="activeReport"
+        class="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft mb-8 flex flex-wrap items-end gap-6">
+
+        <!-- Branch Selector -->
+        <div *ngIf="isMultiBranchEnabled" class="flex-1 min-w-[200px] space-y-2">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Branch Scope</label>
+            <select [(ngModel)]="selectedBranchId" (change)="onBranchFilterChange()"
+                class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                <option value="all">All Branches (Global)</option>
+                <option *ngFor="let b of activeBranches" [value]="b.id">{{b.name}}</option>
+            </select>
+        </div>
 
         <!-- Timeframe Filter -->
         <div *ngIf="['profit-loss', 'expenses', 'course-index'].includes(activeReport)" class="flex-1 space-y-2">
@@ -207,7 +238,7 @@
                             <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{{ r.courseName }}</p>
                         </td>
                         <td class="px-8 py-5 font-mono text-xs text-slate-500 dark:text-slate-400">
-                            {{ r.date | date:'mediumDate' }}
+                            {{ r.date | date:'dd-MM-yyyy' }}
                         </td>
                         <td class="px-8 py-5 text-right">
                             <p class="text-sm font-black text-emerald-600 dark:text-emerald-400">₹{{ r.amount | number
@@ -228,27 +259,38 @@
     <!-- REPORT: ATTENDANCE GLANCER (REVAMPED) -->
     <div *ngIf="activeReport === 'attendance-glancer'" class="space-y-8 fade-in pb-20">
         <!-- Advanced Filters Bar -->
-        <div
-            class="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft flex flex-col xl:flex-row gap-6 items-end">
-            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-                <!-- Timeframe -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                    🛠️ Advanced Filter Engine
+                </h3>
+                <button (click)="resetFilters()"
+                    class="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                    🔄 Reset Filters
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                <!-- Date Filters (Timeframe) -->
                 <div class="space-y-2">
-                    <label
-                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Timeframe</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Timeframe</label>
                     <select [(ngModel)]="timeframe" (change)="loadAttendanceReport()"
                         class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
                         <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
                         <option value="week">This Week</option>
+                        <option value="last_week">Last Week</option>
                         <option value="month">This Month</option>
+                        <option value="last_month">Last Month</option>
                         <option value="quarter">This Quarter</option>
                         <option value="year">This Year</option>
-                        <option value="custom">Custom Range</option>
+                        <option value="academic_year">Academic Year</option>
+                        <option value="custom">Custom Date Range</option>
                     </select>
                 </div>
 
                 <!-- Custom Range (Conditional) -->
-                <div *ngIf="timeframe === 'custom'"
-                    class="lg:col-span-2 grid grid-cols-2 gap-2 animate-in slide-in-from-left-2">
+                <div *ngIf="timeframe === 'custom'" class="lg:col-span-2 grid grid-cols-2 gap-2 animate-in slide-in-from-left-2">
                     <div class="space-y-2">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">From</label>
                         <input type="date" [(ngModel)]="customStartDate" (change)="loadAttendanceReport()"
@@ -261,9 +303,9 @@
                     </div>
                 </div>
 
-                <!-- Target Type -->
+                <!-- Grouping / Target Type -->
                 <div class="space-y-2">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grouping</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grouping Scope</label>
                     <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                         <button (click)="attendanceTarget = 'batch'; loadAttendanceReport()"
                             [class.bg-white]="attendanceTarget === 'batch'"
@@ -280,43 +322,181 @@
                     </div>
                 </div>
 
-                <!-- Course Selection -->
+                <!-- Target Course -->
                 <div class="space-y-2">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target
-                        Course</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Course Scope</label>
                     <app-searchable-select [(modelValue)]="selectedCourseId"
                         [options]="[{id: 'all', name: 'All Courses'}, ...courses]" labelKey="name"
                         (onChange)="loadAttendanceReport()"></app-searchable-select>
                 </div>
 
-                <!-- Batch/Student Selection -->
-                <div *ngIf="attendanceTarget !== 'course'" class="space-y-2 lg:col-span-1">
+                <!-- Specific Batch/Student Selection -->
+                <div class="space-y-2">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        {{ attendanceTarget === 'batch' ? 'Specific Batch' : 'Specific Student' }}
+                        {{ attendanceTarget === 'batch' ? 'Batch Scope' : 'Student Scope' }}
                     </label>
                     <app-searchable-select *ngIf="attendanceTarget === 'batch'" [(modelValue)]="selectedBatchId"
                         [options]="[{id: 'all', batchName: 'All Batches'}, ...batches]" labelKey="batchName"
                         (onChange)="loadAttendanceReport()"></app-searchable-select>
 
                     <app-searchable-select *ngIf="attendanceTarget === 'one-to-one'" [(modelValue)]="selectedStudentId"
-                        [options]="allStudents" labelKey="name"
+                        [options]="[{id: null, name: 'Select Student'}, ...allStudents]" labelKey="name"
                         (onChange)="loadAttendanceReport()"></app-searchable-select>
                 </div>
-            </div>
 
-            <button (click)="loadAttendanceReport()"
-                class="px-8 py-3 bg-primary-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg active:scale-95">
-                Refresh Analysis
-            </button>
+                <!-- Student Search Name -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Student Name</label>
+                    <input type="text" [(ngModel)]="studentNameFilter" (ngModelChange)="loadAttendanceReport()" placeholder="Search Name..."
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                </div>
+
+                <!-- Student Register Number -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Register #</label>
+                    <input type="text" [(ngModel)]="regNumberFilter" (ngModelChange)="loadAttendanceReport()" placeholder="Search Reg..."
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                </div>
+
+                <!-- Student ID Filter -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Student ID</label>
+                    <input type="text" [(ngModel)]="studentIdFilter" (ngModelChange)="loadAttendanceReport()" placeholder="Search ID..."
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                </div>
+
+                <!-- Subject Filter -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subject</label>
+                    <select [(ngModel)]="subjectFilter" (change)="loadAttendanceReport()"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                        <option value="all">All Subjects</option>
+                        <option *ngFor="let s of allSubjects" [value]="s">{{ s }}</option>
+                    </select>
+                </div>
+
+                <!-- Attendance Status -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Attendance Status</label>
+                    <select [(ngModel)]="attendanceStatusFilter" (change)="loadAttendanceReport()"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                        <option value="all">All Statuses</option>
+                        <option value="Present">Present</option>
+                        <option value="Absent">Absent</option>
+                    </select>
+                </div>
+
+                <!-- Percentage Filters -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Attendance Rate</label>
+                    <select [(ngModel)]="percentFilter" (change)="loadAttendanceReport()"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                        <option value="all">All Percentages</option>
+                        <option value="below_50">Below 50%</option>
+                        <option value="below_60">Below 60%</option>
+                        <option value="below_75">Below 75%</option>
+                        <option value="above_75">Above 75%</option>
+                        <option value="above_90">Above 90%</option>
+                        <option value="perfect">Perfect Attendance (100%)</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+
+                <!-- Custom Percentage Inputs (Conditional) -->
+                <div *ngIf="percentFilter === 'custom'" class="grid grid-cols-2 gap-2 animate-in slide-in-from-left-2">
+                    <div class="space-y-2">
+                        <label class="text-[9px] font-black text-slate-400 uppercase">Min %</label>
+                        <input type="number" [(ngModel)]="minPercent" (change)="loadAttendanceReport()" min="0" max="100"
+                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[9px] font-black text-slate-400 uppercase">Max %</label>
+                        <input type="number" [(ngModel)]="maxPercent" (change)="loadAttendanceReport()" min="0" max="100"
+                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                    </div>
+                </div>
+
+                <!-- Additional: Gender -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Gender</label>
+                    <select [(ngModel)]="genderFilter" (change)="loadAttendanceReport()"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                        <option value="all">All Genders</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Additional: Student Status -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Student Status</label>
+                    <select [(ngModel)]="activeStatusFilter" (change)="loadAttendanceReport()"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                        <option value="all">All Students</option>
+                        <option value="active">Active Students</option>
+                        <option value="inactive">Inactive Students</option>
+                    </select>
+                </div>
+
+                <!-- Special Logic Filters -->
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Special Flag Alert</label>
+                    <select [(ngModel)]="specialFilter" (change)="loadAttendanceReport()"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                        <option value="all">No Special Filter</option>
+                        <option value="below_threshold">Attendance Below Threshold</option>
+                        <option value="consecutive_absent">Absent Continuously</option>
+                        <option value="late_more_than">Late count threshold</option>
+                        <option value="leave_more_than">Leave count threshold</option>
+                        <option value="not_marked">Students Not Marked</option>
+                        <option value="warning">Requires Attendance Warning</option>
+                    </select>
+                </div>
+
+                <!-- Conditional Special Threshold Inputs -->
+                <div *ngIf="specialFilter === 'below_threshold'" class="space-y-2 animate-in slide-in-from-left-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Threshold (%)</label>
+                    <input type="number" [(ngModel)]="thresholdFilter" (change)="loadAttendanceReport()" min="1" max="100"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                </div>
+
+                <div *ngIf="specialFilter === 'consecutive_absent'" class="space-y-2 animate-in slide-in-from-left-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Consecutive Days</label>
+                    <input type="number" [(ngModel)]="consecDaysFilter" (change)="loadAttendanceReport()" min="1"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                </div>
+
+                <div *ngIf="specialFilter === 'late_more_than'" class="space-y-2 animate-in slide-in-from-left-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Late count limit</label>
+                    <input type="number" [(ngModel)]="lateLimitFilter" (change)="loadAttendanceReport()" min="1"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                </div>
+
+                <div *ngIf="specialFilter === 'leave_more_than'" class="space-y-2 animate-in slide-in-from-left-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Leave count limit</label>
+                    <input type="number" [(ngModel)]="leaveLimitFilter" (change)="loadAttendanceReport()" min="1"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Filter Buttons -->
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">⚡ Quick Filters:</span>
+            <button (click)="applyQuickFilter('today')" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-900/30 text-slate-800 dark:text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Today</button>
+            <button (click)="applyQuickFilter('week')" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-900/30 text-slate-800 dark:text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">This Week</button>
+            <button (click)="applyQuickFilter('month')" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-900/30 text-slate-800 dark:text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">This Month</button>
+            <button (click)="applyQuickFilter('below_75')" class="px-5 py-2.5 bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 text-amber-700 dark:text-amber-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Below 75%</button>
+            <button (click)="applyQuickFilter('below_60')" class="px-5 py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 text-rose-700 dark:text-rose-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Below 60%</button>
+            <button (click)="applyQuickFilter('perfect')" class="px-5 py-2.5 bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Perfect Attendance</button>
+            <button (click)="applyQuickFilter('frequently_absent')" class="px-5 py-2.5 bg-indigo-50 dark:bg-indigo-900/10 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Frequently Absent</button>
         </div>
 
         <!-- Metric Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div
-                class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft relative overflow-hidden group">
-                <div
-                    class="absolute -right-4 -bottom-4 text-primary-500/5 text-8xl group-hover:scale-110 transition-transform duration-700">
-                    📋</div>
+            <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-primary-500/5 text-8xl group-hover:scale-110 transition-transform duration-700">📋</div>
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Total Sessions</p>
                 <div class="flex items-baseline gap-2">
                     <p class="text-4xl font-black text-slate-800 dark:text-white">{{ attendanceStats.totalClasses }}</p>
@@ -324,77 +504,55 @@
                 </div>
             </div>
 
-            <div
-                class="bg-emerald-50 dark:bg-emerald-900/10 p-8 rounded-[2.5rem] border border-emerald-100 dark:border-emerald-900/30 shadow-soft relative overflow-hidden group">
-                <div
-                    class="absolute -right-4 -bottom-4 text-emerald-500/10 text-8xl group-hover:scale-110 transition-transform duration-700">
-                    ✅</div>
-                <p class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
-                    Presence Rate</p>
+            <div class="bg-emerald-50 dark:bg-emerald-900/10 p-8 rounded-[2.5rem] border border-emerald-100 dark:border-emerald-900/30 shadow-soft relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-emerald-500/10 text-8xl group-hover:scale-110 transition-transform duration-700">✅</div>
+                <p class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">Presence Rate</p>
                 <div class="flex items-baseline gap-2">
                     <p class="text-4xl font-black text-emerald-700 dark:text-emerald-300">{{ attendanceStats.avg }}%</p>
-                    <span class="text-xs font-bold text-emerald-600/60 transition-transform">{{ attendanceStats.present
-                        }} marked</span>
+                    <span class="text-xs font-bold text-emerald-600/60 transition-transform">{{ attendanceStats.present }} marked</span>
                 </div>
             </div>
 
-            <div
-                class="bg-rose-50 dark:bg-rose-900/10 p-8 rounded-[2.5rem] border border-rose-100 dark:border-rose-900/30 shadow-soft relative overflow-hidden group">
-                <div
-                    class="absolute -right-4 -bottom-4 text-rose-500/10 text-8xl group-hover:scale-110 transition-transform duration-700">
-                    ❌</div>
-                <p class="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest mb-3">Absent
-                    Volume</p>
+            <div class="bg-rose-50 dark:bg-rose-900/10 p-8 rounded-[2.5rem] border border-rose-100 dark:border-rose-900/30 shadow-soft relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-rose-500/10 text-8xl group-hover:scale-110 transition-transform duration-700">❌</div>
+                <p class="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest mb-3">Absent Volume</p>
                 <div class="flex items-baseline gap-2">
                     <p class="text-4xl font-black text-rose-700 dark:text-rose-300">{{ attendanceStats.absent }}</p>
                     <span class="text-xs font-bold text-rose-600/60">Sessions</span>
                 </div>
             </div>
 
-            <div
-                class="bg-indigo-50 dark:bg-indigo-900/10 p-8 rounded-[2.5rem] border border-indigo-100 dark:border-indigo-900/30 shadow-soft relative overflow-hidden group">
-                <div
-                    class="absolute -right-4 -bottom-4 text-indigo-500/10 text-8xl group-hover:scale-110 transition-transform duration-700">
-                    🏆</div>
-                <p class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-3">
-                    Top Perfomance</p>
-                <p class="text-xl font-black text-indigo-800 dark:text-indigo-200 truncate">{{
-                    topAttendees[0]?.student_name || 'N/A' }}</p>
-                <p class="text-[10px] font-bold text-indigo-600/60 mt-1 uppercase">{{ topAttendees[0]?.percentage || 0
-                    }}% Attendance</p>
+            <div class="bg-indigo-50 dark:bg-indigo-900/10 p-8 rounded-[2.5rem] border border-indigo-100 dark:border-indigo-900/30 shadow-soft relative overflow-hidden group">
+                <div class="absolute -right-4 -bottom-4 text-indigo-500/10 text-8xl group-hover:scale-110 transition-transform duration-700">🏆</div>
+                <p class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-3">Top Performance</p>
+                <p class="text-xl font-black text-indigo-800 dark:text-indigo-200 truncate">{{ topAttendees[0]?.student_name || 'N/A' }}</p>
+                <p class="text-[10px] font-bold text-indigo-600/60 mt-1 uppercase">{{ topAttendees[0]?.percentage || 0 }}% Attendance</p>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Top Attendees Box -->
-            <div
-                class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft">
+            <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft">
                 <div class="flex items-center justify-between mb-8">
-                    <h3
-                        class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                    <h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
                         <span class="flex w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         Top Attendees
                     </h3>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Efficiency
-                        Ranking</span>
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Efficiency Ranking</span>
                 </div>
 
                 <div class="space-y-4">
                     <div *ngFor="let top of topAttendees"
                         class="group flex items-center gap-4 p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-800">
-                        <div
-                            class="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-lg group-hover:scale-110 transition-transform">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-lg group-hover:scale-110 transition-transform">
                             {{ top.student_name.charAt(0) }}
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="font-black text-slate-800 dark:text-slate-200 truncate text-sm">{{
-                                top.student_name }}</p>
-                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase truncate">{{
-                                top.batch_name || 'One-to-One' }}</p>
+                            <p class="font-black text-slate-800 dark:text-slate-200 truncate text-sm">{{ top.student_name }}</p>
+                            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase truncate">{{ top.batch_name || 'One-to-One' }}</p>
                         </div>
                         <div class="text-right">
-                            <p class="text-sm font-black text-emerald-600 dark:text-emerald-400">{{ top.percentage }}%
-                            </p>
+                            <p class="text-sm font-black text-emerald-600 dark:text-emerald-400">{{ top.percentage }}%</p>
                             <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-1.5 overflow-hidden">
                                 <div class="h-full bg-emerald-500 rounded-full" [style.width.%]="top.percentage"></div>
                             </div>
@@ -408,11 +566,9 @@
             </div>
 
             <!-- Intensity Chart -->
-            <div
-                class="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft">
+            <div class="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft">
                 <div class="flex items-center justify-between mb-8">
-                    <h3
-                        class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                    <h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
                         <span class="flex w-2 h-2 rounded-full bg-primary-500"></span>
                         Presence Distribution
                     </h3>
@@ -424,24 +580,19 @@
                     </div>
                 </div>
 
-                <div
-                    class="h-[280px] flex items-end justify-between gap-4 p-6 bg-slate-50/50 dark:bg-slate-800/50 rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-700 relative">
+                <div class="h-[280px] flex items-end justify-between gap-4 p-6 bg-slate-50/50 dark:bg-slate-800/50 rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-700 relative">
                     <div *ngFor="let bar of attendanceChart"
                         class="flex-1 bg-primary-600 dark:bg-primary-500 rounded-xl relative group cursor-help transition-all hover:scale-105"
                         [style.height.%]="bar.value">
 
                         <!-- Tooltip -->
-                        <div
-                            class="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-30 shadow-2xl pointer-events-none">
+                        <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-30 shadow-2xl pointer-events-none">
                             {{ bar.value }}% Present
-                            <div
-                                class="absolute bottom-[-4px] left-1/2 -translate-x-1/2 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-900">
-                            </div>
+                            <div class="absolute bottom-[-4px] left-1/2 -translate-x-1/2 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-900"></div>
                         </div>
 
                         <!-- Label -->
-                        <div
-                            class="absolute -bottom-10 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-400/80 uppercase tracking-tighter whitespace-nowrap rotate-[-45deg] origin-top">
+                        <div class="absolute -bottom-10 left-1/2 -translate-x-1/2 text-[9px] font-black text-slate-400/80 uppercase tracking-tighter whitespace-nowrap rotate-[-45deg] origin-top">
                             {{ bar.label }}
                         </div>
                     </div>
@@ -454,101 +605,205 @@
             </div>
         </div>
 
-        <!-- Detailed Results Table -->
-        <div
-            class="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft overflow-hidden">
-            <div
-                class="p-8 border-b border-slate-50 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <h3 class="text-lg font-black text-slate-800 dark:text-white">Detailed Attendance Log</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Drill down into individual student
-                        metrics.</p>
-                </div>
-
-                <div class="relative min-w-[320px]">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-                    <input type="text" [(ngModel)]="reportSearch" placeholder="Search student, batch, topic..."
-                        class="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold text-slate-800 dark:text-white outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+        <!-- Advanced Widgets Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Lowest Attendance Widget -->
+            <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft">
+                <h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6">⚠️ Lowest Attendance Students</h3>
+                <div class="space-y-4">
+                    <div *ngFor="let item of lowestAttendance" class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                        <div>
+                            <p class="font-bold text-slate-800 dark:text-slate-200 text-xs">{{ item.student_name }}</p>
+                            <p class="text-[9px] text-slate-400 uppercase font-black tracking-tight mt-1">{{ item.batch_name }}</p>
+                        </div>
+                        <span class="text-xs font-black text-rose-500">{{ item.percentage }}%</span>
+                    </div>
+                    <div *ngIf="lowestAttendance.length === 0" class="text-center py-6 text-slate-400 text-xs italic">No data.</div>
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr
-                            class="bg-slate-50/40 dark:bg-slate-800/40 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                            <th class="px-8 py-6">Student Information</th>
-                            <th class="px-8 py-6">Batch / Context</th>
-                            <th class="px-8 py-6 text-center">Sessions</th>
-                            <th class="px-8 py-6 text-center">P / A</th>
-                            <th class="px-8 py-6 text-right pr-12">Intensity</th>
+            <!-- Consecutive Absentees Widget -->
+            <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft">
+                <h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6">🚨 Consecutive Absentees</h3>
+                <div class="space-y-4">
+                    <div *ngFor="let item of consecutiveAbsentees" class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                        <div>
+                            <p class="font-bold text-slate-800 dark:text-slate-200 text-xs">{{ item.student_name }}</p>
+                            <p class="text-[9px] text-slate-400 uppercase font-black tracking-tight mt-1">{{ item.batch_name }}</p>
+                        </div>
+                        <span class="text-xs font-black text-rose-600 px-3 py-1 bg-rose-100 dark:bg-rose-900/30 rounded-lg">{{ item.consec_count }} Days</span>
+                    </div>
+                    <div *ngIf="consecutiveAbsentees.length === 0" class="text-center py-6 text-slate-400 text-xs italic">No consecutive absentees detected.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Results Table -->
+        <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft overflow-hidden">
+            <div class="p-8 border-b border-slate-50 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 dark:text-white">Detailed Attendance Log</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Drill down into individual student metrics.</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-4">
+                    <!-- Column Visibility Toggle -->
+                    <div class="relative group">
+                        <button class="px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-2">
+                            👁️ Column Toggle
+                        </button>
+                        <div class="absolute right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xl hidden group-hover:block z-30 min-w-[200px]">
+                            <p class="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-2 border-b pb-1">Toggle Columns</p>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="checkbox" [(ngModel)]="visibleColumns.name" class="rounded"> Student Info
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="checkbox" [(ngModel)]="visibleColumns.regNumber" class="rounded"> Reg #
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="checkbox" [(ngModel)]="visibleColumns.batch" class="rounded"> Batch
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="checkbox" [(ngModel)]="visibleColumns.sessions" class="rounded"> Sessions
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="checkbox" [(ngModel)]="visibleColumns.pa" class="rounded"> P / A
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="checkbox" [(ngModel)]="visibleColumns.percentage" class="rounded"> Intensity %
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative min-w-[250px]">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                        <input type="text" [(ngModel)]="studentNameFilter" (ngModelChange)="loadAttendanceReport()" placeholder="Filter student..."
+                            class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold text-slate-800 dark:text-white outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Table View -->
+            <div class="overflow-x-auto max-h-[600px] overflow-y-auto relative">
+                <table class="w-full text-left border-collapse">
+                    <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800 shadow-sm z-10">
+                        <tr class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                            <th *ngIf="visibleColumns.name" class="px-8 py-5 cursor-pointer hover:text-primary-600 transition-colors" (click)="sortBy('student_name')">
+                                Student Name <span *ngIf="sortColumn === 'student_name'">{{ sortDirection === 'ASC' ? '▲' : '▼' }}</span>
+                            </th>
+                            <th *ngIf="visibleColumns.regNumber" class="px-8 py-5 cursor-pointer hover:text-primary-600 transition-colors" (click)="sortBy('reg_number')">
+                                Reg # <span *ngIf="sortColumn === 'reg_number'">{{ sortDirection === 'ASC' ? '▲' : '▼' }}</span>
+                            </th>
+                            <th *ngIf="visibleColumns.batch" class="px-8 py-5 cursor-pointer hover:text-primary-600 transition-colors" (click)="sortBy('batch_name')">
+                                Batch / Context <span *ngIf="sortColumn === 'batch_name'">{{ sortDirection === 'ASC' ? '▲' : '▼' }}</span>
+                            </th>
+                            <th *ngIf="visibleColumns.sessions" class="px-8 py-5 text-center cursor-pointer hover:text-primary-600 transition-colors" (click)="sortBy('total_sessions')">
+                                Sessions <span *ngIf="sortColumn === 'total_sessions'">{{ sortDirection === 'ASC' ? '▲' : '▼' }}</span>
+                            </th>
+                            <th *ngIf="visibleColumns.pa" class="px-8 py-5 text-center">
+                                P / A / L / Lv
+                            </th>
+                            <th *ngIf="visibleColumns.percentage" class="px-8 py-5 text-right pr-12 cursor-pointer hover:text-primary-600 transition-colors" (click)="sortBy('percentage')">
+                                Intensity <span *ngIf="sortColumn === 'percentage'">{{ sortDirection === 'ASC' ? '▲' : '▼' }}</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50 dark:divide-slate-800">
-                        <tr *ngFor="let item of filteredAttendance()"
-                            class="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
-                            <td class="px-8 py-6">
+                        <tr *ngFor="let item of filteredAttendance(); trackBy: trackByIndex" class="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
+                            <td *ngIf="visibleColumns.name" class="px-8 py-5">
                                 <div class="flex items-center gap-4">
-                                    <div
-                                        class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-black text-[10px] group-hover:bg-primary-600 group-hover:text-white transition-all shadow-inner">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-black text-[10px] group-hover:bg-primary-600 group-hover:text-white transition-all shadow-inner">
                                         {{ item.student_name.charAt(0) }}
                                     </div>
                                     <div>
-                                        <p
-                                            class="font-black text-slate-800 dark:text-slate-200 text-sm group-hover:text-primary-600 transition-colors">
-                                            {{ item.student_name }}</p>
-                                        <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500">ID: {{
-                                            item.reg_number }}</p>
+                                        <p class="font-black text-slate-800 dark:text-slate-200 text-sm group-hover:text-primary-600 transition-colors">
+                                            {{ item.student_name }}
+                                        </p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span *ngIf="item.gender" class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded text-[8px] font-black uppercase">{{ item.gender }}</span>
+                                            <span class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase"
+                                                [class.bg-emerald-100]="item.student_status === 'active'"
+                                                [class.text-emerald-700]="item.student_status === 'active'"
+                                                [class.bg-slate-100]="item.student_status !== 'active'"
+                                                [class.text-slate-500]="item.student_status !== 'active'">
+                                                {{ item.student_status }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-8 py-6">
-                                <p class="text-xs font-bold text-slate-600 dark:text-slate-400">{{ item.batch_name ||
-                                    'Private Session' }}</p>
-                                <p class="text-[9px] font-black text-primary-500 uppercase tracking-widest mt-1">{{
-                                    item.course_name }}</p>
+                            <td *ngIf="visibleColumns.regNumber" class="px-8 py-5">
+                                <p class="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{{ item.reg_number }}</p>
                             </td>
-                            <td class="px-8 py-6 text-center">
-                                <span
-                                    class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            <td *ngIf="visibleColumns.batch" class="px-8 py-5">
+                                <p class="text-xs font-bold text-slate-600 dark:text-slate-400">{{ item.batch_name || 'Private Session' }}</p>
+                                <p class="text-[9px] font-black text-primary-500 uppercase tracking-widest mt-1">{{ item.course_name }}</p>
+                            </td>
+                            <td *ngIf="visibleColumns.sessions" class="px-8 py-5 text-center">
+                                <span class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                                     {{ item.total_sessions }} Slots
                                 </span>
                             </td>
-                            <td class="px-8 py-6">
-                                <div class="flex items-center justify-center gap-2">
-                                    <span class="text-xs font-black text-emerald-600">{{ item.present_count }}</span>
+                            <td *ngIf="visibleColumns.pa" class="px-8 py-5 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <span class="text-xs font-black text-emerald-600" title="Present">{{ item.present_count }}</span>
                                     <span class="text-[10px] font-bold text-slate-300">/</span>
-                                    <span class="text-xs font-black text-rose-500">{{ item.absent_count }}</span>
+                                    <span class="text-xs font-black text-rose-500" title="Absent">{{ item.absent_count }}</span>
+                                    <span class="text-[10px] font-bold text-slate-300">/</span>
+                                    <span class="text-xs font-black text-amber-500" title="Late">{{ item.late_count }}</span>
+                                    <span class="text-[10px] font-bold text-slate-300">/</span>
+                                    <span class="text-xs font-black text-indigo-500" title="Leave">{{ item.leave_count }}</span>
                                 </div>
                             </td>
-                            <td class="px-8 py-6 text-right pr-12">
+                            <td *ngIf="visibleColumns.percentage" class="px-8 py-5 text-right pr-12">
                                 <div class="inline-flex flex-col items-end">
-                                    <span class="text-base font-black" [class.text-emerald-500]="item.percentage >= 80"
-                                        [class.text-amber-500]="item.percentage < 80 && item.percentage >= 60"
+                                    <span class="text-base font-black" [class.text-emerald-500]="item.percentage >= 75"
+                                        [class.text-amber-500]="item.percentage < 75 && item.percentage >= 60"
                                         [class.text-rose-500]="item.percentage < 60">
                                         {{ item.percentage }}%
                                     </span>
-                                    <div
-                                        class="w-24 h-1 bg-slate-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden shadow-inner">
+                                    <div class="w-24 h-1 bg-slate-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden shadow-inner">
                                         <div class="h-full rounded-full transition-all duration-1000"
                                             [style.width.%]="item.percentage"
-                                            [class.bg-emerald-500]="item.percentage >= 80"
-                                            [class.bg-amber-500]="item.percentage < 80 && item.percentage >= 60"
+                                            [class.bg-emerald-500]="item.percentage >= 75"
+                                            [class.bg-amber-500]="item.percentage < 75 && item.percentage >= 60"
                                             [class.bg-rose-500]="item.percentage < 60"></div>
                                     </div>
                                 </div>
                             </td>
                         </tr>
                         <tr *ngIf="filteredAttendance().length === 0">
-                            <td colspan="5" class="px-8 py-20 text-center">
+                            <td colspan="6" class="px-8 py-20 text-center">
                                 <div class="text-5xl mb-6">🔍</div>
-                                <h4 class="text-xl font-black text-slate-900 dark:text-white mb-2 italic">No records
-                                    found...</h4>
+                                <h4 class="text-xl font-black text-slate-900 dark:text-white mb-2 italic">No records found...</h4>
                                 <p class="text-slate-500 font-medium">Try adjusting your filters or search query.</p>
                             </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div class="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+                <span class="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    Showing {{ filteredAttendance().length }} of {{ totalElements }} records
+                </span>
+                
+                <div class="flex items-center gap-2">
+                    <button (click)="prevPage()" [disabled]="page === 0"
+                        class="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-black text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-sm transition-all">
+                        Previous
+                    </button>
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200">
+                        Page {{ page + 1 }} of {{ totalPages }}
+                    </span>
+                    <button (click)="nextPage()" [disabled]="page >= totalPages - 1"
+                        class="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-black text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-sm transition-all">
+                        Next
+                    </button>
+                </div>
             </div>
         </div>
     </div>

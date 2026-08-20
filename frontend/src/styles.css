@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  zoom: 100%;
+  font-size: 90%;
+}
+
 :root {
   /* Default Blue Theme Variables (RGB) */
   --color-primary-50: 239 246 255;
@@ -15,11 +20,14 @@
   --color-primary-800: 30 64 175;
   --color-primary-900: 30 58 138;
 
-  --bg-main: #f8fafc;
+  --bg-main: #f1f5f9;
+  /* Slightly deeper slate for better card contrast */
   --bg-card: #ffffff;
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  --border-color: #e2e8f0;
+  --text-main: #0f172a;
+  /* Deeper ink for better readability */
+  --text-muted: #475569;
+  --border-color: #cbd5e1;
+  /* More defined borders */
 }
 
 /* Dark Mode Overrides */
@@ -96,7 +104,7 @@ body {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-main);
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.12);
 }
 
 .dark .base-card {
@@ -128,7 +136,7 @@ button:active {
 /* Global Container Visibility (Light Mode) */
 :not(.dark) [class*="bg-white"],
 :not(.dark) [class*="bg-slate-50"] {
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
 :not(.dark) .shadow-soft {
@@ -226,8 +234,15 @@ button:active {
 }
 
 @keyframes bounce-subtle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
 }
 
 .animate-bounce-subtle {
@@ -235,14 +250,33 @@ button:active {
 }
 
 @keyframes float-3d {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  33% { transform: translate(15px, -30px) rotate(5deg); }
-  66% { transform: translate(-15px, 15px) rotate(-3deg); }
+
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  33% {
+    transform: translate(15px, -30px) rotate(5deg);
+  }
+
+  66% {
+    transform: translate(-15px, 15px) rotate(-3deg);
+  }
 }
 
 @keyframes float-3d-slow {
-  0%, 100% { transform: translate(0, 0) scale(1); rotate: 0deg; }
-  50% { transform: translate(-30px, 30px) scale(1.1); rotate: -10deg; }
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    rotate: 0deg;
+  }
+
+  50% {
+    transform: translate(-30px, 30px) scale(1.1);
+    rotate: -10deg;
+  }
 }
 
 .animate-float-3d {
@@ -258,18 +292,35 @@ button:active {
 }
 
 @keyframes mesh-pulse {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(10%, 10%) scale(1.2); }
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(10%, 10%) scale(1.2);
+  }
 }
 
 @keyframes text-shine {
-  from { background-position: 0% center; }
-  to { background-position: 200% center; }
+  from {
+    background-position: 0% center;
+  }
+
+  to {
+    background-position: 200% center;
+  }
 }
 
 @keyframes flow {
-  from { background-position: 0% 0%; }
-  to { background-position: 100% 100%; }
+  from {
+    background-position: 0% 0%;
+  }
+
+  to {
+    background-position: 100% 100%;
+  }
 }
 
 .animate-text-shine {
@@ -301,8 +352,10 @@ option {
 }
 
 .dark option {
-  background-color: #1e293b; /* slate-800 */
-  color: #f1f5f9; /* slate-100 */
+  background-color: #1e293b;
+  /* slate-800 */
+  color: #f1f5f9;
+  /* slate-100 */
 }
 
 /* Fix for Safari/Chrome on Mac/iOS and Windows browsers that ignore inherit on options */

@@ -55,7 +55,7 @@ public class DatabaseSchemaFixer {
             "activity_log", "notifications", "students", "users", "courses", "batches", "fees", "receipts", "expenses", "staff",
             "exams", "exam_questions", "exam_options", "exam_assignments", "exam_submissions", "exam_answers",
             "external_exams", "external_questions", "external_options", "external_participants", "external_exam_submissions", "external_submission_answers",
-            "question_templates", "template_questions", "template_options"
+            "question_templates", "template_questions", "template_options", "institute_settings"
         };
         for (String table : tables) {
             try {

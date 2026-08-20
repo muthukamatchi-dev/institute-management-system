@@ -39,6 +39,7 @@ export class CourseListComponent implements OnInit {
   importedCount = 0;
   isGuidanceOpen = false;
   customFields: any[] = [];
+  enableStandardCourses = false;
 
   newCourse: Partial<Course> = this.getInitialCourse();
 
@@ -50,7 +51,10 @@ export class CourseListComponent implements OnInit {
       duration: '',
       fees: 0,
       status: 'active',
-      course_id: ''
+      course_id: '',
+      courseType: 'self',
+      subjects: [],
+      feePeriod: 'course'
     };
   }
 
@@ -60,6 +64,9 @@ export class CourseListComponent implements OnInit {
     this.loadCourses();
     this.dataService.getCustomFields('course').subscribe(fields => {
       this.customFields = fields;
+    });
+    this.dataService.getSettings().subscribe(settings => {
+      this.enableStandardCourses = settings.enableStandardCourses == 1 || settings.enable_standard_courses == 1;
     });
   }
 
@@ -158,9 +165,14 @@ export class CourseListComponent implements OnInit {
 
   editCourse(course: Course) {
     this.editingCourse = true;
+    const rawCourseType = course.courseType ?? course.course_type ?? 'self';
+    const rawFeePeriod = course.feePeriod ?? course.fee_period ?? 'course';
     this.newCourse = {
       ...course,
-      course_id: course.course_id ?? (course as any).courseId ?? ''
+      course_id: course.course_id ?? (course as any).courseId ?? '',
+      courseType: rawCourseType as any,
+      feePeriod: rawFeePeriod as any,
+      subjects: this.parseSubjects(course.subjects)
     };
     this.selectedFileName = course.syllabusPath ? course.syllabusPath.split('/').pop() || '' : '';
     this.selectedImageName = course.imagePath ? course.imagePath.split('/').pop() || '' : '';
@@ -183,8 +195,15 @@ export class CourseListComponent implements OnInit {
       (this.newCourse as any).custom_fields = this.customFieldsRenderer.getValues();
     }
 
+    const payload = { ...this.newCourse };
+    if (payload.courseType === 'standard') {
+      const sum = (payload.subjects || []).reduce((acc: number, s: any) => acc + (Number(s.fees) || 0), 0);
+      payload.fees = sum;
+    }
+    payload.subjects = JSON.stringify(payload.subjects || []);
+
     this.isSavingCourse = true;
-    this.dataService.addCourse(this.newCourse).subscribe({
+    this.dataService.addCourse(payload).subscribe({
       next: () => {
         this.isSavingCourse = false;
         this.loadCourses();
@@ -196,6 +215,49 @@ export class CourseListComponent implements OnInit {
         this.toastService.error('Failed to save the course. Please try again.');
       }
     });
+  }
+
+  onCourseTypeChange() {
+    if (this.newCourse.courseType === 'standard' && (!this.newCourse.subjects || this.newCourse.subjects.length === 0)) {
+      this.newCourse.subjects = [
+        { name: 'Tamil', fees: 0 },
+        { name: 'English', fees: 0 },
+        { name: 'Maths', fees: 0 },
+        { name: 'Science', fees: 0 },
+        { name: 'Social Science', fees: 0 }
+      ];
+    }
+  }
+
+  parseSubjects(value: any): any[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      if (typeof value === 'string') {
+        return value.split(',').map(s => ({ name: s.trim(), fees: 0 }));
+      }
+      return [];
+    }
+  }
+
+  addSubject() {
+    if (!this.newCourse.subjects) {
+      this.newCourse.subjects = [];
+    }
+    this.newCourse.subjects.push({ name: '', fees: 0 });
+  }
+
+  removeSubject(index: number) {
+    if (this.newCourse.subjects) {
+      this.newCourse.subjects.splice(index, 1);
+    }
+  }
+
+  getSubjectsSum(): number {
+    return (this.newCourse.subjects || []).reduce((acc: number, s: any) => acc + (Number(s.fees) || 0), 0);
   }
 
   deleteCourse(course: Course) {
@@ -211,7 +273,19 @@ export class CourseListComponent implements OnInit {
     if (!imagePath) return '';
     if (imagePath.startsWith('http')) return imagePath;
     const normalizedPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
-    return `http://localhost:8081/${normalizedPath}`;
+    // Handle spaces and special characters in filenames
+    const encodedPath = encodeURI(normalizedPath);
+    return `${this.dataService.getServerUrl()}/${encodedPath}`;
+  }
+
+  removeImage() {
+    this.newCourse.imagePath = undefined;
+    this.selectedImageName = '';
+  }
+
+  removeSyllabus() {
+    this.newCourse.syllabusPath = undefined;
+    this.selectedFileName = '';
   }
 
   toggleGuidance() {

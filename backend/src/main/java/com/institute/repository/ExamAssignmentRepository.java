@@ -12,5 +12,6 @@ public interface ExamAssignmentRepository extends JpaRepository<ExamAssignment, 
     List<ExamAssignment> findByExamId(Long examId);
     void deleteByExamId(Long examId);
     void deleteByStudentId(Long studentId);
+    void deleteByExamIdAndStudentId(Long examId, Long studentId);
     Optional<ExamAssignment> findByExamIdAndStudentId(Long examId, Long studentId);
 }

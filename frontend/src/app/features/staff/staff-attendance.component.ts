@@ -109,7 +109,7 @@ import { ToastService } from '../../services/toast.service';
                </button>
                <div *ngIf="todaySchedule.length === 0" class="p-5 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/20">
                  <p class="text-[10px] text-amber-700 dark:text-amber-500 font-bold leading-relaxed italic">
-                   No sessions scheduled for this target on {{ selectedDate | date:'mediumDate' }}.
+                   No sessions scheduled for this target on {{ selectedDate | date:'dd-MM-yyyy' }}.
                  </p>
                  <a routerLink="/staff/schedule" class="text-[9px] font-black text-primary-600 uppercase mt-4 inline-flex items-center gap-2 hover:translate-x-1 transition-transform">Update Schedule ➔</a>
                </div>
@@ -132,7 +132,7 @@ import { ToastService } from '../../services/toast.service';
                   <p class="text-[10px] text-primary-600 dark:text-primary-400 font-black mt-1 uppercase tracking-[0.2em]">{{ selectedTarget.batch_name || selectedTarget.name }}</p>
                </div>
                <div class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest border border-slate-100 dark:border-slate-800">
-                 📅 {{ selectedDate | date:'dd MMM yyyy' }}
+                 📅 {{ selectedDate | date:'dd-MM-yyyy' }}
                </div>
             </div>
 

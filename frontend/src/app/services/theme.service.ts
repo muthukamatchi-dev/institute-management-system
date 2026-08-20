@@ -5,13 +5,12 @@ import { Injectable } from '@angular/core';
 })
 export class ThemeService {
     private currentTheme = 'blue';
-    private currentMode = 'light';
+    private currentMode = 'dark';
 
     constructor() {
         const savedTheme = localStorage.getItem('theme');
-        const savedMode = localStorage.getItem('themeMode');
         if (savedTheme) this.setTheme(savedTheme, false);
-        if (savedMode) this.setMode(savedMode, false);
+        this.setMode('dark', true);
     }
 
     setTheme(theme: string, save = true) {
@@ -20,26 +19,19 @@ export class ThemeService {
         if (save) localStorage.setItem('theme', theme);
     }
 
-    setMode(mode: string, save = true) {
-        this.currentMode = mode;
-        if (mode === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-        if (save) localStorage.setItem('themeMode', mode);
+    setMode(mode: string = 'dark', save = true) {
+        this.currentMode = 'dark';
+        document.documentElement.classList.add('dark');
+        if (save) localStorage.setItem('themeMode', 'dark');
     }
 
     applySettings(settings: any) {
         const appearanceColor = settings?.appearance_color ?? settings?.appearanceColor;
-        const appearanceMode = settings?.appearance_mode ?? settings?.appearanceMode;
 
         if (appearanceColor) {
             this.setTheme(this.mapColorToTheme(appearanceColor));
         }
-        if (appearanceMode) {
-            this.setMode(appearanceMode);
-        }
+        this.setMode('dark');
     }
 
     private mapColorToTheme(color: string): string {

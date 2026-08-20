@@ -39,6 +39,8 @@ public class ExamsService {
     private final InstituteSettingRepository settingRepo;
     private final UserRepository userRepo;
     private final StaffRepository staffRepo;
+    private final ExamEntryRepository examEntryRepo;
+    private final ExamEntryStudentResultRepository examEntryStudentResultRepo;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -53,7 +55,8 @@ public class ExamsService {
                         QuestionTemplateRepository templateRepo, TemplateQuestionRepository templateQuestionRepo,
                         TemplateOptionRepository templateOptionRepo, StudentRepository studentRepo,
                         CourseRepository courseRepo, InstituteSettingRepository settingRepo,
-                        UserRepository userRepo, StaffRepository staffRepo) {
+                        UserRepository userRepo, StaffRepository staffRepo,
+                        ExamEntryRepository examEntryRepo, ExamEntryStudentResultRepository examEntryStudentResultRepo) {
         this.examRepo = examRepo;
         this.examQuestionRepo = examQuestionRepo;
         this.examOptionRepo = examOptionRepo;
@@ -74,6 +77,8 @@ public class ExamsService {
         this.settingRepo = settingRepo;
         this.userRepo = userRepo;
         this.staffRepo = staffRepo;
+        this.examEntryRepo = examEntryRepo;
+        this.examEntryStudentResultRepo = examEntryStudentResultRepo;
     }
 
     // ============ INTERNAL EXAMS (Exams_model.php lines 7-200) ============
@@ -82,13 +87,17 @@ public class ExamsService {
         String role = details.getOrDefault("role", "").toString().toLowerCase();
         String type = details.getOrDefault("type", "").toString().toLowerCase();
         Long currentUserId = Long.valueOf(details.get("id").toString());
+        boolean isStaffUser = "staff".equals(type) || "staff".equals(role);
         
         List<Exam> exams;
         if (examId != null) {
-            exams = examRepo.findById(examId).map(List::of).orElse(List.of());
+            exams = examRepo.findById(examId)
+                .filter(exam -> !isStaffUser || Objects.equals(exam.getCreatedBy(), currentUserId))
+                .map(List::of)
+                .orElse(List.of());
         } else {
             // Staff only see their own created exams. Admins see all.
-            if ("staff".equals(type) || "staff".equals(role)) {
+            if (isStaffUser) {
                 exams = examRepo.findByCreatedBy(currentUserId).stream()
                     .filter(exam -> exam.getIsDeleted() == null || exam.getIsDeleted() == 0)
                     .collect(Collectors.toList());
@@ -259,6 +268,27 @@ public class ExamsService {
         }).orElse(false);
     }
 
+    @Transactional
+    public boolean deleteExternalExam(Long id) {
+        return externalExamRepo.findById(id).map(exam -> {
+            List<ExternalExamSubmission> submissions = externalSubmissionRepo.findByExamId(id);
+            for (ExternalExamSubmission submission : submissions) {
+                externalSubmissionAnswerRepo.deleteBySubmissionId(submission.getId());
+            }
+            externalSubmissionRepo.deleteAll(submissions);
+
+            List<ExternalQuestion> questions = externalQuestionRepo.findByExamId(id);
+            for (ExternalQuestion question : questions) {
+                externalOptionRepo.deleteByQuestionId(question.getId());
+            }
+            externalQuestionRepo.deleteByExamId(id);
+
+            externalParticipantRepo.deleteByExamId(id);
+            externalExamRepo.deleteById(id);
+            return true;
+        }).orElse(false);
+    }
+
     // ============ ASSIGNMENTS (Exams_model.php lines 202-280) ============
 
     @Transactional
@@ -285,6 +315,28 @@ public class ExamsService {
         });
     }
 
+    @Transactional
+    public void unassignExam(Long examId, Long studentId) {
+        examAssignmentRepo.deleteByExamIdAndStudentId(examId, studentId);
+    }
+
+    private boolean canStudentTakeExam(ExamAssignment assignment, Optional<ExamSubmission> latestSubmission) {
+        if (latestSubmission.isEmpty()) {
+            return true;
+        }
+
+        if (assignment == null || assignment.getAssignedAt() == null) {
+            return false;
+        }
+
+        LocalDateTime submittedAt = latestSubmission.get().getEndTime();
+        if (submittedAt == null) {
+            return false;
+        }
+
+        return assignment.getAssignedAt().isAfter(submittedAt);
+    }
+
     public List<Map<String, Object>> getAssignedExams(Long studentId) {
         List<ExamAssignment> assignments = examAssignmentRepo.findByStudentId(studentId);
         List<Map<String, Object>> result = new ArrayList<>();
@@ -305,11 +357,13 @@ public class ExamsService {
                       // Check if already submitted
                       Optional<ExamSubmission> sub = examSubmissionRepo
                           .findTopByExamIdAndStudentIdOrderByAttemptNumberDesc(exam.getId(), studentId);
-                      map.put("has_submitted", sub.isPresent());
-                      map.put("has_attempted", sub.isPresent());
+                      boolean hasSubmitted = sub.isPresent();
+                      boolean canTake = canStudentTakeExam(a, sub);
+
+                      map.put("has_submitted", hasSubmitted);
+                      map.put("has_attempted", hasSubmitted);
                       map.put("submission_status", sub.map(ExamSubmission::getStatus).orElse(null));
-                      map.put("can_take", !"evaluated".equalsIgnoreCase(
-                          sub.map(ExamSubmission::getStatus).orElse("")));
+                      map.put("can_take", canTake);
 
                       result.add(map);
                   }
@@ -396,9 +450,15 @@ public class ExamsService {
         Long studentId = Long.valueOf(data.get("student_id").toString());
         List<Map<String, Object>> answers = (List<Map<String, Object>>) data.get("answers");
 
+        ExamAssignment assignment = examAssignmentRepo.findByExamIdAndStudentId(examId, studentId)
+            .orElseThrow(() -> new RuntimeException("This assessment is not assigned to the student."));
+
         // Determine attempt number
         Optional<ExamSubmission> lastSub = examSubmissionRepo
             .findTopByExamIdAndStudentIdOrderByAttemptNumberDesc(examId, studentId);
+        if (!canStudentTakeExam(assignment, lastSub)) {
+            throw new RuntimeException("This assessment has already been attempted. It can only be reopened by reassignment.");
+        }
         int attemptNumber = lastSub.map(s -> s.getAttemptNumber() + 1).orElse(1);
 
         ExamSubmission submission = ExamSubmission.builder()
@@ -624,10 +684,27 @@ public class ExamsService {
 
     // ============ EXTERNAL EXAMS (Exams_model.php lines 452-800) ============
 
-    public List<Map<String, Object>> getExternalExams(Long examId, Map<String, String> filters) {
-        List<ExternalExam> exams = examId != null ?
-            externalExamRepo.findById(examId).map(List::of).orElse(List.of()) :
-            externalExamRepo.findAll();
+    public List<Map<String, Object>> getExternalExams(Long examId, Map<String, String> filters, Map<String, Object> details) {
+        String role = details != null ? details.getOrDefault("role", "").toString().toLowerCase() : "";
+        String type = details != null ? details.getOrDefault("type", "").toString().toLowerCase() : "";
+        Long currentUserId = (details != null && details.get("id") != null)
+            ? Long.valueOf(details.get("id").toString())
+            : null;
+        boolean isStaffUser = currentUserId != null && ("staff".equals(type) || "staff".equals(role));
+
+        List<ExternalExam> exams;
+        if (examId != null) {
+            exams = externalExamRepo.findById(examId)
+                .filter(exam -> !isStaffUser || Objects.equals(exam.getCreatedBy(), currentUserId))
+                .map(List::of)
+                .orElse(List.of());
+        } else if (isStaffUser) {
+            exams = externalExamRepo.findAll().stream()
+                .filter(exam -> Objects.equals(exam.getCreatedBy(), currentUserId))
+                .collect(Collectors.toList());
+        } else {
+            exams = externalExamRepo.findAll();
+        }
 
         System.out.println("Processing getExternalExams. filters: " + filters);
         if (filters != null && examId == null) {
@@ -783,6 +860,20 @@ public class ExamsService {
             result.put("name", p.getName());
             result.put("email", p.getEmail());
             result.put("exam_id", p.getExamId());
+            Optional<ExternalExamSubmission> latestSubmission = externalSubmissionRepo
+                .findTopByExamIdAndParticipantIdOrderByAttemptNumberDesc(examId, p.getId());
+            boolean hasSubmitted = latestSubmission.isPresent();
+            result.put("has_submitted", hasSubmitted);
+            latestSubmission.ifPresent(sub -> {
+                result.put("submission_id", sub.getId());
+                result.put("attempt_number", sub.getAttemptNumber());
+                result.put("submission_status", sub.getStatus());
+                result.put("is_evaluated", sub.getIsEvaluated());
+            });
+            externalExamRepo.findById(examId).ifPresent(exam -> {
+                result.put("results_published", exam.getResultsPublished());
+                result.put("exam_title", exam.getTitle());
+            });
             return result;
         }
         return null;
@@ -804,6 +895,7 @@ public class ExamsService {
             map.put("id", t.getId());
             map.put("title", t.getTitle());
             map.put("course_id", t.getCourseId());
+            map.put("subject", t.getSubject());
 
             List<TemplateQuestion> questions = templateQuestionRepo.findByTemplateId(t.getId());
             List<Map<String, Object>> qList = new ArrayList<>();
@@ -839,6 +931,11 @@ public class ExamsService {
         Object courseIdValue = data.containsKey("course_id") ? data.get("course_id") : data.get("courseId");
         if (courseIdValue != null && !courseIdValue.toString().isBlank()) {
             template.setCourseId(Long.valueOf(courseIdValue.toString()));
+        }
+        if (data.containsKey("subject")) {
+            template.setSubject((String) data.get("subject"));
+        } else if (data.containsKey("selectedSubject")) {
+            template.setSubject((String) data.get("selectedSubject"));
         }
         template.setUpdatedAt(LocalDateTime.now());
 
@@ -1001,6 +1098,78 @@ public class ExamsService {
         return res;
     }
 
+    @Transactional
+    public Long saveExternalParticipant(Map<String, Object> data) {
+        Long examId = Long.valueOf(data.get("exam_id").toString());
+        String name = Objects.toString(data.get("name"), "").trim();
+        String email = Objects.toString(data.get("email"), "").trim();
+        String password = Objects.toString(data.get("password"), "").trim();
+        String mobile = Objects.toString(data.getOrDefault("mobile", ""), "").trim();
+
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            throw new IllegalArgumentException("Name, email, and password are required");
+        }
+
+        externalExamRepo.findById(examId)
+            .orElseThrow(() -> new IllegalArgumentException("External exam not found"));
+
+        if (externalParticipantRepo.findByExamIdAndEmail(examId, email).isPresent()) {
+            throw new IllegalArgumentException("Candidate email already exists for this exam");
+        }
+
+        ExternalParticipant participant = ExternalParticipant.builder()
+            .examId(examId)
+            .name(name)
+            .email(email)
+            .password(password)
+            .mobile(mobile.isBlank() ? null : mobile)
+            .createdAt(LocalDateTime.now())
+            .build();
+
+        return externalParticipantRepo.save(participant).getId();
+    }
+
+    @Transactional
+    public int bulkSaveExternalParticipants(Long examId, List<Map<String, Object>> participants) {
+        externalExamRepo.findById(examId)
+            .orElseThrow(() -> new IllegalArgumentException("External exam not found"));
+
+        if (participants == null || participants.isEmpty()) {
+            return 0;
+        }
+
+        int savedCount = 0;
+        for (Map<String, Object> participantData : participants) {
+            if (participantData == null) continue;
+
+            String name = Objects.toString(participantData.get("name"), "").trim();
+            String email = Objects.toString(participantData.get("email"), "").trim();
+            String password = Objects.toString(participantData.get("password"), "").trim();
+            String mobile = Objects.toString(participantData.getOrDefault("mobile", ""), "").trim();
+
+            if (name.isBlank() || email.isBlank() || password.isBlank()) {
+                continue;
+            }
+
+            if (externalParticipantRepo.findByExamIdAndEmail(examId, email).isPresent()) {
+                continue;
+            }
+
+            ExternalParticipant participant = ExternalParticipant.builder()
+                .examId(examId)
+                .name(name)
+                .email(email)
+                .password(password)
+                .mobile(mobile.isBlank() ? null : mobile)
+                .createdAt(LocalDateTime.now())
+                .build();
+            externalParticipantRepo.save(participant);
+            savedCount++;
+        }
+
+        return savedCount;
+    }
+
     public List<Map<String, Object>> getExternalSubmissions(Long examId) {
         List<ExternalExamSubmission> subs = examId != null ?
             externalSubmissionRepo.findByExamId(examId) :
@@ -1015,12 +1184,17 @@ public class ExamsService {
             m.put("is_evaluated", s.getIsEvaluated());
             m.put("status_eval", s.getStatus());
             m.put("submitted_at", s.getSubmittedAt());
+            m.put("attempt_number", s.getAttemptNumber());
             
             externalParticipantRepo.findById(s.getParticipantId()).ifPresent(p -> {
                 m.put("name", p.getName());
                 m.put("email", p.getEmail());
             });
-            externalExamRepo.findById(s.getExamId()).ifPresent(e -> m.put("title", e.getTitle()));
+            externalExamRepo.findById(s.getExamId()).ifPresent(e -> {
+                m.put("title", e.getTitle());
+                m.put("total_marks", e.getTotalMarks());
+                m.put("pass_percentage", e.getPassPercentage());
+            });
             
             res.add(m);
         }
@@ -1038,6 +1212,7 @@ public class ExamsService {
         res.put("is_evaluated", sub.getIsEvaluated());
         res.put("status_eval", sub.getStatus());
         res.put("submitted_at", sub.getSubmittedAt());
+        res.put("attempt_number", sub.getAttemptNumber());
 
         externalParticipantRepo.findById(sub.getParticipantId()).ifPresent(p -> {
             res.put("name", p.getName());
@@ -1048,6 +1223,7 @@ public class ExamsService {
             res.put("title", e.getTitle());
             res.put("total_marks", e.getTotalMarks());
             res.put("pass_percentage", e.getPassPercentage());
+            res.put("exam_date", e.getExamDate());
         });
 
         List<ExternalSubmissionAnswer> answers = externalSubmissionAnswerRepo.findBySubmissionId(sub.getId());
@@ -1065,11 +1241,97 @@ public class ExamsService {
                 aMap.put("question_text", q.getQuestionText());
                 aMap.put("question_type", q.getQuestionType());
                 aMap.put("question_marks", q.getMarks());
+
+                List<ExternalOption> options = externalOptionRepo.findByQuestionId(q.getId());
+                List<Map<String, Object>> oList = new ArrayList<>();
+                for (ExternalOption o : options) {
+                    Map<String, Object> oMap = new LinkedHashMap<>();
+                    oMap.put("id", o.getId());
+                    oMap.put("option_text", o.getOptionText());
+                    oMap.put("is_correct", o.getIsCorrect());
+                    oList.add(oMap);
+                    
+                    // If this is the selected option for MCQ, set answer_text if currently empty
+                    if ("mcq".equalsIgnoreCase(q.getQuestionType()) && 
+                        a.getSelectedOptionId() != null && 
+                        a.getSelectedOptionId().equals(o.getId())) {
+                        aMap.put("answer_text", o.getOptionText());
+                    }
+                }
+                aMap.put("options", oList);
             });
             answerList.add(aMap);
         }
         res.put("answers", answerList);
         return res;
+    }
+
+    @Transactional
+    public boolean evaluateExternalSubmission(Long submissionId, List<Map<String, Object>> evaluations) {
+        ExternalExamSubmission submission = externalSubmissionRepo.findById(submissionId).orElse(null);
+        if (submission == null) return false;
+
+        BigDecimal totalScore = BigDecimal.ZERO;
+        List<ExternalSubmissionAnswer> existingAnswers = externalSubmissionAnswerRepo.findBySubmissionId(submissionId);
+        Map<Long, ExternalSubmissionAnswer> answerById = existingAnswers.stream()
+            .collect(Collectors.toMap(ExternalSubmissionAnswer::getId, a -> a));
+
+        if (evaluations != null) {
+            for (Map<String, Object> evaluation : evaluations) {
+                Object answerIdValue = evaluation.get("answer_id");
+                if (answerIdValue == null) {
+                    answerIdValue = evaluation.get("id");
+                }
+                if (answerIdValue == null) {
+                    throw new IllegalArgumentException("Answer ID is required for evaluation");
+                }
+
+                Long answerId = Long.valueOf(answerIdValue.toString());
+                ExternalSubmissionAnswer answer = answerById.get(answerId);
+                if (answer == null) {
+                    throw new IllegalArgumentException("Invalid answer reference in evaluation");
+                }
+
+                ExternalQuestion question = externalQuestionRepo.findById(answer.getQuestionId()).orElse(null);
+                BigDecimal maxMarks = question != null && question.getMarks() != null
+                    ? BigDecimal.valueOf(question.getMarks())
+                    : BigDecimal.ZERO;
+
+                BigDecimal marks = BigDecimal.ZERO;
+                Object marksValue = evaluation.get("marks");
+                if (marksValue == null) {
+                    marksValue = evaluation.get("marks_obtained");
+                }
+                if (marksValue != null && !marksValue.toString().isBlank()) {
+                    marks = new BigDecimal(marksValue.toString());
+                }
+
+                if (marks.compareTo(BigDecimal.ZERO) < 0 || marks.compareTo(maxMarks) > 0) {
+                    throw new IllegalArgumentException("Marks cannot be less than 0 or greater than the question mark");
+                }
+
+                Integer isCorrect = null;
+                Object isCorrectValue = evaluation.get("is_correct");
+                if (isCorrectValue != null && !isCorrectValue.toString().isBlank()) {
+                    isCorrect = Integer.valueOf(isCorrectValue.toString());
+                }
+
+                answer.setMarksObtained(marks);
+                if (isCorrect != null) {
+                    answer.setIsCorrect(isCorrect);
+                } else if ("mcq".equalsIgnoreCase(question != null ? question.getQuestionType() : null)) {
+                    answer.setIsCorrect(marks.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
+                }
+                externalSubmissionAnswerRepo.save(answer);
+                totalScore = totalScore.add(marks);
+            }
+        }
+
+        submission.setScore(totalScore);
+        submission.setIsEvaluated(1);
+        submission.setStatus("evaluated");
+        externalSubmissionRepo.save(submission);
+        return true;
     }
 
     @Transactional
@@ -1088,9 +1350,26 @@ public class ExamsService {
 
     @Transactional
     public Map<String, Object> submitExternalExam(Map<String, Object> data) {
-        Long examId = Long.valueOf(data.get("exam_id").toString());
-        Long participantId = Long.valueOf(data.get("participant_id").toString());
+        Object examIdValue = data.get("exam_id");
+        if (examIdValue == null) {
+            throw new IllegalArgumentException("Exam ID is required");
+        }
+
+        Object participantIdValue = data.get("participant_id");
+        if (participantIdValue == null) {
+            participantIdValue = data.get("student_id");
+        }
+        if (participantIdValue == null) {
+            throw new IllegalArgumentException("Participant ID is required for external exam submission");
+        }
+
+        Long examId = Long.valueOf(examIdValue.toString());
+        Long participantId = Long.valueOf(participantIdValue.toString());
         List<Map<String, Object>> answers = (List<Map<String, Object>>) data.get("answers");
+
+        if (externalSubmissionRepo.findTopByExamIdAndParticipantIdOrderByAttemptNumberDesc(examId, participantId).isPresent()) {
+            throw new IllegalArgumentException("You already attempted this assessment. Please wait for results.");
+        }
 
         ExternalExamSubmission submission = ExternalExamSubmission.builder()
             .examId(examId)
@@ -1146,7 +1425,15 @@ public class ExamsService {
     }
 
     public String getInstituteName() {
-        return settingRepo.findById(1L).map(InstituteSetting::getInstituteName).orElse("Institute");
+        return settingRepo.findAll().stream().findFirst().map(InstituteSetting::getInstituteName).orElse("Institute");
+    }
+
+    @Transactional
+    public void toggleExternalResults(Long examId, int status) {
+        externalExamRepo.findById(examId).ifPresent(exam -> {
+            exam.setResultsPublished(status);
+            externalExamRepo.save(exam);
+        });
     }
 
     @Transactional
@@ -1206,5 +1493,148 @@ public class ExamsService {
             }
             if (changed) externalExamRepo.save(ee);
         }
+    }
+
+    // ============ OFFLINE EXAM ENTRIES ============
+
+    public List<Map<String, Object>> getExamEntries(Long courseId) {
+        List<ExamEntry> entries;
+        if (courseId != null) {
+            entries = examEntryRepo.findByCourseId(courseId);
+        } else {
+            entries = examEntryRepo.findAll();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (ExamEntry entry : entries) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", entry.getId());
+            map.put("title", entry.getTitle());
+            map.put("exam_date", entry.getExamDate());
+            map.put("total_marks", entry.getTotalMarks());
+            map.put("course_id", entry.getCourseId());
+            map.put("subject", entry.getSubject());
+            map.put("question_count", entry.getQuestionCount());
+            map.put("question_marks", entry.getQuestionMarks());
+            map.put("batches", entry.getBatches());
+            map.put("created_at", entry.getCreatedAt());
+
+            if (entry.getCourseId() != null) {
+                courseRepo.findById(entry.getCourseId()).ifPresent(c -> map.put("course_name", c.getName()));
+            }
+
+            int studentCount = examEntryStudentResultRepo.findByExamEntryId(entry.getId()).size();
+            map.put("student_count", studentCount);
+
+            result.add(map);
+        }
+        return result;
+    }
+
+    public Map<String, Object> getExamEntryDetails(Long entryId) {
+        return examEntryRepo.findById(entryId).map(entry -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", entry.getId());
+            map.put("title", entry.getTitle());
+            map.put("exam_date", entry.getExamDate());
+            map.put("total_marks", entry.getTotalMarks());
+            map.put("course_id", entry.getCourseId());
+            map.put("subject", entry.getSubject());
+            map.put("question_count", entry.getQuestionCount());
+            map.put("question_marks", entry.getQuestionMarks());
+            map.put("batches", entry.getBatches());
+            map.put("created_at", entry.getCreatedAt());
+
+            if (entry.getCourseId() != null) {
+                courseRepo.findById(entry.getCourseId()).ifPresent(c -> map.put("course_name", c.getName()));
+            }
+
+            List<ExamEntryStudentResult> results = examEntryStudentResultRepo.findByExamEntryId(entry.getId());
+            List<Map<String, Object>> resultList = new ArrayList<>();
+            for (ExamEntryStudentResult res : results) {
+                Map<String, Object> rMap = new LinkedHashMap<>();
+                rMap.put("id", res.getId());
+                rMap.put("student_id", res.getStudentId());
+                rMap.put("marks_obtained", res.getMarksObtained());
+                rMap.put("total_marks_obtained", res.getTotalMarksObtained());
+                rMap.put("remarks", res.getRemarks());
+
+                studentRepo.findById(res.getStudentId()).ifPresent(s -> {
+                    rMap.put("student_name", s.getName());
+                    rMap.put("reg_number", s.getRegNumber());
+                });
+                resultList.add(rMap);
+            }
+            map.put("results", resultList);
+            return map;
+        }).orElse(null);
+    }
+
+    @Transactional
+    public Long saveExamEntry(Map<String, Object> data) {
+        Long id = data.containsKey("id") && data.get("id") != null ?
+            Long.valueOf(data.get("id").toString()) : null;
+
+        ExamEntry entry;
+        if (id != null) {
+            entry = examEntryRepo.findById(id).orElse(new ExamEntry());
+        } else {
+            entry = new ExamEntry();
+            entry.setCreatedAt(LocalDateTime.now());
+        }
+
+        entry.setTitle((String) data.get("title"));
+        if (data.containsKey("exam_date") && data.get("exam_date") != null) {
+            String dateStr = (String) data.get("exam_date");
+            if (dateStr.length() == 16) {
+                dateStr = dateStr + ":00"; // Append seconds if needed for ISO format
+            }
+            entry.setExamDate(LocalDateTime.parse(dateStr));
+        }
+        entry.setTotalMarks(data.containsKey("total_marks") ? Integer.valueOf(data.get("total_marks").toString()) : 0);
+        if (data.containsKey("course_id") && data.get("course_id") != null) {
+            entry.setCourseId(Long.valueOf(data.get("course_id").toString()));
+        }
+        entry.setSubject((String) data.get("subject"));
+        entry.setQuestionCount(data.containsKey("question_count") ? Integer.valueOf(data.get("question_count").toString()) : 0);
+        entry.setQuestionMarks(String.valueOf(data.get("question_marks")));
+        entry.setBatches(String.valueOf(data.get("batches")));
+        entry.setUpdatedAt(LocalDateTime.now());
+
+        ExamEntry saved = examEntryRepo.save(savedEntityWithBranch(entry));
+
+        // Save Student Results
+        if (data.containsKey("results") && data.get("results") instanceof List) {
+            // Delete old results first if updating
+            if (id != null) {
+                examEntryStudentResultRepo.deleteByExamEntryId(saved.getId());
+            }
+
+            List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+            for (Map<String, Object> resData : results) {
+                ExamEntryStudentResult res = new ExamEntryStudentResult();
+                res.setExamEntryId(saved.getId());
+                res.setStudentId(Long.valueOf(resData.get("student_id").toString()));
+                res.setMarksObtained(String.valueOf(resData.get("marks_obtained")));
+                res.setTotalMarksObtained(new BigDecimal(resData.get("total_marks_obtained").toString()));
+                res.setRemarks((String) resData.get("remarks"));
+                examEntryStudentResultRepo.save(savedResultWithBranch(res));
+            }
+        }
+
+        return saved.getId();
+    }
+
+    private ExamEntry savedEntityWithBranch(ExamEntry entry) {
+        return entry;
+    }
+
+    private ExamEntryStudentResult savedResultWithBranch(ExamEntryStudentResult res) {
+        return res;
+    }
+
+    @Transactional
+    public void deleteExamEntry(Long id) {
+        examEntryStudentResultRepo.deleteByExamEntryId(id);
+        examEntryRepo.deleteById(id);
     }
 }

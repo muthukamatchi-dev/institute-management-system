@@ -3,6 +3,7 @@ package com.institute.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.Filters;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -13,7 +14,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @EntityListeners(BranchEntityListener.class)
-@Filter(name = "branchFilter", condition = "branch_id = :branchId")
+@Filters({
+    @Filter(name = "branchFilter", condition = "(branch_id = :branchId OR branch_id IS NULL)"),
+    @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+})
 public class Course {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,4 +55,17 @@ public class Course {
 
     @Column(name = "branch_id")
     private Long branchId;
+
+    @Column(name = "course_type", length = 50)
+    private String courseType;
+
+    @Column(name = "subjects", columnDefinition = "TEXT")
+    private String subjects;
+
+    @Column(name = "fee_period", length = 50)
+    private String feePeriod = "course";
+
+    @Builder.Default
+    @Column(name = "tenant_id", length = 100)
+    private String tenantId = "default";
 }

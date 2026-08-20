@@ -54,6 +54,16 @@ public class OperationsController {
         return ResponseEntity.ok(ApiResponse.success(service.getReceipts()));
     }
 
+    @PostMapping("/delete_receipt")
+    public ResponseEntity<ApiResponse> deleteReceipt(@RequestBody Map<String, Object> body) {
+        Long id = Long.valueOf(body.get("id").toString());
+        Map<String, Object> result = service.deleteReceipt(id);
+        if (result.containsKey("error")) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(result.get("error").toString()));
+        }
+        return ResponseEntity.ok(ApiResponse.success(result, "Receipt deleted successfully"));
+    }
+
     @GetMapping("/get_attendance")
     public ResponseEntity<ApiResponse> getAttendance(@RequestParam(name = "batch_id", required = false) Long batch_id,
                                                       @RequestParam(name = "date") String date) {
@@ -171,7 +181,7 @@ public class OperationsController {
     }
 
     @GetMapping("/expense_stats")
-    public ResponseEntity<ApiResponse> getExpenseStats() {
-        return ResponseEntity.ok(ApiResponse.success(service.getExpenseStats()));
+    public ResponseEntity<ApiResponse> getExpenseStats(@RequestParam(required = false) Map<String, String> filters) {
+        return ResponseEntity.ok(ApiResponse.success(service.getExpenseStats(filters)));
     }
 }

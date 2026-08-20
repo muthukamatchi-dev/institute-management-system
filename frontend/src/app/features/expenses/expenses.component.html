@@ -93,7 +93,7 @@
                         <td class="px-8 py-6">
                             <app-badge [label]="ex.category" [type]="getCategoryColor(ex.category)"></app-badge>
                         </td>
-                        <td class="px-8 py-6 text-sm font-bold text-slate-600 dark:text-slate-400">{{ ex.expense_date | date:'mediumDate' }}</td>
+                        <td class="px-8 py-6 text-sm font-bold text-slate-600 dark:text-slate-400">{{ ex.expense_date | date:'dd-MM-yyyy' }}</td>
                         <td class="px-8 py-6">
                             <span class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest">
                                 {{ ex.payment_method }}
@@ -155,8 +155,9 @@
 
             <div class="space-y-3">
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction Date</label>
-                <input type="date" [(ngModel)]="newExpense.expense_date" 
+                <input type="date" lang="en-IN" [(ngModel)]="newExpense.expense_date" 
                        class="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl font-bold text-slate-700 dark:text-white outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                <span *ngIf="newExpense.expense_date" class="text-[9px] font-bold text-primary-600 dark:text-primary-400 mt-1 block">Selected: {{ newExpense.expense_date | date:'dd-MM-yyyy' }}</span>
             </div>
 
             <div class="space-y-3">

@@ -2,11 +2,14 @@ package com.institute.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Filter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity @Table(name = "external_exam_submissions")
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
+@EntityListeners(BranchEntityListener.class)
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class ExternalExamSubmission {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(name = "exam_id", nullable = false) private Long examId;
@@ -16,4 +19,7 @@ public class ExternalExamSubmission {
     @Column(name = "is_evaluated") private Integer isEvaluated = 0;
     @Column(length = 20) private String status = "submitted";
     @Column(name = "attempt_number") private Integer attemptNumber = 1;
+    @Builder.Default
+    @Column(name = "tenant_id", length = 100)
+    private String tenantId = "default";
 }

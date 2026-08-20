@@ -9,6 +9,7 @@ import java.util.Optional;
 @Repository
 public interface ExternalParticipantRepository extends JpaRepository<ExternalParticipant, Long> {
     List<ExternalParticipant> findByExamId(Long examId);
+    Optional<ExternalParticipant> findByExamIdAndEmail(Long examId, String email);
     Optional<ExternalParticipant> findByExamIdAndEmailAndPassword(Long examId, String email, String password);
     void deleteByExamId(Long examId);
 }

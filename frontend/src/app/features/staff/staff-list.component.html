@@ -74,13 +74,14 @@
                                 '—' }}</span>
                         </td>
                         <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
+                            <div (click)="viewStaffDetails(s)" class="cursor-pointer flex items-center gap-3">
                                 <div
-                                    class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 font-bold flex items-center justify-center">
-                                    {{ s.name.charAt(0) }}
+                                    class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 font-bold flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-800 shrink-0">
+                                    <img *ngIf="s.photo" [src]="s.photo" class="w-full h-full object-cover">
+                                    <span *ngIf="!s.photo">{{ s.name.charAt(0) }}</span>
                                 </div>
                                 <div>
-                                    <p class="font-bold text-slate-800 dark:text-slate-200">{{ s.name }}</p>
+                                    <p class="font-bold text-slate-800 dark:text-slate-200 hover:text-primary-600 transition-colors">{{ s.name }}</p>
                                     <p
                                         class="text-[10px] text-primary-600 dark:text-primary-400 font-black uppercase tracking-widest">
                                         {{
@@ -96,7 +97,7 @@
                         </td>
                         <td class="px-6 py-4">
                             <p class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ s.joiningDate |
-                                date:'mediumDate' }}</p>
+                                date:'dd-MM-yyyy' }}</p>
                         </td>
                         <td class="px-6 py-4">
                             <app-badge [label]="s.status"
@@ -105,6 +106,11 @@
                         <td class="px-6 py-4">
                             <div
                                 class="flex items-center justify-center gap-3">
+                                <button (click)="viewStaffDetails(s)"
+                                    class="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary-600 rounded-xl transition-all"
+                                    title="View Profile ID Card">
+                                    👁️
+                                </button>
                                 <button (click)="editStaff(s)"
                                     class="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary-600 rounded-xl transition-all"
                                     title="Edit">
@@ -136,104 +142,235 @@
 <!-- Add/Edit Staff Modal -->
 <app-modal [isOpen]="isModalOpen" [title]="newStaff.id ? 'Edit Staff Details' : 'Add Staff Member'"
     actionLabel="Save Member" (onClose)="closeModal()" (onSubmit)="saveStaff()">
-    <div class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Staff
-                    ID</label>
-                <input type="text" [(ngModel)]="newStaff.staff_id" [readonly]="!isStaffIdManual && !newStaff.id"
-                    [class.bg-slate-100]="!isStaffIdManual && !newStaff.id"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-mono font-bold outline-none"
-                    [placeholder]="isStaffIdManual ? 'e.g. STF-001' : 'Auto-generated'">
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Full
-                    Name <span class="text-rose-500">*</span></label>
-                <input type="text" [(ngModel)]="newStaff.name"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
-                    placeholder="e.g. Dr. John Doe">
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Mobile
-                    Number <span class="text-rose-500">*</span></label>
-                <input type="text" [(ngModel)]="newStaff.mobile"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
-                    placeholder="9876543210">
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Email
-                    Address</label>
-                <input type="email" [(ngModel)]="newStaff.email"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
-                    placeholder="john@institute.com">
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Designation
-                    <span class="text-rose-500">*</span></label>
-                <input type="text" [(ngModel)]="newStaff.designation"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
-                    placeholder="e.g. Senior Faculty">
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Qualification</label>
-                <input type="text" [(ngModel)]="newStaff.qualification"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
-                    placeholder="e.g. M.Tech (CS)">
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Years
-                    of
-                    Experience</label>
-                <input type="text" [(ngModel)]="newStaff.experience"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
-                    placeholder="e.g. 5">
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Joining
-                    Date</label>
-                <input type="date" [(ngModel)]="newStaff.joiningDate"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white focus:ring-4 focus:ring-primary-500/10 font-medium outline-none">
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Status</label>
-                <select [(ngModel)]="newStaff.status"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-primary-500/10 outline-none cursor-pointer">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-            </div>
-
-            <div>
-                <label
-                    class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Salary
-                    Fixed (Monthly)</label>
-                <div class="relative">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                    <input type="number" [(ngModel)]="newStaff.salary"
-                        class="w-full pl-9 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-primary-500/10 outline-none"
-                        placeholder="0.00">
+    <div class="flex flex-col items-center gap-6 p-2">
+        <!-- Profile Photo Upload -->
+        <div class="flex flex-col items-center space-y-2 shrink-0">
+            <div
+                class="relative group w-24 h-24 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex items-center justify-center cursor-pointer transition-all hover:border-primary-500">
+                <img *ngIf="newStaff.photo" [src]="newStaff.photo" class="w-full h-full object-cover">
+                <div *ngIf="!newStaff.photo" class="text-center p-2" (click)="photoInput.click()">
+                    <span class="text-2xl block">📷</span>
+                    <span
+                        class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-1">Add
+                        Photo</span>
                 </div>
+                <div (click)="photoInput.click()"
+                    class="absolute inset-0 bg-slate-950/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span class="text-white text-[9px] font-black uppercase tracking-wider">Change</span>
+                </div>
+            </div>
+            <input #photoInput type="file" (change)="onPhotoChange($event)" accept="image/*" class="hidden">
+            <button *ngIf="newStaff.photo" (click)="removePhoto()" type="button"
+                class="text-[9px] font-bold text-rose-500 hover:text-rose-600 transition-colors uppercase tracking-wider">Delete
+                Photo</button>
+        </div>
+
+        <!-- Form Fields -->
+        <div class="w-full space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Staff
+                        ID</label>
+                    <input type="text" [(ngModel)]="newStaff.staff_id" [readonly]="!isStaffIdManual && !newStaff.id"
+                        [class.bg-slate-100]="!isStaffIdManual && !newStaff.id"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-mono font-bold outline-none"
+                        [placeholder]="isStaffIdManual ? 'e.g. STF-001' : 'Auto-generated'">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Full
+                        Name <span class="text-rose-500">*</span></label>
+                    <input type="text" [(ngModel)]="newStaff.name"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
+                        placeholder="e.g. Dr. John Doe">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Mobile
+                        Number <span class="text-rose-500">*</span></label>
+                    <input type="text" [(ngModel)]="newStaff.mobile"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
+                        placeholder="9876543210">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Email
+                        Address</label>
+                    <input type="email" [(ngModel)]="newStaff.email"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
+                        placeholder="john@institute.com">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Designation
+                        <span class="text-rose-500">*</span></label>
+                    <input type="text" [(ngModel)]="newStaff.designation"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
+                        placeholder="e.g. Senior Faculty">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Qualification</label>
+                    <input type="text" [(ngModel)]="newStaff.qualification"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
+                        placeholder="e.g. M.Tech (CS)">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Years
+                        of
+                        Experience</label>
+                    <input type="text" [(ngModel)]="newStaff.experience"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-primary-500/10 font-medium outline-none"
+                        placeholder="e.g. 5">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Joining
+                        Date</label>
+                    <input type="date" lang="en-IN" [(ngModel)]="newStaff.joiningDate"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white focus:ring-4 focus:ring-primary-500/10 font-medium outline-none">
+                    <span *ngIf="newStaff.joiningDate" class="text-[9px] font-bold text-primary-600 dark:text-primary-400 mt-1 block">Selected: {{ newStaff.joiningDate | date:'dd-MM-yyyy' }}</span>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Status</label>
+                    <select [(ngModel)]="newStaff.status"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-primary-500/10 outline-none cursor-pointer">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Salary
+                        Fixed (Monthly)</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                        <input type="number" [(ngModel)]="newStaff.salary"
+                            class="w-full pl-9 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-primary-500/10 outline-none"
+                            placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+
+            <app-custom-fields-renderer location="staff" [entityId]="newStaff.id"></app-custom-fields-renderer>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Staff Details ID Card Modal -->
+<app-modal [isOpen]="isDetailsModalOpen" title="Staff Profile" (onClose)="closeDetailsModal()" size="md"
+    [showFooter]="false">
+    <div class="space-y-6 py-2 text-slate-800 dark:text-white">
+        <!-- Card Wrapper -->
+        <div id="staff-id-card"
+            class="bg-gradient-to-br from-slate-900 to-indigo-950 p-6 rounded-[2rem] border border-slate-800 text-white relative shadow-2xl overflow-hidden max-w-sm mx-auto">
+            <!-- Background Accent Shapes -->
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-primary-600/10 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-indigo-600/15 rounded-full blur-2xl"></div>
+
+            <!-- Header/Academy Info -->
+            <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                <div class="flex items-center gap-2">
+                    <img *ngIf="settings?.logo_path" [src]="getImageUrl(settings.logo_path)"
+                        class="w-8 h-8 object-contain rounded-lg bg-white/10 p-0.5 border border-white/10">
+                    <span *ngIf="!settings?.logo_path" class="text-lg">🏫</span>
+                    <div>
+                        <h3 class="text-xs font-black tracking-widest uppercase text-primary-400 leading-none mb-0.5">
+                            {{ settings?.institute_name || 'Classivo' }}
+                        </h3>
+                        <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none">Staff ID
+                            Card</p>
+                    </div>
+                </div>
+                <span *ngIf="selectedStaffDetails?.staff_id"
+                    class="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300">
+                    {{ selectedStaffDetails?.staff_id }}
+                </span>
+            </div>
+
+            <!-- Profile Image and Name -->
+            <div class="flex flex-col items-center text-center space-y-3">
+                <div
+                    class="w-24 h-24 rounded-2xl border-2 border-white/20 bg-slate-800 shadow-inner overflow-hidden flex items-center justify-center">
+                    <img *ngIf="selectedStaffDetails?.photo" [src]="selectedStaffDetails.photo"
+                        class="w-full h-full object-cover">
+                    <span *ngIf="!selectedStaffDetails?.photo" class="text-4xl text-slate-500">👤</span>
+                </div>
+                <div>
+                    <h2 class="text-base font-black tracking-tight text-white">{{ selectedStaffDetails?.name }}</h2>
+                    <p class="text-[10px] text-primary-400 font-black uppercase tracking-wider mt-0.5">
+                        {{ selectedStaffDetails?.designation }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Details Table/Grid -->
+            <div class="mt-6 space-y-2 text-xs border-t border-white/10 pt-4">
+                <div *ngIf="selectedStaffDetails?.qualification" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Qualification</span>
+                    <span class="font-bold text-slate-200 text-right">{{ selectedStaffDetails?.qualification }}</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.experience" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Experience</span>
+                    <span class="font-bold text-slate-200 text-right">{{ selectedStaffDetails?.experience }} Years</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.mobile" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mobile</span>
+                    <span class="font-bold text-slate-200 font-mono text-right">{{ selectedStaffDetails?.mobile }}</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.email" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email</span>
+                    <span class="font-bold text-slate-200 text-right truncate max-w-[180px]">{{ selectedStaffDetails?.email }}</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.joiningDate" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Joining Date</span>
+                    <span class="font-bold text-slate-200 text-right">{{ selectedStaffDetails?.joiningDate | date:'dd-MM-yyyy' }}</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.status" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</span>
+                    <span
+                        class="text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/40 border border-emerald-500/20"
+                        [class.text-emerald-400]="selectedStaffDetails?.status === 'active'"
+                        [class.bg-emerald-950/40]="selectedStaffDetails?.status === 'active'"
+                        [class.border-emerald-500/20]="selectedStaffDetails?.status === 'active'"
+                        [class.text-rose-400]="selectedStaffDetails?.status === 'inactive'"
+                        [class.bg-rose-950/40]="selectedStaffDetails?.status === 'inactive'"
+                        [class.border-rose-500/20]="selectedStaffDetails?.status === 'inactive'">
+                        {{ selectedStaffDetails?.status }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Footer Decorative Element -->
+            <div class="mt-6 border-t border-white/5 pt-4 text-center">
+                <p class="text-[7px] text-slate-500 font-bold uppercase tracking-widest">{{ settings?.institute_name
+                    || 'Classivo' }} Management System</p>
             </div>
         </div>
 
-        <app-custom-fields-renderer location="staff" [entityId]="newStaff.id"></app-custom-fields-renderer>
+        <!-- Action/Print Buttons -->
+        <div class="flex justify-center gap-3">
+            <button (click)="closeDetailsModal()"
+                class="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all">
+                Close
+            </button>
+            <button (click)="printIDCard()"
+                class="px-6 py-2.5 bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-primary-700 transition-all shadow-md">
+                🖨️ Print ID Card
+            </button>
+        </div>
     </div>
 </app-modal>
 

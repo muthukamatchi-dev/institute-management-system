@@ -2,6 +2,7 @@ package com.institute.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Filter;
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,6 +11,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(BranchEntityListener.class)
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class ExamAssignment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,4 +32,8 @@ public class ExamAssignment {
 
     @Column(name = "is_reassigned")
     private Integer isReassigned = 0;
+
+    @Builder.Default
+    @Column(name = "tenant_id", length = 100)
+    private String tenantId = "default";
 }

@@ -8,7 +8,7 @@ import { CommonModule } from '@angular/common';
   template: `
     <div class="flex items-center gap-8 p-10 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 mb-8 rounded-[2rem] shadow-sm">
         <div *ngIf="settings?.logo_path" class="flex-shrink-0">
-            <img [src]="'http://localhost:8081/' + settings.logo_path" 
+            <img [src]="getImageUrl(settings.logo_path)" 
                  class="w-24 h-24 object-contain rounded-2xl shadow-md border border-slate-50 dark:border-slate-800">
         </div>
         
@@ -41,4 +41,11 @@ import { CommonModule } from '@angular/common';
 export class BrandingHeaderComponent {
   @Input() settings: any;
   @Input() title: string = '';
+
+  getImageUrl(imagePath: string | undefined): string {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http')) return imagePath;
+    const normalizedPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `http://localhost:8081/${normalizedPath}`;
+  }
 }

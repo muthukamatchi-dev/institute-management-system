@@ -27,6 +27,13 @@ import { AuthService } from '../../services/auth.service';
       
       <!-- Main Content -->
       <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div *ngIf="isReadOnly" class="bg-amber-600 text-white px-4 py-2 text-xs font-black uppercase tracking-widest text-center shadow-lg relative z-20 flex items-center justify-center gap-3">
+          <span>⚠️ SUBSCRIPTION EXPIRED</span>
+          <span class="opacity-80">|</span>
+          <span>READ-ONLY MODE ENABLED</span>
+          <span class="opacity-80">|</span>
+          <a href="#" class="underline hover:no-underline">Contact system admin to renew →</a>
+        </div>
         <app-header [title]="pageTitle" (toggleSidebar)="sidebarOpen = !sidebarOpen"></app-header>
         <main class="flex-1 overflow-y-auto p-4 md:p-8">
           <router-outlet (activate)="onActivate($event)"></router-outlet>
@@ -38,18 +45,20 @@ import { AuthService } from '../../services/auth.service';
 export class LayoutComponent implements OnInit {
   pageTitle: string = 'Dashboard';
   sidebarOpen: boolean = false;
+  isReadOnly: boolean = false;
 
   constructor(private authService: AuthService, private router: Router) {}
 
   ngOnInit() {
     this.authService.currentUser.subscribe(user => {
+      this.isReadOnly = user?.is_read_only || false;
       const role = (user?.role_name || user?.role || '').trim().toLowerCase();
       const url = window.location.hash.replace(/^#/, '') || '/';
 
       if ((url === '/' || url === '/dashboard') && role === 'student') {
         this.router.navigate(['/my-progress']);
       } else if ((url === '/' || url === '/dashboard') && role === 'staff') {
-        this.router.navigate(['/staff/schedule']);
+        this.router.navigate(['/staff/my-attendance']);
       }
     });
   }
@@ -67,7 +76,9 @@ export class LayoutComponent implements OnInit {
     const lastSegment = segments[segments.length - 1];
     const secondLastSegment = segments.length > 1 ? segments[segments.length - 2] : null;
 
-    if (secondLastSegment === 'exams') {
+    if (url.includes('/exams/external/results/')) {
+      this.pageTitle = 'External Results';
+    } else if (secondLastSegment === 'exams') {
       this.pageTitle = lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1) + ' Exams';
     } else if (url.includes('study-material')) {
       this.pageTitle = url.includes('my-study-material') ? 'My Study Material' : 'Study Material';

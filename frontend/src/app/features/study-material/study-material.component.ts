@@ -28,6 +28,7 @@ export class StudyMaterialComponent implements OnInit {
   selectedCourse: Course | null = null;
   courseSearchTerm = '';
   materialSearchTerm = '';
+  selectedSubject = '';
 
   // Modals
   isAddModalOpen = false;
@@ -70,6 +71,7 @@ export class StudyMaterialComponent implements OnInit {
 
   selectCourse(course: Course) {
     this.selectedCourse = course;
+    this.selectedSubject = '';
     this.loadMaterials();
   }
 
@@ -95,6 +97,7 @@ export class StudyMaterialComponent implements OnInit {
       title: '',
       description: '',
       courseId: this.selectedCourse?.id || '',
+      subject: '',
       targetType: 'all',
       targetIds: []
     };
@@ -111,12 +114,34 @@ export class StudyMaterialComponent implements OnInit {
     if (this.selectedCourse) {
       list = list.filter(m => String(m.courseId) === String(this.selectedCourse?.id));
     }
+    if (this.selectedSubject) {
+      list = list.filter(m => m.subject === this.selectedSubject);
+    }
     const search = this.materialSearchTerm.toLowerCase().trim();
     if (!search) return list;
     return list.filter(m =>
       m.title.toLowerCase().includes(search) ||
       (m.description && m.description.toLowerCase().includes(search))
     );
+  }
+
+  isCourseStandard(course: Course | null): boolean {
+    return !!(course && (course.courseType === 'standard' || course.course_type === 'standard'));
+  }
+
+  parseCourseSubjects(subjectsRaw: any): any[] {
+    if (!subjectsRaw) return [];
+    if (Array.isArray(subjectsRaw)) return subjectsRaw;
+    try {
+      const parsed = JSON.parse(subjectsRaw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  filterMaterialsBySubject() {
+    // Dropdown change handler
   }
 
   openAddModal() {

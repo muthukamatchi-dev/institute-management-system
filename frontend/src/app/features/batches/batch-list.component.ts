@@ -26,6 +26,7 @@ export class BatchListComponent implements OnInit {
   searchTerm = '';
   statusFilter = 'all';
   courseFilter = 'all';
+  subjectFilter = 'all';
   sortColumn = 'startDate';
   sortDirection: 'asc' | 'desc' = 'desc';
   isModalOpen = false;
@@ -37,6 +38,8 @@ export class BatchListComponent implements OnInit {
   oneToOneSearchTerm = '';
   oneToOneStatusFilter = 'all';
   oneToOneTimingFilter = '';
+  oneToOneTotalGroupsCount = 0;
+  diagnosticLog: string[] = [];
 
   // Student selection for Batch Mode
   allStudents: any[] = [];
@@ -47,6 +50,7 @@ export class BatchListComponent implements OnInit {
   newBatch: any = {
     batchName: '',
     courseId: '',
+    subject: '',
     instructor: '',
     timing: '',
     startDate: '',
@@ -59,31 +63,50 @@ export class BatchListComponent implements OnInit {
   ngOnInit() {
     this.loadBatches();
     this.loadStudents();
-    this.dataService.getCourses().subscribe(data => this.courses = data);
+    this.dataService.getCourses().subscribe(data => {
+      this.courses = data;
+      if (this.viewMode === 'one-to-one') {
+        this.calculateOneToOneGroups();
+      }
+    });
     this.dataService.getStaff().subscribe(data => this.staffList = data);
   }
 
   loadBatches() {
-    this.dataService.getBatches().subscribe(data => this.batches = data);
+    this.dataService.getBatches().subscribe(data => {
+      this.batches = data;
+      if (this.viewMode === 'one-to-one') {
+        this.calculateOneToOneGroups();
+      }
+    });
   }
 
   loadStudents() {
     this.dataService.getStudents().subscribe(data => {
       // Only uncompleted students
-      this.allStudents = data.filter(s => s.status !== 'completed');
+      this.allStudents = data.filter(s => s.status !== 'completed').map(student => {
+        const parsed = this.parseTimingRange(student.timing);
+        return {
+          ...student,
+          timingFrom: parsed.from,
+          timingTo: parsed.to
+        };
+      });
       this.calculateOneToOneGroups();
     });
   }
 
-  calculateOneToOneGroups() {
-    // Return students in 1:1 mode (batchId is null or 0) grouped by course
+  // Pagination properties
+  batchCurrentPage = 1;
+  batchItemsPerPage = 10;
+  oneToOneCurrentPage = 1;
+  oneToOneItemsPerPage = 10;
+
+  getFilteredOneToOneStudents() {
     const search = this.oneToOneSearchTerm.toLowerCase();
     const timingSearch = this.oneToOneTimingFilter.toLowerCase();
 
-    const oneToOnes = this.allStudents.filter(s => {
-      const isOneToOne = !s.batchId || s.batchId == '0';
-      if (!isOneToOne) return false;
-
+    return this.allStudents.filter(s => {
       const matchesSearch = s.name.toLowerCase().includes(search) ||
         (s.instructor && s.instructor.toLowerCase().includes(search)) ||
         (s.instructorName && s.instructorName.toLowerCase().includes(search)) ||
@@ -95,37 +118,292 @@ export class BatchListComponent implements OnInit {
 
       return matchesSearch && matchesStatus && matchesTiming && matchesCourse;
     });
+  }
+
+  calculateOneToOneGroups() {
+    const oneToOnes = this.getFilteredOneToOneStudents();
+    this.diagnosticLog = [];
+    this.diagnosticLog.push(`oneToOnes count: ${oneToOnes.length}`);
+    this.diagnosticLog.push(`allStudents count: ${this.allStudents.length}`);
+    this.diagnosticLog.push(`courses count: ${this.courses.length}`);
+    this.diagnosticLog.push(`batches count: ${this.batches.length}`);
+    this.diagnosticLog.push(`courseFilter: ${this.courseFilter}`);
+    this.diagnosticLog.push(`subjectFilter: ${this.subjectFilter}`);
 
     const grouped = new Map<string, any[]>();
     oneToOnes.forEach(s => {
-      const courseName = s.courseName || 'General';
-      const list = grouped.get(courseName) || [];
-      list.push({ ...s }); // Clone for editing
-      grouped.set(courseName, list);
+      const c = this.courses.find(course => String(course.id) === String(s.courseId));
+      const isStandard = !!(c && (c.courseType === 'standard' || c.course_type === 'standard'));
+      this.diagnosticLog.push(`Student: ${s.name}, courseId: ${s.courseId}, foundCourse: ${!!c}, isStandard: ${isStandard}`);
+
+      if (isStandard) {
+        // Find if this student is already assigned to a batch, and what subject that batch is for
+        const studentBatchSubjects = s.batchSubjects || [];
+        this.diagnosticLog.push(`Student: ${s.name}, batchIds: ${JSON.stringify(s.batchIds)}, batchSubjects: ${JSON.stringify(studentBatchSubjects)}`);
+
+        let subjects = this.parseStudentSubjects(s.selectedSubjects || s.selected_subjects);
+        this.diagnosticLog.push(`Student: ${s.name}, parsed subjects: ${JSON.stringify(subjects)}`);
+        if (!subjects || subjects.length === 0) {
+          // Default to all subjects defined on the course
+          subjects = this.getSubjectsForCourse(c).map(sub => typeof sub === 'string' ? sub : sub.name);
+          this.diagnosticLog.push(`Student: ${s.name}, fallback subjects: ${JSON.stringify(subjects)}`);
+        }
+
+        if (subjects && subjects.length > 0) {
+          subjects.forEach(sub => {
+            // Skip the subject if the student is already assigned to a batch for it
+            const hasThisSubject = studentBatchSubjects.some((bs: string) => bs.trim().toLowerCase() === sub.trim().toLowerCase());
+            if (hasThisSubject) {
+              this.diagnosticLog.push(`Student: ${s.name}, skipping ${sub} because they are already assigned to a batch for it`);
+              return;
+            }
+            if (this.subjectFilter !== 'all' && sub.trim().toLowerCase() !== this.subjectFilter.trim().toLowerCase()) {
+              return;
+            }
+            const groupKey = `${s.courseName || 'General'} > ${sub}`;
+            const list = grouped.get(groupKey) || [];
+
+            // Retrieve subject-specific allocations
+            let subjectInstructor = s.instructor;
+            let subjectTiming = s.timing;
+            let subjectTimingFrom = s.timingFrom;
+            let subjectTimingTo = s.timingTo;
+            let subjectStartDate = s.startDate;
+            let subjectStatus = s.status;
+
+            if (s.subjectAllocations) {
+              try {
+                const allocs = typeof s.subjectAllocations === 'string' ? JSON.parse(s.subjectAllocations) : s.subjectAllocations;
+                if (allocs && allocs[sub]) {
+                  const alloc = allocs[sub];
+                  subjectInstructor = alloc.instructor || '';
+                  subjectTiming = alloc.timing || '';
+                  const parsedTime = this.parseTimingRange(subjectTiming);
+                  subjectTimingFrom = parsedTime.from;
+                  subjectTimingTo = parsedTime.to;
+                  subjectStartDate = alloc.startDate || '';
+                  subjectStatus = alloc.status || 'active';
+                }
+              } catch (e) {
+                console.error('Error parsing subject allocations', e);
+              }
+            }
+
+            list.push({ 
+              ...s, 
+              currentAllocatedSubject: sub,
+              instructor: subjectInstructor,
+              timing: subjectTiming,
+              timingFrom: subjectTimingFrom,
+              timingTo: subjectTimingTo,
+              startDate: subjectStartDate,
+              status: subjectStatus
+            });
+            grouped.set(groupKey, list);
+          });
+        } else {
+          // If no subjects are selected/available, skip if they are in any batch
+          const hasBatches = s.batchIds && s.batchIds.length > 0;
+          if (hasBatches || (s.batchId && s.batchId !== '0')) {
+            return;
+          }
+          if (this.subjectFilter === 'all') {
+            const groupKey = s.courseName || 'General';
+            const list = grouped.get(groupKey) || [];
+            list.push({ ...s });
+            grouped.set(groupKey, list);
+          }
+        }
+      } else {
+        // For non-standard courses, if they are assigned to a batch, skip them
+        const hasBatches = s.batchIds && s.batchIds.length > 0;
+        if (hasBatches || (s.batchId && s.batchId !== '0')) {
+          return;
+        }
+        const groupKey = s.courseName || 'General';
+        const list = grouped.get(groupKey) || [];
+        list.push({ ...s });
+        grouped.set(groupKey, list);
+      }
     });
 
-    this.oneToOneGroups = Array.from(grouped.entries()).map(([course, students]) => ({ course, students }));
+    const allGroups = Array.from(grouped.entries()).map(([course, students]) => ({ course, students }));
+    this.diagnosticLog.push(`allGroups count: ${allGroups.length}`);
+    allGroups.forEach(g => {
+      this.diagnosticLog.push(`Group: ${g.course}, students: ${g.students.map(st => st.name).join(', ')}`);
+    });
+    
+    // Sort groups alphabetically by course/subject name so that the order is stable
+    allGroups.sort((a, b) => a.course.localeCompare(b.course));
+
+    this.oneToOneTotalGroupsCount = allGroups.length;
+
+    const start = (this.oneToOneCurrentPage - 1) * this.oneToOneItemsPerPage;
+    this.oneToOneGroups = allGroups.slice(start, start + this.oneToOneItemsPerPage);
+  }
+
+  oneToOneTotalPages() {
+    return Math.ceil(this.oneToOneTotalGroupsCount / this.oneToOneItemsPerPage) || 1;
+  }
+
+  oneToOneNextPage() {
+    if (this.oneToOneCurrentPage < this.oneToOneTotalPages()) {
+      this.oneToOneCurrentPage++;
+      this.calculateOneToOneGroups();
+    }
+  }
+
+  oneToOnePrevPage() {
+    if (this.oneToOneCurrentPage > 1) {
+      this.oneToOneCurrentPage--;
+      this.calculateOneToOneGroups();
+    }
+  }
+
+  getOneToOneStartCount() {
+    if (this.oneToOneTotalGroupsCount === 0) return 0;
+    return (this.oneToOneCurrentPage - 1) * this.oneToOneItemsPerPage + 1;
+  }
+
+  getOneToOneEndCount() {
+    return Math.min(this.oneToOneCurrentPage * this.oneToOneItemsPerPage, this.oneToOneTotalGroupsCount);
+  }
+
+  paginatedBatches() {
+    const filtered = this.filteredBatches();
+    const start = (this.batchCurrentPage - 1) * this.batchItemsPerPage;
+    return filtered.slice(start, start + this.batchItemsPerPage);
+  }
+
+  batchTotalPages() {
+    return Math.ceil(this.filteredBatches().length / this.batchItemsPerPage) || 1;
+  }
+
+  batchNextPage() {
+    if (this.batchCurrentPage < this.batchTotalPages()) this.batchCurrentPage++;
+  }
+
+  batchPrevPage() {
+    if (this.batchCurrentPage > 1) this.batchCurrentPage--;
+  }
+
+  getBatchStartCount() {
+    if (this.filteredBatches().length === 0) return 0;
+    return (this.batchCurrentPage - 1) * this.batchItemsPerPage + 1;
+  }
+
+  getBatchEndCount() {
+    return Math.min(this.batchCurrentPage * this.batchItemsPerPage, this.filteredBatches().length);
+  }
+
+  onFilterChange() {
+    this.batchCurrentPage = 1;
+    this.oneToOneCurrentPage = 1;
+    this.calculateOneToOneGroups();
   }
 
   switchMode(mode: 'batch' | 'one-to-one') {
     this.viewMode = mode;
+    this.batchCurrentPage = 1;
+    this.oneToOneCurrentPage = 1;
     if (mode === 'one-to-one') {
       this.calculateOneToOneGroups();
     }
   }
 
   getFilteredStudents() {
+    if (this.isCurrentCourseStandard() && !this.newBatch.subject) {
+      return [];
+    }
     const search = this.studentSearchTerm.toLowerCase();
     return this.allStudents.filter(s => {
       const matchesSearch = s.name.toLowerCase().includes(search) || (s.regNumber && s.regNumber.toLowerCase().includes(search));
       const matchesCourse = this.newBatch.courseId ? s.courseId == this.newBatch.courseId : true;
 
-      // EXCLUDE students already in another batch
-      // If editing, allow students already in THIS batch
-      const isAvailable = !s.batchId || s.batchId == '0' || (this.editingBatch && s.batchId == this.newBatch.id);
+      // In standard courses, a student is available if they are not in any batch for this subject,
+      // or if they are already in THIS batch we are editing.
+      let isAvailable = true;
+      if (this.isCurrentCourseStandard() && this.newBatch.subject) {
+        const studentBatchSubjects = s.batchSubjects || [];
+        const isAlreadyInThisBatch = s.batchIds && s.batchIds.map((bid: any) => String(bid)).includes(String(this.newBatch.id));
+        const hasThisSubject = studentBatchSubjects.some((sub: string) => sub.trim().toLowerCase() === this.newBatch.subject.trim().toLowerCase());
+        
+        if (hasThisSubject && !isAlreadyInThisBatch) {
+          isAvailable = false;
+        }
+      } else {
+        // Non-standard courses: student is available if they have no batches, or are in this batch
+        isAvailable = !s.batchId || s.batchId == '0' || (this.editingBatch && s.batchId == this.newBatch.id);
+      }
 
-      return matchesSearch && matchesCourse && isAvailable;
+      let matchesSubject = true;
+      if (this.isCurrentCourseStandard() && this.newBatch.subject) {
+        const studentSubjects = this.parseStudentSubjects(s.selectedSubjects || s.selected_subjects);
+        matchesSubject = studentSubjects.includes(this.newBatch.subject);
+      }
+
+      return matchesSearch && matchesCourse && matchesSubject && isAvailable;
     });
+  }
+
+  isCurrentCourseStandard(): boolean {
+    if (!this.newBatch.courseId) return false;
+    const c = this.courses.find(course => String(course.id) === String(this.newBatch.courseId));
+    return !!(c && (c.courseType === 'standard' || c.course_type === 'standard'));
+  }
+
+  shouldShowInBatchBadge(s: any): boolean {
+    if (!s.batchId || s.batchId === '0' || String(s.batchId) === String(this.newBatch.id)) {
+      return false;
+    }
+    if (this.isCurrentCourseStandard() && this.newBatch.subject) {
+      const studentBatchSubjects = s.batchSubjects || [];
+      const isAlreadyInThisBatch = s.batchIds && s.batchIds.map((bid: any) => String(bid)).includes(String(this.newBatch.id));
+      const hasThisSubject = studentBatchSubjects.some((sub: string) => sub.trim().toLowerCase() === this.newBatch.subject.trim().toLowerCase());
+      return hasThisSubject && !isAlreadyInThisBatch;
+    }
+    return true; // Non-standard courses: show if they are in any other batch
+  }
+
+  getStudentConflictBatchName(s: any): string {
+    if (this.isCurrentCourseStandard() && this.newBatch.subject) {
+      if (s.batchIds) {
+        for (const bid of s.batchIds) {
+          const b = this.batches.find(batch => String(batch.id) === String(bid));
+          if (b && b.subject && b.subject.trim().toLowerCase() === this.newBatch.subject.trim().toLowerCase()) {
+            return b.batchName;
+          }
+        }
+      }
+    }
+    return s.batchName || '';
+  }
+
+  getSubjectsForCurrentCourse(): any[] {
+    if (!this.newBatch.courseId) return [];
+    const c = this.courses.find(course => String(course.id) === String(this.newBatch.courseId));
+    if (!c || !c.subjects) return [];
+    if (Array.isArray(c.subjects)) return c.subjects;
+    try {
+      const parsed = JSON.parse(c.subjects);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  parseStudentSubjects(rawSubjects: any): any[] {
+    if (!rawSubjects) return [];
+    if (Array.isArray(rawSubjects)) return rawSubjects;
+    try {
+      const parsed = JSON.parse(rawSubjects);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      if (typeof rawSubjects === 'string') {
+        return rawSubjects.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      return [];
+    }
   }
 
   toggleStudentSelection(studentId: string) {
@@ -138,6 +416,38 @@ export class BatchListComponent implements OnInit {
   }
 
   saveAllocation(student: any) {
+    if ((student.timingFrom && !student.timingTo) || (!student.timingFrom && student.timingTo)) {
+      this.toastService.warning('Please provide both From and To times for Timing');
+      return;
+    }
+
+    if (student.timingFrom && student.timingTo) {
+      const fromFormatted = this.formatSingleTime(student.timingFrom);
+      const toFormatted = this.formatSingleTime(student.timingTo);
+      student.timing = `${fromFormatted} - ${toFormatted}`;
+    } else {
+      student.timing = '';
+    }
+
+    // Update subjectAllocations JSON if this is a standard subject allocation
+    if (student.currentAllocatedSubject) {
+      let allocs: any = {};
+      if (student.subjectAllocations) {
+        try {
+          allocs = typeof student.subjectAllocations === 'string' ? JSON.parse(student.subjectAllocations) : student.subjectAllocations;
+        } catch {
+          allocs = {};
+        }
+      }
+      allocs[student.currentAllocatedSubject] = {
+        instructor: student.instructor,
+        timing: student.timing,
+        startDate: student.startDate,
+        status: student.status
+      };
+      student.subjectAllocations = JSON.stringify(allocs);
+    }
+
     this.dataService.updateAllocation(student).subscribe({
       next: () => {
         this.toastService.success(`Allocation saved for ${student.name}`);
@@ -161,7 +471,12 @@ export class BatchListComponent implements OnInit {
 
       const matchesCourse = this.courseFilter === 'all' ? true : b.courseId == this.courseFilter;
 
-      return matchesSearch && matchesStatus && matchesCourse;
+      let matchesSubject = true;
+      if (this.courseFilter !== 'all' && this.isFilterCourseStandard() && this.subjectFilter !== 'all') {
+        matchesSubject = b.subject === this.subjectFilter;
+      }
+
+      return matchesSearch && matchesStatus && matchesCourse && matchesSubject;
     });
 
     if (this.sortColumn) {
@@ -181,6 +496,45 @@ export class BatchListComponent implements OnInit {
     return filtered;
   }
 
+  isFilterCourseStandard(): boolean {
+    if (this.courseFilter === 'all') return false;
+    const c = this.courses.find(course => String(course.id) === String(this.courseFilter));
+    return !!(c && (c.courseType === 'standard' || c.course_type === 'standard'));
+  }
+
+  getSubjectsForCourse(c: any): any[] {
+    if (!c || !c.subjects) return [];
+    if (Array.isArray(c.subjects)) return c.subjects;
+    try {
+      const parsed = JSON.parse(c.subjects);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      if (typeof c.subjects === 'string') {
+        return c.subjects.split(',').map((sub: string) => ({ name: sub.trim() })).filter(Boolean);
+      }
+      return [];
+    }
+  }
+
+  getSubjectsForFilterCourse(): any[] {
+    if (this.courseFilter === 'all') return [];
+    const c = this.courses.find(course => String(course.id) === String(this.courseFilter));
+    return this.getSubjectsForCourse(c);
+  }
+
+  onCourseFilterChange() {
+    this.subjectFilter = 'all';
+    if (this.viewMode === 'one-to-one') {
+      this.calculateOneToOneGroups();
+    }
+  }
+
+  onSubjectFilterChange() {
+    if (this.viewMode === 'one-to-one') {
+      this.calculateOneToOneGroups();
+    }
+  }
+
   sort(column: string) {
     if (this.sortColumn === column) {
       this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
@@ -192,7 +546,17 @@ export class BatchListComponent implements OnInit {
 
   openCreateModal() {
     this.editingBatch = false;
-    this.newBatch = { batchName: '', courseId: '', instructor: '', timing: '', startDate: '', status: 'upcoming', students: [] };
+    this.newBatch = { 
+      batchName: '', 
+      courseId: '', 
+      subject: '', 
+      instructor: '', 
+      timingFrom: '', 
+      timingTo: '', 
+      startDate: '', 
+      status: 'upcoming', 
+      students: [] 
+    };
     this.selectedStudentIds = [];
     this.studentSearchTerm = '';
     this.isModalOpen = true;
@@ -200,11 +564,18 @@ export class BatchListComponent implements OnInit {
 
   editBatch(batch: Batch) {
     this.editingBatch = true;
-    this.newBatch = { ...batch, timing: this.normalizeTimeInput(batch.timing) };
-    // Get currently assigned students
-    this.selectedStudentIds = this.allStudents
-      .filter(s => s.batchId == batch.id)
-      .map(s => s.id);
+    const parsed = this.parseTimingRange(batch.timing);
+    this.newBatch = { 
+      ...batch, 
+      timingFrom: parsed.from, 
+      timingTo: parsed.to 
+    };
+    // Get currently assigned students from server
+    this.selectedStudentIds = [];
+    this.dataService.getStudentsByBatch(batch.id).subscribe(response => {
+      const list = response.data || response || [];
+      this.selectedStudentIds = list.map((s: any) => String(s.id));
+    });
     this.studentSearchTerm = '';
     this.isModalOpen = true;
   }
@@ -241,25 +612,74 @@ export class BatchListComponent implements OnInit {
       return;
     }
 
-    this.newBatch.timing = this.normalizeTimeInput(this.newBatch.timing);
+    if ((this.newBatch.timingFrom && !this.newBatch.timingTo) || (!this.newBatch.timingFrom && this.newBatch.timingTo)) {
+      this.toastService.warning('Please provide both From and To times for Timing');
+      return;
+    }
+
+    if (this.newBatch.timingFrom && this.newBatch.timingTo) {
+      const fromFormatted = this.formatSingleTime(this.newBatch.timingFrom);
+      const toFormatted = this.formatSingleTime(this.newBatch.timingTo);
+      this.newBatch.timing = `${fromFormatted} - ${toFormatted}`;
+    } else {
+      this.newBatch.timing = '';
+    }
 
     // Merge custom fields
     if (this.customFieldsRenderer) {
       this.newBatch.custom_fields = this.customFieldsRenderer.getValues();
     }
 
+    // Frontend duplicate validation
+    if (this.isCurrentCourseStandard() && this.newBatch.subject) {
+      for (const studentId of this.selectedStudentIds) {
+        const student = this.allStudents.find(s => String(s.id) === String(studentId));
+        if (student) {
+          const studentBatchSubjects = student.batchSubjects || [];
+          const isAlreadyInThisBatch = student.batchIds && student.batchIds.map((bid: any) => String(bid)).includes(String(this.newBatch.id));
+          const hasThisSubject = studentBatchSubjects.some((sub: string) => sub.trim().toLowerCase() === this.newBatch.subject.trim().toLowerCase());
+          
+          if (hasThisSubject && !isAlreadyInThisBatch) {
+            const course = this.courses.find(c => String(c.id) === String(this.newBatch.courseId));
+            const courseName = course ? course.name : 'this course';
+            const message = `${student.name} is already assigned to another batch for ${courseName} - ${this.newBatch.subject}.`;
+            alert(message);
+            this.toastService.warning(message);
+            return;
+          }
+        }
+      }
+    }
+
     this.newBatch.students = this.selectedStudentIds;
-    this.dataService.addBatch(this.newBatch).subscribe(() => {
-      this.toastService.success(this.editingBatch ? 'Batch updated successfully' : 'New batch created successfully');
-      this.loadBatches();
-      this.loadStudents();
-      this.isModalOpen = false;
+    this.dataService.addBatch(this.newBatch).subscribe({
+      next: () => {
+        this.toastService.success(this.editingBatch ? 'Batch updated successfully' : 'New batch created successfully');
+        this.loadBatches();
+        this.loadStudents();
+        this.isModalOpen = false;
+      },
+      error: (err) => {
+        const errorMsg = err.error?.message || err.message || 'Failed to save batch';
+        this.toastService.error(errorMsg);
+      }
     });
   }
 
   viewDetails(batch: Batch) {
     this.selectedBatch = batch;
-    this.selectedBatchStudents = this.allStudents.filter(s => s.batchId == batch.id);
+    this.selectedBatchStudents = [];
+    this.dataService.getStudentsByBatch(batch.id).subscribe(response => {
+      const list = response.data || response || [];
+      this.selectedBatchStudents = list.map((s: any) => ({
+        id: String(s.id),
+        regNumber: s.reg_number || s.regNumber,
+        name: s.name,
+        photo: s.photo,
+        mobile: s.mobile,
+        status: s.status || 'active'
+      }));
+    });
     this.isDetailsModalOpen = true;
   }
 
@@ -289,7 +709,27 @@ export class BatchListComponent implements OnInit {
       return '';
     }
 
-    const normalized = this.normalizeTimeInput(timing);
+    if (timing.includes('-')) {
+      const parts = timing.split('-');
+      const from = parts[0]?.trim();
+      const to = parts[1]?.trim();
+      const fromFormatted = this.formatSingleTime(from);
+      const toFormatted = this.formatSingleTime(to);
+      if (fromFormatted && toFormatted) {
+        return `${fromFormatted} - ${toFormatted}`;
+      }
+      return timing;
+    }
+
+    return this.formatSingleTime(timing);
+  }
+
+  formatSingleTime(timing?: string): string {
+    if (!timing) {
+      return '';
+    }
+
+    const normalized = this.normalizeSingleTimeInput(timing);
     if (!normalized) {
       return timing;
     }
@@ -304,18 +744,31 @@ export class BatchListComponent implements OnInit {
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
   }
 
-  private normalizeTimeInput(value?: string): string {
+  private parseTimingRange(timingStr?: string): { from: string; to: string } {
+    if (!timingStr) {
+      return { from: '', to: '' };
+    }
+    const parts = timingStr.split('-');
+    const fromStr = parts[0]?.trim() || '';
+    const toStr = parts[1]?.trim() || '';
+    return {
+      from: this.normalizeSingleTimeInput(fromStr),
+      to: this.normalizeSingleTimeInput(toStr)
+    };
+  }
+
+  private normalizeSingleTimeInput(value?: string): string {
     if (!value) {
       return '';
     }
 
     const trimmed = value.trim();
-    if (/^\d{2}:\d{2}$/.test(trimmed)) {
-      return trimmed;
+    if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+      const [h, m] = trimmed.split(':');
+      return `${h.padStart(2, '0')}:${m}`;
     }
 
-    const firstSegment = trimmed.split('-')[0]?.trim() || trimmed;
-    const match = firstSegment.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
     if (!match) {
       return '';
     }

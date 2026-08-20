@@ -79,14 +79,44 @@ public class OperationsService {
                 map.put("student_name", s.getName());
                 map.put("regNumber", s.getRegNumber());
                 map.put("student_status", s.getStatus());
-                if (s.getBatchId() != null) {
+                if (s.getCourseId() != null) {
+                    courseRepo.findById(s.getCourseId()).ifPresent(c -> {
+                        map.put("course_name", c.getName());
+                        map.put("course_duration", c.getDuration());
+                        map.put("course_fee_period", c.getFeePeriod());
+                        int units = InstituteService.parseDurationUnits(c.getDuration(), c.getFeePeriod());
+                        map.put("course_units", units);
+                        if (units > 0 && f.getTotalAmount() != null) {
+                            BigDecimal monthlyAmt = f.getTotalAmount().divide(new BigDecimal(units), 2, java.math.RoundingMode.HALF_UP);
+                            map.put("monthly_amount", monthlyAmt);
+                            map.put("course_fee_flat", monthlyAmt);
+                        } else {
+                            map.put("monthly_amount", f.getTotalAmount());
+                            map.put("course_fee_flat", c.getFees());
+                        }
+
+                        BigDecimal overdue = InstituteService.calculateFeeOverdue(s, c, f);
+                        BigDecimal payable = InstituteService.calculateThisPeriodPayable(s, c, f);
+                        map.put("fee_overdue", overdue);
+                        map.put("this_period_payable", payable);
+                    });
+                }
+                if (s.getBatchId() != null && s.getBatchId() != 0L) {
                     map.put("batch_id", s.getBatchId());
                     batchRepo.findById(s.getBatchId()).ifPresent(b -> {
-                        map.put("batch_name", b.getBatchName());
-                        map.put("batch_status", b.getStatus());
+                        String currentTenant = com.institute.tenant.TenantContext.getTenantId();
+                        if (currentTenant == null || "DEFAULT".equalsIgnoreCase(currentTenant) || currentTenant.equals(b.getTenantId())) {
+                            map.put("batch_name", b.getBatchName());
+                            map.put("batch_status", b.getStatus());
+                        }
                     });
                 }
             });
+
+            if (!map.containsKey("fee_overdue")) {
+                map.put("fee_overdue", BigDecimal.ZERO);
+                map.put("this_period_payable", f.getBalanceAmount() != null ? f.getBalanceAmount() : BigDecimal.ZERO);
+            }
 
             map.put("reminder_date", f.getReminderDate());
             map.put("is_reminder_enabled", f.getIsReminderEnabled());
@@ -182,6 +212,7 @@ public class OperationsService {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Receipt r : receipts) {
             Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", r.getId());
             map.put("receipt_no", r.getReceiptNo());
             map.put("student_id", r.getStudentId());
             map.put("amount_paid", r.getAmountPaid());
@@ -196,6 +227,53 @@ public class OperationsService {
             result.add(map);
         }
         return result;
+    }
+
+    @Transactional
+    public Map<String, Object> deleteReceipt(Long receiptId) {
+        Optional<Receipt> receiptOpt = receiptRepo.findById(receiptId);
+        if (!receiptOpt.isPresent()) {
+            return Collections.singletonMap("error", "Receipt not found");
+        }
+        Receipt receipt = receiptOpt.get();
+        
+        // Find corresponding Fee
+        List<Fee> fees = feeRepo.findByStudentId(receipt.getStudentId());
+        if (!fees.isEmpty()) {
+            Fee fee = fees.get(0);
+            BigDecimal currentPaid = fee.getPaidAmount() != null ? fee.getPaidAmount() : BigDecimal.ZERO;
+            BigDecimal newPaid = currentPaid.subtract(receipt.getAmountPaid());
+            if (newPaid.compareTo(BigDecimal.ZERO) < 0) {
+                newPaid = BigDecimal.ZERO;
+            }
+            BigDecimal newBalance = fee.getTotalAmount().subtract(newPaid);
+            
+            fee.setPaidAmount(newPaid);
+            fee.setBalanceAmount(newBalance);
+            
+            if (newBalance.compareTo(fee.getTotalAmount()) >= 0) {
+                fee.setStatus("pending");
+            } else if (newPaid.compareTo(BigDecimal.ZERO) > 0) {
+                fee.setStatus("partially_paid");
+            } else {
+                fee.setStatus("pending");
+            }
+            feeRepo.save(fee);
+        }
+        
+        // Delete receipt
+        receiptRepo.delete(receipt);
+        
+        // Log activity
+        studentRepo.findById(receipt.getStudentId()).ifPresent(student -> {
+            ActivityLog log = ActivityLog.builder()
+                .userId(0L).userType("admin").action("Delete Payment")
+                .description("Payment receipt " + receipt.getReceiptNo() + " of " + receipt.getAmountPaid() + " deleted for " + student.getName())
+                .createdAt(LocalDateTime.now()).build();
+            activityLogRepo.save(log);
+        });
+        
+        return Collections.singletonMap("success", true);
     }
 
     // ============ ATTENDANCE (Operations_model.php lines 67-140) ============
@@ -337,6 +415,7 @@ public class OperationsService {
             map.put("target_ids", m.getTargetIds());
             map.put("uploaded_by", m.getUploadedBy());
             map.put("uploaded_at", m.getUploadedAt());
+            map.put("subject", m.getSubject());
 
             courseRepo.findById(m.getCourseId()).ifPresent(c -> map.put("course_name", c.getName()));
             
@@ -441,6 +520,7 @@ public class OperationsService {
         if (data.containsKey("course_id") || data.containsKey("courseId")) {
             material.setCourseId(data.containsKey("course_id") ? extractLong(data, "course_id") : extractLong(data, "courseId"));
         }
+        if (data.containsKey("subject")) material.setSubject((String) data.get("subject"));
         if (data.containsKey("file_url")) material.setFileUrl((String) data.get("file_url"));
         if (data.containsKey("fileUrl")) material.setFileUrl((String) data.get("fileUrl"));
         if (data.containsKey("file_name")) material.setFileName((String) data.get("file_name"));
@@ -582,8 +662,9 @@ public class OperationsService {
         return true;
     }
 
-    public List<Map<String, Object>> getExpenseStats() {
-        List<Object[]> stats = expenseRepo.getExpenseStatsByCategory();
+    public List<Map<String, Object>> getExpenseStats(Map<String, String> filters) {
+        LocalDate[] range = parseDateRange(filters);
+        List<Object[]> stats = expenseRepo.getExpenseStatsByCategoryBetween(range[0], range[1]);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] row : stats) {
             Map<String, Object> map = new LinkedHashMap<>();
@@ -603,5 +684,86 @@ public class OperationsService {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private LocalDate[] parseDateRange(Map<String, String> filters) {
+        LocalDate from = null;
+        LocalDate to = LocalDate.now();
+
+        if (filters != null) {
+            String range = filters.get("range");
+            LocalDate today = LocalDate.now();
+            if (range != null && !range.isBlank()) {
+                switch (range) {
+                    case "today" -> {
+                        from = today;
+                        to = today;
+                    }
+                    case "yesterday" -> {
+                        from = today.minusDays(1);
+                        to = from;
+                    }
+                    case "this_week" -> {
+                        from = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+                        to = today;
+                    }
+                    case "last_week" -> {
+                        LocalDate thisWeekStart = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+                        from = thisWeekStart.minusWeeks(1);
+                        to = thisWeekStart.minusDays(1);
+                    }
+                    case "this_month" -> {
+                        from = today.withDayOfMonth(1);
+                        to = today;
+                    }
+                    case "last_month" -> {
+                        LocalDate lastMonth = today.minusMonths(1);
+                        from = lastMonth.withDayOfMonth(1);
+                        to = lastMonth.withDayOfMonth(lastMonth.lengthOfMonth());
+                    }
+                    case "this_quarter" -> {
+                        int currentQuarterStartMonth = ((today.getMonthValue() - 1) / 3) * 3 + 1;
+                        from = LocalDate.of(today.getYear(), currentQuarterStartMonth, 1);
+                        to = today;
+                    }
+                    case "last_quarter" -> {
+                        LocalDate thisQuarterStart = LocalDate.of(today.getYear(), ((today.getMonthValue() - 1) / 3) * 3 + 1, 1);
+                        LocalDate lastQuarterRef = thisQuarterStart.minusMonths(1);
+                        int lastQuarterStartMonth = ((lastQuarterRef.getMonthValue() - 1) / 3) * 3 + 1;
+                        from = LocalDate.of(lastQuarterRef.getYear(), lastQuarterStartMonth, 1);
+                        to = from.plusMonths(3).minusDays(1);
+                    }
+                    case "this_fiscal_year" -> {
+                        int fiscalStartYear = today.getMonthValue() >= 4 ? today.getYear() : today.getYear() - 1;
+                        from = LocalDate.of(fiscalStartYear, 4, 1);
+                        to = today;
+                    }
+                    case "last_fiscal_year" -> {
+                        int fiscalStartYear = today.getMonthValue() >= 4 ? today.getYear() - 1 : today.getYear() - 2;
+                        from = LocalDate.of(fiscalStartYear, 4, 1);
+                        to = from.plusYears(1).minusDays(1);
+                    }
+                    default -> {
+                    }
+                }
+            }
+
+            if (filters.containsKey("date_from")) {
+                from = LocalDate.parse(filters.get("date_from"));
+            } else if (filters.containsKey("start")) {
+                from = LocalDate.parse(filters.get("start"));
+            }
+
+            if (filters.containsKey("date_to")) {
+                to = LocalDate.parse(filters.get("date_to"));
+            } else if (filters.containsKey("end")) {
+                to = LocalDate.parse(filters.get("end"));
+            }
+        }
+
+        if (from == null) {
+            from = LocalDate.now().minusMonths(1);
+        }
+        return new LocalDate[] { from, to };
     }
 }

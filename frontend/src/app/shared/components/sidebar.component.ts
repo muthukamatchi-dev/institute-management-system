@@ -10,7 +10,7 @@ import { User } from '../../models';
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <aside class="w-64 bg-white dark:bg-slate-900 h-screen border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ease-in-out shadow-2xl md:shadow-none">
+    <aside class="w-64 bg-slate-50/50 dark:bg-slate-900/80 backdrop-blur-xl h-screen border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ease-in-out shadow-2xl md:shadow-none">
       <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-200 dark:shadow-none">
@@ -80,6 +80,7 @@ export class SidebarComponent implements OnInit {
   user: User | null = null;
   navItems: any[] = [
     { label: 'Dashboard', path: '/dashboard', icon: '📊' },
+    { label: 'Day Book', path: '/day-book', icon: '📓' },
     { label: 'Students', path: '/students', icon: '👤' },
     { label: 'Courses', path: '/courses', icon: '📚' },
     { label: 'Batches', path: '/batches', icon: '⏱️' },
@@ -88,7 +89,8 @@ export class SidebarComponent implements OnInit {
       children: [
         { label: 'Questions', path: '/exams/questions' },
         { label: 'Internal Exams', path: '/exams/internal' },
-        { label: 'External Exams', path: '/exams/external' }
+        { label: 'External Exams', path: '/exams/external' },
+        { label: 'Exam Entries', path: '/exams/entries' }
       ]
     },
     { label: 'Staff', path: '/staff', icon: '👥' },
@@ -119,15 +121,24 @@ export class SidebarComponent implements OnInit {
   updateNavItems() {
     const role = this.getNormalizedRole();
 
+    if (role === 'super admin' || role === 'super_admin') {
+      this.navItems = [
+        { label: 'Super Admin', path: '/super-admin', icon: '🏢' }
+      ];
+      return;
+    }
+
     if (role === 'student') {
       this.navItems = [
         { label: 'My Progress', path: '/my-progress', icon: '📈' },
         { label: 'Study Material', path: '/my-study-material', icon: '📚' },
         { label: 'My Exams', path: '/my-exams', icon: '📝' },
-        { label: 'Profile', path: '/profile', icon: '👤' }
+        { label: 'Profile', path: '/profile', icon: '👤' },
+        { label: 'Settings', path: '/settings', icon: '⚙️' }
       ];
     } else if (role === 'staff') {
       this.navItems = [
+        { label: 'My Attendance', path: '/staff/my-attendance', icon: '⏰' },
         { label: 'Schedule Class', path: '/staff/schedule', icon: '📅' },
         { label: 'My Students', path: '/staff/students', icon: '👤' },
         { label: 'My Courses', path: '/staff/courses', icon: '📚' },
@@ -137,17 +148,18 @@ export class SidebarComponent implements OnInit {
           children: [
             { label: 'Questions', path: '/exams/questions' },
             { label: 'Internal Exams', path: '/exams/internal' },
-            { label: 'External Exams', path: '/exams/external' }
+            { label: 'External Exams', path: '/exams/external' },
+            { label: 'Exam Entries', path: '/exams/entries' }
           ]
         },
         { label: 'Attendance', path: '/staff/attendance', icon: '✅' },
         { label: 'Study Material', path: '/study-material', icon: '📁' },
-        { label: 'Reports', path: '/reports', icon: '📈' },
         { label: 'Settings', path: '/settings', icon: '⚙️' }
       ];
     } else {
       this.navItems = [
         { label: 'Dashboard', path: '/dashboard', icon: '📊' },
+        { label: 'Day Book', path: '/day-book', icon: '📓' },
         { label: 'Students', path: '/students', icon: '👤' },
         { label: 'Courses', path: '/courses', icon: '📚' },
         { label: 'Batches', path: '/batches', icon: '⏱️' },
@@ -156,12 +168,11 @@ export class SidebarComponent implements OnInit {
           children: [
             { label: 'Questions', path: '/exams/questions' },
             { label: 'Internal Exams', path: '/exams/internal' },
-            { label: 'External Exams', path: '/exams/external' }
+            { label: 'External Exams', path: '/exams/external' },
+            { label: 'Exam Entries', path: '/exams/entries' }
           ]
         }
       ];
-
-      const isStaffLike = this.adminAsStaff;
 
       this.navItems.push({ label: 'Staff', path: '/staff', icon: '👥' });
       this.navItems.push({ label: 'Fees', path: '/fees', icon: '💰' });
@@ -186,5 +197,10 @@ export class SidebarComponent implements OnInit {
   private isAdmin(): boolean {
     const role = this.getNormalizedRole();
     return role === 'admin' || role === 'super admin' || role === 'super_admin';
+  }
+
+  private isSuperAdmin(): boolean {
+    const role = this.getNormalizedRole();
+    return role === 'super admin' || role === 'super_admin';
   }
 }

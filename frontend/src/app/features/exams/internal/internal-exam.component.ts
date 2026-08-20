@@ -448,6 +448,22 @@ export class InternalExamComponent implements OnInit {
         }
     }
 
+    unassign(result: any) {
+        const studentName = result.student_name || 'this candidate';
+        if (confirm(`Remove this assessment assignment for ${studentName}? They will no longer see this exam in their My Exams section.`)) {
+            this.dataService.unassignExam(result.exam_id, result.student_id).subscribe(() => {
+                this.toastService.success('Assessment assignment removed');
+
+                if (this.selectedExam?.assigned_student_ids) {
+                    this.selectedExam.assigned_student_ids = this.selectedExam.assigned_student_ids
+                        .filter((id: number) => String(id) !== String(result.student_id));
+                }
+
+                this.loadExams();
+            });
+        }
+    }
+
     openConductModal(exam: any) {
         this.dataService.getExam(exam.id).subscribe((res: any) => {
             this.selectedExam = res;

@@ -25,6 +25,7 @@ export class StudentListComponent implements OnInit {
   @ViewChild(CustomFieldsRendererComponent) customFieldsRenderer!: CustomFieldsRendererComponent;
   students: Student[] = [];
   courses$: Observable<Course[]> | undefined;
+  courses: Course[] = [];
   batches$: Observable<any[]> | undefined;
   searchTerm: string = '';
   filterCourse: string = '';
@@ -51,6 +52,9 @@ export class StudentListComponent implements OnInit {
   showSuccess = false;
   successStudentName = '';
 
+  selectedStudentDetails: any = null;
+  isDetailsModalOpen = false;
+
   constructor(private dataService: DataService, private toastService: ToastService) { }
 
   @HostListener('document:click', ['$event'])
@@ -72,6 +76,7 @@ export class StudentListComponent implements OnInit {
   ngOnInit() {
     this.loadStudents();
     this.courses$ = this.dataService.getCourses();
+    this.courses$.subscribe(data => this.courses = data);
     this.batches$ = this.dataService.getBatches();
     // Load register number settings
     this.dataService.getSettings().subscribe(s => this.regSettings = s);
@@ -90,55 +95,150 @@ export class StudentListComponent implements OnInit {
       dob: '',
       qualification: '',
       email: '',
-      courseId: '1',
-      batchId: '1',
+      courseId: '',
+      batchId: '0',
       joiningDate: new Date().toISOString().split('T')[0],
       feeStatus: 'pending',
       status: 'active',
       referredBy: '',
-      referralProfession: ''
+      referralProfession: '',
+      selectedSubjects: [],
+      photo: ''
     };
   }
 
-  loadStudents() {
-    this.dataService.getStudents().subscribe(data => {
-      this.students = data;
+  resizeAndCompressImage(file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event: any) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressedBase64);
+          } else {
+            reject(new Error('Failed to get 2D context'));
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
     });
   }
 
-  filteredStudents() {
-    let filtered = this.students.filter(s => {
-      const search = this.searchTerm.toLowerCase();
-      const matchesSearch = s.name.toLowerCase().includes(search) ||
-        s.mobile.includes(search) || (s.email && s.email.toLowerCase().includes(search)) ||
-        (s.regNumber && s.regNumber.toLowerCase().includes(search));
-      const matchesCourse = this.filterCourse ? s.courseId == this.filterCourse : true;
-      const matchesStatus = this.filterStatus === 'all' ? true : s.status === this.filterStatus;
-      return matchesSearch && matchesCourse && matchesStatus;
-    });
-
-    if (this.sortColumn) {
-      filtered.sort((a: any, b: any) => {
-        let valA = a[this.sortColumn];
-        let valB = b[this.sortColumn];
-
-        if (typeof valA === 'string') valA = valA.toLowerCase();
-        if (typeof valB === 'string') valB = valB.toLowerCase();
-
-        // Special handling for alphanumeric Reg numbers if needed, but standard localeCompare is often better
-        if (this.sortColumn === 'regNumber' || this.sortColumn === 'name') {
-          return this.sortDirection === 'asc'
-            ? String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' })
-            : String(valB).localeCompare(String(valA), undefined, { numeric: true, sensitivity: 'base' });
-        }
-
-        if (valA < valB) return this.sortDirection === 'asc' ? -1 : 1;
-        if (valA > valB) return this.sortDirection === 'asc' ? 1 : -1;
-        return 0;
-      });
+  onPhotoChange(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.resizeAndCompressImage(file, 300, 300, 0.7)
+        .then(base64 => {
+          this.newStudent.photo = base64;
+        })
+        .catch(err => {
+          this.toastService.error('Error processing photo');
+          console.error(err);
+        });
     }
+  }
 
-    return filtered;
+  removePhoto() {
+    this.newStudent.photo = '';
+  }
+
+  viewStudentDetails(student: any) {
+    this.selectedStudentDetails = student;
+    this.isDetailsModalOpen = true;
+  }
+
+  closeDetailsModal() {
+    this.selectedStudentDetails = null;
+    this.isDetailsModalOpen = false;
+  }
+
+  getImageUrl(imagePath: string | undefined): string {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http') || imagePath.startsWith('data:')) return imagePath;
+    const normalizedPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${this.dataService.getServerUrl()}/${normalizedPath}`;
+  }
+
+  printIDCard() {
+    const printContent = document.getElementById('student-id-card');
+    if (!printContent) return;
+    const windowUrl = 'about:blank';
+    const uniqueName = new Date().getTime();
+    const windowName = 'Print' + uniqueName;
+    const prtWindow = window.open(windowUrl, windowName, 'left=100,top=100,width=450,height=650');
+    if (prtWindow) {
+      prtWindow.document.write(`
+        <html>
+          <head>
+            <title>Print ID Card</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              body { margin: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #0f172a; }
+            </style>
+          </head>
+          <body>
+            <div class="scale-110">
+              ${printContent.outerHTML}
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  window.close();
+                }, 500);
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      prtWindow.document.close();
+      prtWindow.focus();
+    }
+  }
+
+  totalElements: number = 0;
+  serverTotalPages: number = 1;
+
+  loadStudents() {
+    this.dataService.getPagedStudents(this.currentPage, this.itemsPerPage, this.searchTerm, this.filterCourse, this.filterStatus)
+      .subscribe(res => {
+        this.students = res.content;
+        this.totalElements = res.totalElements;
+        this.serverTotalPages = res.totalPages;
+      });
+  }
+
+  onFilterChange() {
+    this.currentPage = 1;
+    this.loadStudents();
+  }
+
+  filteredStudents() {
+    return this.students;
   }
 
   sort(column: string) {
@@ -151,19 +251,50 @@ export class StudentListComponent implements OnInit {
   }
 
   paginatedStudents() {
-    const filtered = this.filteredStudents();
-    const start = (this.currentPage - 1) * this.itemsPerPage;
-    return filtered.slice(start, start + this.itemsPerPage);
+    if (!this.students || this.students.length === 0) return [];
+    const sorted = [...this.students];
+    if (this.sortColumn) {
+      sorted.sort((a: any, b: any) => {
+        let valA = a[this.sortColumn];
+        let valB = b[this.sortColumn];
+
+        if (typeof valA === 'string') valA = valA.toLowerCase();
+        if (typeof valB === 'string') valB = valB.toLowerCase();
+
+        if (valA < valB) return this.sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return this.sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sorted;
   }
 
   totalPages() {
-    return Math.ceil(this.filteredStudents().length / this.itemsPerPage) || 1;
+    return this.serverTotalPages || 1;
   }
 
-  nextPage() { if (this.currentPage < this.totalPages()) this.currentPage++; }
-  prevPage() { if (this.currentPage > 1) this.currentPage--; }
-  getStartCount() { return (this.currentPage - 1) * this.itemsPerPage + 1; }
-  getEndCount() { return Math.min(this.currentPage * this.itemsPerPage, this.filteredStudents().length); }
+  nextPage() {
+    if (this.currentPage < this.totalPages()) {
+      this.currentPage++;
+      this.loadStudents();
+    }
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.loadStudents();
+    }
+  }
+
+  getStartCount() {
+    if (this.totalElements === 0) return 0;
+    return (this.currentPage - 1) * this.itemsPerPage + 1;
+  }
+
+  getEndCount() {
+    return Math.min(this.currentPage * this.itemsPerPage, this.totalElements);
+  }
 
   getFeeStatusType(status: string): any {
     switch (status) {
@@ -234,10 +365,31 @@ export class StudentListComponent implements OnInit {
     this.isModalOpen = false;
   }
 
+  onEnrollmentTypeChange() {
+    if (this.enrollmentType === 'one-to-one') {
+      this.newStudent.batchId = '0';
+    } else {
+      this.newStudent.batchId = '';
+    }
+  }
+
+  onCourseChange() {
+    if (this.enrollmentType === 'batch') {
+      this.newStudent.batchId = '';
+    }
+  }
+
+  getFilteredBatches(batches: any[] | null): any[] {
+    if (!batches) return [];
+    return batches.filter(b => String(b.courseId) === String(this.newStudent.courseId));
+  }
+
   editStudent(student: Student) {
-    this.newStudent = { ...student };
+    this.newStudent = {
+      ...student,
+      selectedSubjects: this.parseStudentSubjects(student.selectedSubjects)
+    };
     // If it has a batch, show batchwise, otherwise if it's strictly course-only (0 or null batch) show one-to-one
-    // But for simplicity, we let the user toggle.
     this.enrollmentType = student.batchId && student.batchId != '0' ? 'batch' : 'one-to-one';
     this.isModalOpen = true;
   }
@@ -265,30 +417,39 @@ export class StudentListComponent implements OnInit {
       (this.newStudent as any).custom_fields = this.customFieldsRenderer.getValues();
     }
 
+    const payload = { ...this.newStudent };
+    payload.selectedSubjects = JSON.stringify(payload.selectedSubjects || []);
+
     if (this.enrollmentType === 'batch') {
       this.batches$?.subscribe(batches => {
-        const selectedBatch = batches.find(b => b.id == this.newStudent.batchId);
-        if (selectedBatch) {
-          this.newStudent.courseId = selectedBatch.courseId;
+        if (payload.batchId && payload.batchId !== '0' && payload.batchId !== '1') {
+          // Keep explicit batch selection
+        } else {
+          const selectedBatch = (batches || []).find(b => String(b.courseId) === String(payload.courseId));
+          if (selectedBatch) {
+            payload.batchId = selectedBatch.id;
+          } else {
+            payload.batchId = '0';
+          }
         }
-        this.executeSave();
+        this.executeSave(payload);
       });
     } else {
-      this.newStudent.batchId = '0';
-      this.executeSave();
+      payload.batchId = '0';
+      this.executeSave(payload);
     }
   }
 
-  private executeSave() {
-    this.dataService.addStudent(this.newStudent).subscribe({
+  private executeSave(payload: any) {
+    this.dataService.addStudent(payload).subscribe({
       next: () => {
-        this.toastService.success(this.newStudent.id ? 'Student record updated' : 'New student enrolled successfully');
+        this.toastService.success(payload.id ? 'Student record updated' : 'New student enrolled successfully');
         this.loadStudents();
         this.closeModal();
 
         // Show success celebration
         this.showSuccess = true;
-        this.successStudentName = this.newStudent.name || 'New Student';
+        this.successStudentName = payload.name || 'New Student';
         setTimeout(() => {
           this.showSuccess = false;
         }, 3500);
@@ -297,6 +458,86 @@ export class StudentListComponent implements OnInit {
         this.toastService.error(err.error?.message || 'Error saving student. Please try again.');
       }
     });
+  }
+
+  getSelectedCourse() {
+    return this.courses.find(c => String(c.id) === String(this.newStudent.courseId));
+  }
+
+  isCurrentCourseStandard(): boolean {
+    const c = this.getSelectedCourse();
+    return !!(c && (c.courseType === 'standard' || c.course_type === 'standard'));
+  }
+
+  getSubjectsForCurrentCourse(): any[] {
+    const c = this.getSelectedCourse();
+    if (!c || !c.subjects) return [];
+    if (Array.isArray(c.subjects)) return c.subjects;
+    try {
+      const parsed = JSON.parse(c.subjects);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  isSubjectSelected(subjectName: string): boolean {
+    const selected = this.newStudent.selectedSubjects || [];
+    return selected.includes(subjectName);
+  }
+
+  toggleSubjectSelection(subjectName: string) {
+    if (!this.newStudent.selectedSubjects) {
+      this.newStudent.selectedSubjects = [];
+    }
+    const index = this.newStudent.selectedSubjects.indexOf(subjectName);
+    if (index > -1) {
+      this.newStudent.selectedSubjects.splice(index, 1);
+    } else {
+      this.newStudent.selectedSubjects.push(subjectName);
+    }
+  }
+
+  areAllSubjectsSelected(): boolean {
+    const subjects = this.getSubjectsForCurrentCourse();
+    if (subjects.length === 0) return false;
+    const selected = this.newStudent.selectedSubjects || [];
+    return subjects.every(s => selected.includes(s.name));
+  }
+
+  toggleSelectAllSubjects() {
+    const subjects = this.getSubjectsForCurrentCourse();
+    const allSelected = this.areAllSubjectsSelected();
+    if (allSelected) {
+      this.newStudent.selectedSubjects = [];
+    } else {
+      this.newStudent.selectedSubjects = subjects.map(s => s.name);
+    }
+  }
+
+  getSelectedSubjectsSum(): number {
+    const selected = this.newStudent.selectedSubjects || [];
+    const subjects = this.getSubjectsForCurrentCourse();
+    return subjects.reduce((sum, s) => {
+      if (selected.includes(s.name)) {
+        return sum + (Number(s.fees) || 0);
+      }
+      return sum;
+    }, 0);
+  }
+
+  parseStudentSubjects(rawSubjects: any): any[] {
+    if (!rawSubjects) return [];
+    if (Array.isArray(rawSubjects)) return rawSubjects;
+    try {
+      const parsed = JSON.parse(rawSubjects);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      if (typeof rawSubjects === 'string') {
+        return rawSubjects.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      return [];
+    }
   }
 
   // --- Import / Export ---
@@ -413,6 +654,37 @@ export class StudentListComponent implements OnInit {
             batchId = batch.id;
           }
 
+          // Parse course subjects if standard course
+          let courseSubjects: any[] = [];
+          if (course.subjects) {
+            if (Array.isArray(course.subjects)) {
+              courseSubjects = course.subjects;
+            } else {
+              try {
+                const parsed = JSON.parse(course.subjects);
+                if (Array.isArray(parsed)) courseSubjects = parsed;
+              } catch {}
+            }
+          }
+
+          const subjectsVal = this.readImportValue(row, ['Subjects', 'subjects', 'Selected Subjects', 'selected_subjects', 'Subject', 'subject']);
+          let selectedSubjects: string[] = [];
+          if (course.courseType === 'standard' || course.course_type === 'standard') {
+            if (subjectsVal) {
+              if (subjectsVal.trim().toLowerCase() === 'all') {
+                selectedSubjects = courseSubjects.map((s: any) => s.name);
+              } else {
+                const importSubjectNames = subjectsVal.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+                selectedSubjects = courseSubjects
+                  .filter((s: any) => importSubjectNames.includes(s.name.trim().toLowerCase()))
+                  .map((s: any) => s.name);
+              }
+            } else {
+              // Default to all subjects of the course if none specified
+              selectedSubjects = courseSubjects.map((s: any) => s.name);
+            }
+          }
+
           const student: any = {
             regNumber: row['Reg Number'] || row['regNumber'] || row['reg_number'] || row['REG #'] || '',
             name: studentName,
@@ -425,14 +697,15 @@ export class StudentListComponent implements OnInit {
             batchId: batchId ?? '0',
             status: (row['Status'] || row['status'] || 'active').toLowerCase(),
             joiningDate: this.normalizeImportDate(row['Joining Date'] || row['joining_date'] || '')
-              || new Date().toISOString().split('T')[0]
+              || new Date().toISOString().split('T')[0],
+            selectedSubjects: JSON.stringify(selectedSubjects)
           };
 
           // Map Custom Fields
           const customValues: any = {};
           this.customFields.forEach(cf => {
-            if (row[cf.label] !== undefined) {
-              customValues[cf.id] = row[cf.label];
+            if (row[cf.field_label] !== undefined) {
+              customValues[cf.id] = row[cf.field_label];
             }
           });
           if (Object.keys(customValues).length > 0) {

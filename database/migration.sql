@@ -453,11 +453,15 @@ CREATE TABLE IF NOT EXISTS `branches` (
   `name` VARCHAR(255) NOT NULL,
   `code` VARCHAR(50),
   `address` TEXT,
+  `city` VARCHAR(100),
+  `state` VARCHAR(100),
+  `pincode` VARCHAR(20),
   `phone` VARCHAR(20),
   `email` VARCHAR(100),
   `is_main` TINYINT(1) DEFAULT 0,
   `status` VARCHAR(20) DEFAULT 'Active',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Add enable_multiple_branches to institute_settings
@@ -479,6 +483,7 @@ ALTER TABLE `external_exams` ADD COLUMN IF NOT EXISTS `branch_id` BIGINT NULL;
 ALTER TABLE `expenses` ADD COLUMN IF NOT EXISTS `branch_id` BIGINT NULL;
 ALTER TABLE `study_materials` ADD COLUMN IF NOT EXISTS `branch_id` BIGINT NULL;
 ALTER TABLE `notifications` ADD COLUMN IF NOT EXISTS `branch_id` BIGINT NULL;
+ALTER TABLE `activity_log` ADD COLUMN IF NOT EXISTS `branch_id` BIGINT NULL;
 
 -- Seed: Insert a default Main Branch (only if branches table is empty)
 INSERT INTO `branches` (`name`, `code`, `is_main`, `status`)

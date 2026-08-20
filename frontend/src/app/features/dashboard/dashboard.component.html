@@ -1,20 +1,38 @@
 <div class="space-y-8">
     <!-- Welcome Section -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Welcome Back, {{
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="flex-1">
+            <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Welcome Back, {{
                 currentUser?.name || 'Admin' }} 👋</h1>
-            <p class="text-slate-600 dark:text-slate-400 font-medium mt-1">Here's what's happening at your institute
-                today.</p>
+            <p class="text-slate-600 dark:text-slate-400 font-medium mt-1">Here's what's happening at your institute.
+            </p>
         </div>
-        <div
-            class="text-sm font-bold text-slate-500 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 px-4 py-2 rounded-2xl shadow-soft dark:shadow-none">
-            📅 {{ today }}
+
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <!-- Range Selector -->
+            <div class="relative group">
+                <select [value]="selectedRange" (change)="onRangeChange($event)"
+                    class="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 pl-10 pr-10 py-3 rounded-2xl shadow-soft dark:shadow-none text-sm font-black text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer min-w-[180px]">
+                    <option *ngFor="let r of ranges" [value]="r.id">{{ r.name }}</option>
+                </select>
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg">📅</span>
+                <span
+                    class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-transform group-hover:translate-y-1">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </span>
+            </div>
+
+            <div
+                class="hidden sm:block text-sm font-bold text-slate-500 bg-white/50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 px-5 py-3 rounded-2xl">
+                {{ today }}
+            </div>
         </div>
     </div>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" *ngIf="stats$ | async as stats">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <a routerLink="/students"
             class="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-800 hover:scale-[1.02] hover:shadow-lg dark:hover:bg-slate-800/50 transition-all cursor-pointer block group">
             <div class="flex items-center justify-between mb-4">
@@ -27,10 +45,10 @@
             <h3 class="text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">Total Students
             </h3>
             <div class="flex items-end justify-between mt-1">
-                <p class="text-3xl font-extrabold text-slate-900 dark:text-white">{{ stats.totalStudents }}</p>
+                <p class="text-3xl font-extrabold text-slate-900 dark:text-white">{{ stats?.totalStudents || 0 }}</p>
                 <div class="text-right text-[10px] font-bold space-y-0.5">
-                    <p class="text-primary-600 dark:text-primary-400">{{ stats.activeStudents }} Active</p>
-                    <p class="text-emerald-600 dark:text-emerald-400">{{ stats.completedStudents }} Completed</p>
+                    <p class="text-primary-600 dark:text-primary-400">{{ stats?.activeStudents || 0 }} Active</p>
+                    <p class="text-emerald-600 dark:text-emerald-400">{{ stats?.completedStudents || 0 }} Completed</p>
                 </div>
             </div>
         </a>
@@ -45,7 +63,7 @@
                     class="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400 px-2 py-1 rounded-lg text-xs font-black">+4%</span>
             </div>
             <h3 class="text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">Total Batches</h3>
-            <p class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">{{ stats.totalBatches }}</p>
+            <p class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">{{ stats?.totalBatches || 0 }}</p>
         </a>
 
         <a routerLink="/courses"
@@ -58,7 +76,7 @@
                     class="text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/50 px-2 py-1 rounded-lg text-xs font-black">Flat</span>
             </div>
             <h3 class="text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">Total Courses</h3>
-            <p class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">{{ stats.totalCourses }}</p>
+            <p class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">{{ stats?.totalCourses || 0 }}</p>
         </a>
 
         <a routerLink="/fees"
@@ -72,7 +90,22 @@
             </div>
             <h3 class="text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">Fees Collected
             </h3>
-            <p class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">₹{{ stats.totalFeesCollected | number
+            <p class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">₹{{ stats?.totalFeesCollected || 0 |
+                number
+                }}</p>
+        </a>
+
+        <a routerLink="/fees"
+            class="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-800 hover:scale-[1.02] hover:shadow-lg dark:hover:bg-slate-800/50 transition-all cursor-pointer block group">
+            <div class="flex items-center justify-between mb-4">
+                <div
+                    class="w-12 h-12 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                    ⚠️</div>
+                <span
+                    class="text-rose-600 bg-rose-50 dark:bg-rose-900/20 dark:text-rose-400 px-2 py-1 rounded-lg text-xs font-black">Overdue</span>
+            </div>
+            <h3 class="text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">Fee Overdue</h3>
+            <p class="text-3xl font-extrabold text-rose-600 dark:text-rose-400 mt-1">₹{{ stats?.feeOverdue || 0 | number
                 }}</p>
         </a>
     </div>
@@ -95,6 +128,15 @@
             </div>
             <div class="h-[300px] relative">
                 <canvas id="enrollmentChart"></canvas>
+                <div *ngIf="enrollmentTrends.length === 0"
+                    class="absolute inset-0 flex items-center justify-center text-center px-6">
+                    <div>
+                        <p class="text-sm font-bold text-slate-500 dark:text-slate-400">No enrollment data for this
+                            range.</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Choose another date filter to compare
+                            growth.</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -113,6 +155,15 @@
             </div>
             <div class="h-[300px] relative">
                 <canvas id="revenueChart"></canvas>
+                <div *ngIf="revenueBreakdown.length === 0"
+                    class="absolute inset-0 flex items-center justify-center text-center px-6">
+                    <div>
+                        <p class="text-sm font-bold text-slate-500 dark:text-slate-400">No fee collection found for this
+                            range.</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Revenue will appear here once
+                            receipts exist in the selected period.</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -132,6 +183,15 @@
             </div>
             <div class="h-[250px] relative">
                 <canvas id="expenseChart"></canvas>
+                <div *ngIf="expenseBreakdown.length === 0"
+                    class="absolute inset-0 flex items-center justify-center text-center px-6">
+                    <div>
+                        <p class="text-sm font-bold text-slate-500 dark:text-slate-400">No expense data for this range.
+                        </p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Recorded expenses will appear here
+                            for the selected period.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -252,3 +312,83 @@
         </div>
     </div>
 </div>
+
+<!-- Fee Reminder Popup -->
+<app-modal [isOpen]="isReminderPopupOpen" title="Fee Collection Reminders" [showFooter]="false"
+    (onClose)="isReminderPopupOpen = false">
+    <div class="space-y-5">
+        <!-- Alert Header -->
+        <div
+            class="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-800/50">
+            <div
+                class="w-12 h-12 bg-amber-100 dark:bg-amber-900/40 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                🔔
+            </div>
+            <div>
+                <h4 class="font-black text-amber-900 dark:text-amber-100 text-sm">Pending Fee Reminders</h4>
+                <p class="text-xs text-amber-700/70 dark:text-amber-400/70 font-medium mt-0.5">
+                    You have {{ dueReminders.length }} student{{ dueReminders.length > 1 ? 's' : '' }} with fee
+                    collection reminders due today or overdue.
+                </p>
+            </div>
+        </div>
+
+        <!-- Student List -->
+        <div class="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+            <div *ngFor="let r of dueReminders"
+                class="p-4 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-primary-500/30 transition-all">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <div
+                            class="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0"
+                            [class.bg-rose-100]="r.isOverdue" [class.text-rose-600]="r.isOverdue"
+                            [class.dark:bg-rose-900/30]="r.isOverdue" [class.dark:text-rose-400]="r.isOverdue"
+                            [class.bg-primary-100]="!r.isOverdue" [class.text-primary-600]="!r.isOverdue"
+                            [class.dark:bg-primary-900/30]="!r.isOverdue"
+                            [class.dark:text-primary-400]="!r.isOverdue">
+                            {{ r.studentName?.charAt(0) }}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-black text-slate-800 dark:text-white text-sm truncate">{{ r.studentName }}
+                            </p>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                                {{ r.regNumber || '' }}{{ r.regNumber && r.courseName ? ' • ' : '' }}{{ r.courseName }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <p class="font-black text-lg" [class.text-rose-600]="r.isOverdue"
+                            [class.dark:text-rose-400]="r.isOverdue" [class.text-primary-600]="!r.isOverdue"
+                            [class.dark:text-primary-400]="!r.isOverdue">
+                            ₹{{ r.dueAmount | number }}
+                        </p>
+                        <p class="text-[10px] font-bold uppercase tracking-widest"
+                            [class.text-rose-500]="r.isOverdue" [class.text-slate-400]="!r.isOverdue">
+                            {{ r.isOverdue ? 'OVERDUE' : r.periodLabel }}
+                        </p>
+                    </div>
+                </div>
+                <div
+                    class="mt-3 pt-3 border-t border-slate-50 dark:border-slate-700/50 flex items-center justify-between text-xs">
+                    <span class="text-slate-400 dark:text-slate-500 font-medium">
+                        Total Balance: <span class="font-bold text-slate-600 dark:text-slate-300">₹{{ r.balanceAmount |
+                            number }}</span>
+                    </span>
+                    <span class="font-bold px-2 py-1 rounded-lg text-[10px] uppercase tracking-widest"
+                        [class.bg-rose-50]="r.isOverdue" [class.text-rose-600]="r.isOverdue"
+                        [class.dark:bg-rose-900/30]="r.isOverdue" [class.dark:text-rose-400]="r.isOverdue"
+                        [class.bg-slate-50]="!r.isOverdue" [class.text-slate-500]="!r.isOverdue"
+                        [class.dark:bg-slate-800]="!r.isOverdue" [class.dark:text-slate-400]="!r.isOverdue">
+                        📅 {{ r.reminderDate }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action -->
+        <button (click)="isReminderPopupOpen = false"
+            class="w-full py-4 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:bg-primary-700 transition-all active:scale-[0.98]">
+            Acknowledged ✓
+        </button>
+    </div>
+</app-modal>

@@ -2,6 +2,7 @@ package com.institute.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Filter;
 import java.math.BigDecimal;
 
 @Entity
@@ -10,6 +11,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(BranchEntityListener.class)
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class ExamSubmissionAnswer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,4 +35,8 @@ public class ExamSubmissionAnswer {
 
     @Column(name = "is_correct")
     private Integer isCorrect;
+
+    @Builder.Default
+    @Column(name = "tenant_id", length = 100)
+    private String tenantId = "default";
 }

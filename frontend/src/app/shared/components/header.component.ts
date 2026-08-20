@@ -1,10 +1,10 @@
-﻿import { Component, Input, OnInit, HostListener, Output, EventEmitter } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, HostListener, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { User, Branch } from '../../models';
-import { Subject, debounceTime, distinctUntilChanged, switchMap, of, Subscription } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { BranchContextService } from '../../services/branch-context.service';
 import { ToastService } from '../../services/toast.service';
@@ -14,7 +14,7 @@ import { ToastService } from '../../services/toast.service';
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   template: `
-    <header class="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-30">
+    <header class="h-16 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border-b-2 border-slate-200/60 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
       <div class="flex items-center gap-4">
         <button (click)="toggleSidebar.emit()" class="md:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400">☰</button>
         <div class="flex items-center gap-2">
@@ -25,12 +25,12 @@ import { ToastService } from '../../services/toast.service';
       
       <div class="flex items-center gap-4">
         <!-- Branch Selector -->
-        <div *ngIf="isBranchContextEnabled" class="hidden md:flex items-center">
+        <div *ngIf="isBranchSelectorVisible && !isSuperAdmin()" class="hidden md:flex items-center">
           <div class="relative flex items-center gap-2.5 px-3.5 py-2 bg-white/70 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl shadow-sm hover:shadow-md hover:bg-white dark:hover:bg-slate-800 transition-all">
             <span class="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest select-none">Branch</span>
             <select [ngModel]="selectedBranchId" (ngModelChange)="onBranchChange($event)"
                     class="bg-transparent text-[13px] font-black text-slate-800 dark:text-white border-none outline-none cursor-pointer appearance-none pl-2 pr-8 min-w-[220px]">
-              <option value="all">All Branches</option>
+              <option value="all">🌐 All Branches</option>
               <option *ngFor="let branch of activeBranches" [value]="branch.id">
                 {{ branch.isMain ? '⭐ ' : '' }}{{ branch.name }}
               </option>
@@ -39,7 +39,7 @@ import { ToastService } from '../../services/toast.service';
           </div>
         </div>
 
-        <div class="hidden md:flex relative group">
+        <div *ngIf="!isSuperAdmin()" class="hidden md:flex relative group">
           <input type="text" placeholder="Search anything..." 
                  (input)="onSearchInput($event)"
                  [(ngModel)]="searchQuery"
@@ -102,14 +102,9 @@ import { ToastService } from '../../services/toast.service';
                 <div *ngIf="!n.is_read" class="w-1.5 h-1.5 rounded-full bg-primary-500 mt-2 flex-shrink-0"></div>
               </div>
               <div *ngIf="notifications.length === 0" class="px-5 py-8 text-center">
-                <p class="text-3xl mb-2">🔕</p>
-                <p class="text-sm text-slate-400 dark:text-slate-500 font-bold">No notifications yet</p>
+                <p class="text-3xl mb-2">🎉</p>
+                <p class="text-sm text-slate-400 dark:text-slate-500 font-bold">You're all caught up!</p>
               </div>
-            </div>
-            <div class="px-5 py-3 border-t border-slate-50 dark:border-slate-800">
-              <a routerLink="/reports" (click)="showNotifications = false" class="text-xs font-black text-primary-600 dark:text-primary-400 hover:underline uppercase tracking-widest">
-                View All Activity →
-              </a>
             </div>
           </div>
         </div>
@@ -172,7 +167,7 @@ import { ToastService } from '../../services/toast.service';
     </header>
   `
 })
-export class HeaderComponent implements OnInit {
+export class HeaderComponent implements OnInit, OnDestroy {
   @Input() title: string = 'Dashboard';
   @Output() toggleSidebar = new EventEmitter<void>();
   user: User | null = null;
@@ -188,6 +183,8 @@ export class HeaderComponent implements OnInit {
   activeBranches: Branch[] = [];
   selectedBranchId: string | number | 'all' = 'all';
   private readonly branchSwitchToastKey = 'branchSwitchToast';
+  private readonly seenNotificationsStorageKey = 'seenNotificationIds';
+  private pollHandle: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private authService: AuthService,
@@ -210,7 +207,7 @@ export class HeaderComponent implements OnInit {
     this.loadNotifications();
 
     // Polling for new notifications every 30 seconds
-    setInterval(() => this.loadNotifications(), 30000);
+    this.pollHandle = setInterval(() => this.loadNotifications(), 30000);
 
     // Setup search
     this.searchTerms.pipe(
@@ -222,15 +219,30 @@ export class HeaderComponent implements OnInit {
     });
 
     // Setup branch context
-    this.branchContextService.isEnabled$.subscribe(enabled => this.isBranchContextEnabled = enabled);
+    this.branchContextService.isEnabled$.subscribe(enabled => {
+      this.isBranchContextEnabled = enabled;
+      this.updateBranchVisibility();
+    });
+    this.branchContextService.isHeaderHidden$.subscribe(hidden => {
+      this.isHeaderHidden = hidden;
+      this.updateBranchVisibility();
+    });
     this.branchContextService.branches$.subscribe(branches => this.activeBranches = branches);
     this.branchContextService.selectedBranchId$.subscribe(id => this.selectedBranchId = id);
   }
 
+  isHeaderHidden = false;
+  isBranchSelectorVisible = false;
+
+  private updateBranchVisibility() {
+    this.isBranchSelectorVisible = this.isBranchContextEnabled && !this.isHeaderHidden;
+  }
+
   loadNotifications() {
     this.dataService.getNotifications().subscribe(ns => {
-      this.notifications = ns;
-      this.unreadCount = ns.filter(n => !n.is_read).length;
+      const seenIds = this.getSeenNotificationIds();
+      this.notifications = ns.filter(n => !n.is_read && !seenIds.has(String(n.id)));
+      this.unreadCount = this.notifications.length;
     });
   }
 
@@ -238,6 +250,14 @@ export class HeaderComponent implements OnInit {
     event.stopPropagation();
     this.showNotifications = !this.showNotifications;
     if (this.showNotifications && this.unreadCount > 0) {
+      const seenIds = this.getSeenNotificationIds();
+      this.notifications.forEach(n => {
+        if (n?.id != null) {
+          seenIds.add(String(n.id));
+        }
+      });
+      this.saveSeenNotificationIds(seenIds);
+
       this.dataService.markNotificationsRead().subscribe(() => {
         this.unreadCount = 0;
         this.notifications.forEach(n => n.is_read = 1);
@@ -258,9 +278,7 @@ export class HeaderComponent implements OnInit {
   onBranchChange(newId: any) {
     if (String(newId) === String(this.selectedBranchId)) return;
 
-    const name = String(newId) === 'all'
-      ? 'All Branches'
-      : (this.activeBranches.find(b => String(b.id) === String(newId))?.name || 'selected branch');
+    const name = this.activeBranches.find(b => String(b.id) === String(newId))?.name || 'selected branch';
 
     localStorage.setItem(this.branchSwitchToastKey, 'Switched to ' + name + '. Updating view...');
     this.branchContextService.setSelectedBranchId(newId);
@@ -270,7 +288,40 @@ export class HeaderComponent implements OnInit {
 
   @HostListener('document:click')
   onDocumentClick() {
-    this.showNotifications = false;
+    if (this.showNotifications) {
+      this.showNotifications = false;
+      this.notifications = [];
+    }
+  }
+
+  ngOnDestroy() {
+    if (this.pollHandle) {
+      clearInterval(this.pollHandle);
+      this.pollHandle = null;
+    }
+  }
+
+  private getSeenNotificationIds(): Set<string> {
+    try {
+      const raw = localStorage.getItem(this.seenNotificationsStorageKey);
+      if (!raw) return new Set<string>();
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return new Set<string>();
+      return new Set(parsed.map(id => String(id)));
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private saveSeenNotificationIds(ids: Set<string>) {
+    try {
+      localStorage.setItem(
+        this.seenNotificationsStorageKey,
+        JSON.stringify(Array.from(ids).slice(-500))
+      );
+    } catch {
+      // Ignore storage issues and fall back to backend read-state only.
+    }
   }
 
   formatTs(ts: string): string {
@@ -288,6 +339,11 @@ export class HeaderComponent implements OnInit {
     if (confirm('Are you sure you want to sign out?')) {
       this.authService.logout();
     }
+  }
+
+  isSuperAdmin(): boolean {
+    const role = (this.user?.role_name || this.user?.role || '').trim().toLowerCase();
+    return role === 'super admin' || role === 'super_admin';
   }
 
   getTitleIcon(): string {
@@ -328,7 +384,4 @@ export class HeaderComponent implements OnInit {
     });
   }
 }
-
-
-
 

@@ -20,24 +20,38 @@
                 class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full text-white text-2xl shadow-[0_0_40px_rgba(var(--color-primary-500),0.3)] mb-4 transform transition-all duration-700 hover:scale-110 hover:rotate-[360deg] active:scale-95 cursor-default relative group">
                 <div class="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity">
                 </div>
-                <span class="font-black drop-shadow-lg">I</span>
+                <span class="font-black drop-shadow-lg">C</span>
             </div>
             <h1
-                class="text-2xl mb-4 sm:text-3xl font-black tracking-tight mb-1 bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent drop-shadow-sm">
+                class="text-2xl mb-2 sm:text-3xl font-black tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent drop-shadow-sm">
                 Welcome Back</h1>
-            <p class="text-slate-500 font-bold text-[9px] uppercase tracking-[0.4em]">Institute Management System</p>
+            <!-- Dynamic tenant name -->
+            <p *ngIf="!tenantLoading" class="text-slate-500 font-bold text-[9px] uppercase tracking-[0.4em]">{{ tenantName }}</p>
+            <p *ngIf="tenantLoading" class="text-slate-600 font-bold text-[9px] uppercase tracking-[0.4em] animate-pulse">Loading...</p>
+        </div>
+
+        <!-- Tenant Error (invalid subdomain) -->
+        <div *ngIf="tenantError"
+            class="mb-6 bg-rose-900/30 border border-rose-500/30 text-rose-300 p-5 rounded-2xl text-center">
+            <span class="text-2xl block mb-2">🏫</span>
+            <p class="text-sm font-bold mb-1">{{ tenantError }}</p>
+            <p class="text-[10px] text-rose-400/70">Please check the URL or contact your administrator.</p>
         </div>
 
         <!-- Login Card with 3D Effect -->
-        <div
+        <div *ngIf="!tenantError"
             class="bg-slate-900/80 backdrop-blur-xl rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8),_inset_0_1px_1px_rgba(255,255,255,0.05)] border border-white/5 p-8 sm:p-10 w-full transform-gpu transition-all duration-500 hover:shadow-[0_60px_120px_-20px_rgba(0,0,0,0.9)] hover:-translate-y-1 ring-1 ring-white/10 group">
+            
+            <!-- Subtitle message -->
+            <p class="text-slate-400 text-xs text-center mb-6 font-medium">Enter your email and password to continue</p>
+
             <form (ngSubmit)="onLogin()" #loginForm="ngForm" class="space-y-6">
                 <div class="space-y-2">
-                    <label class="block text-xs font-bold text-slate-300 ml-1">Email Address</label>
+                    <label class="block text-xs font-bold text-slate-300 ml-1">Username</label>
                     <div class="relative group">
                         <span
                             class="absolute left-5 top-1/2 -translate-y-1/2 text-lg grayscale group-focus-within:grayscale-0 transition-all opacity-40 group-focus-within:opacity-100">📧</span>
-                        <input type="email" name="email" [(ngModel)]="email" required email
+                        <input type="text" name="email" [(ngModel)]="email" required id="login-username"
                             class="w-full pl-14 pr-6 py-3.5 bg-slate-800/50 rounded-2xl text-[14px] font-bold text-white placeholder-slate-500 focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500/30 transition-all outline-none border-2 border-slate-700/50 focus:bg-slate-800"
                             placeholder="admin">
                     </div>
@@ -53,7 +67,7 @@
                     <div class="relative group">
                         <span
                             class="absolute left-5 top-1/2 -translate-y-1/2 text-lg grayscale group-focus-within:grayscale-0 transition-all opacity-40 group-focus-within:opacity-100">🔒</span>
-                        <input type="password" name="password" [(ngModel)]="password" required
+                        <input type="password" name="password" [(ngModel)]="password" required id="login-password"
                             class="w-full pl-14 pr-6 py-3.5 bg-slate-800/50 rounded-2xl text-[14px] font-bold text-white placeholder-slate-500 focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500/30 transition-all outline-none border-2 border-slate-700/50 focus:bg-slate-800"
                             placeholder="••••••••">
                     </div>
@@ -82,11 +96,19 @@
                     <span>{{ error }}</span>
                 </div>
 
-                <button type="submit" [disabled]="loading"
+                <button type="submit" [disabled]="loading || tenantLoading" id="login-submit-btn"
                     class="w-full py-3.5 bg-primary-600 text-white font-black text-[13px] uppercase tracking-[0.2em] rounded-2xl hover:bg-primary-700 shadow-xl shadow-primary-900/40 transition-all disabled:opacity-50 disabled:grayscale transform active:scale-[0.98] flex items-center justify-center gap-3">
                     <span *ngIf="loading" class="w-2 h-2 bg-white rounded-full animate-ping"></span>
                     <span>{{ loading ? 'Signing In...' : 'Sign In' }}</span>
                 </button>
+
+                <!-- Find Institute link (shown on main domain) -->
+                <div *ngIf="isMainDomain" class="text-center pt-1">
+                    <button type="button" (click)="goToFindInstitute()"
+                        class="text-primary-400 text-[11px] font-bold hover:text-primary-300 hover:underline transition-all uppercase tracking-wider">
+                        🔍 Find Your Institute
+                    </button>
+                </div>
 
                 <div class="text-center pt-2">
                     <p class="text-slate-500 text-[11px] font-bold">
@@ -101,7 +123,7 @@
 
         <!-- Footer -->
         <div class="mt-12 text-center text-slate-800">
-            <p class="text-[9px] font-bold uppercase tracking-[0.4em]">© 2024 Institute Manager Pro. All rights
+            <p class="text-[9px] font-bold uppercase tracking-[0.4em]">© 2024 Classivo. All rights
                 reserved.</p>
         </div>
     </div>

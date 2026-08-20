@@ -60,7 +60,7 @@ export class ModalComponent {
       case '3xl': return 'max-w-3xl';
       case '4xl': return 'max-w-4xl';
       case 'large': return 'max-w-5xl';
-      case 'huge': return 'max-w-[1200px]';
+      case 'huge': return 'max-w-[95vw] lg:max-w-[1600px]';
       default: return 'max-w-lg';
     }
   }

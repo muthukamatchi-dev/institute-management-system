@@ -2,6 +2,7 @@ package com.institute.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Filter;
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,8 +11,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(BranchEntityListener.class)
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class InstituteSetting {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, length = 255)
@@ -101,4 +105,11 @@ public class InstituteSetting {
 
     @Column(name = "enable_multiple_branches")
     private Integer enableMultipleBranches;
+
+    @Column(name = "enable_standard_courses")
+    private Integer enableStandardCourses;
+
+    @Builder.Default
+    @Column(name = "tenant_id", length = 100)
+    private String tenantId = "default";
 }

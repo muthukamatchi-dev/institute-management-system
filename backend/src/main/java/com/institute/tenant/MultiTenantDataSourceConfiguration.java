@@ -2,13 +2,11 @@ package com.institute.tenant;
 
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 import javax.sql.DataSource;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,7 +30,7 @@ public class MultiTenantDataSourceConfiguration {
     @Bean
     @Primary
     public DataSource dataSource() {
-        TenantRoutingDataSource routingDataSource = new TenantRoutingDataSource();
+        TenantDataSourceRouter routingDataSource = new TenantDataSourceRouter();
         
         // Create a default data source
         DataSource defaultDataSource = createDataSource("institute_db");

@@ -5,6 +5,8 @@ export interface User {
     role: string;
     role_name?: string;
     token?: string;
+    tenant_code?: string;
+    is_read_only?: boolean;
 }
 
 export interface Course {
@@ -18,6 +20,11 @@ export interface Course {
     status: 'active' | 'inactive';
     syllabusPath?: string;
     imagePath?: string;
+    courseType?: 'self' | 'standard';
+    course_type?: 'self' | 'standard';
+    subjects?: any;
+    feePeriod?: 'course' | 'day' | 'week' | 'month' | 'year';
+    fee_period?: 'course' | 'day' | 'week' | 'month' | 'year';
 }
 
 export interface Batch {
@@ -32,6 +39,7 @@ export interface Batch {
     status: 'ongoing' | 'completed' | 'upcoming';
     totalFees?: number;
     studentCount?: number;
+    subject?: string;
 }
 
 export interface Student {
@@ -57,6 +65,12 @@ export interface Student {
     instructorName?: string;
     timing?: string;
     startDate?: string;
+    selectedSubjects?: any;
+    selected_subjects?: any;
+    photo?: string;
+    subjectAllocations?: string;
+    batchIds?: number[];
+    batchSubjects?: string[];
 }
 
 export interface FeeRecord {
@@ -78,6 +92,13 @@ export interface FeeRecord {
     courseName?: string;
     reminder_date?: string;
     is_reminder_enabled?: number;
+    course_duration?: string;
+    course_fee_period?: string;
+    course_fee_flat?: number;
+    course_units?: number;
+    monthly_amount?: number;
+    fee_overdue?: number;
+    this_period_payable?: number;
 }
 
 export interface AttendanceRecord {
@@ -97,6 +118,7 @@ export interface DashboardStats {
     totalBatches: number;
     totalCourses: number;
     totalFeesCollected: number;
+    feeOverdue?: number;
 }
 
 export interface RecentActivity {
@@ -118,6 +140,7 @@ export interface Staff {
     joiningDate: string;
     status: 'active' | 'inactive';
     salary?: number;
+    photo?: string;
 }
 
 export interface Exam {
@@ -163,6 +186,7 @@ export interface QuestionBankItem {
     id: string;
     courseId: string;
     courseName?: string;
+    subject?: string;
     title: string; // e.g., "Sample Test", "Slip Test", "Model Exam"
     questions: ExamQuestion[];
     createdAt?: string;
@@ -185,6 +209,7 @@ export interface StudyMaterial {
     uploadedBy: string; // User ID
     uploadedByName?: string;
     uploadedAt: string;
+    subject?: string;
 }
 
 export interface Expense {
@@ -206,9 +231,13 @@ export interface Branch {
     name: string;
     code: string;
     address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
     phone?: string;
     email?: string;
     isMain: boolean;
     status: 'active' | 'inactive';
     createdAt?: string;
+    updatedAt?: string;
 }

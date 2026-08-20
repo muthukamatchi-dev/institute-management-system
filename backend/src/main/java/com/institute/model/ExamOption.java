@@ -2,6 +2,7 @@ package com.institute.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "exam_options")
@@ -9,6 +10,8 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(BranchEntityListener.class)
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class ExamOption {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,4 +25,8 @@ public class ExamOption {
 
     @Column(name = "is_correct")
     private Integer isCorrect = 0;
+
+    @Builder.Default
+    @Column(name = "tenant_id", length = 100)
+    private String tenantId = "default";
 }

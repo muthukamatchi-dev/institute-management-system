@@ -64,7 +64,8 @@ export class FeeListComponent implements OnInit {
     studentId: '',
     amount: 0,
     method: 'Cash',
-    refNo: ''
+    refNo: '',
+    date: new Date().toISOString().split('T')[0]
   };
 
   constructor(private dataService: DataService, private toastService: ToastService) { }
@@ -115,7 +116,7 @@ export class FeeListComponent implements OnInit {
         let valA = a[this.sortColumn];
         let valB = b[this.sortColumn];
 
-        if (this.sortColumn === 'regNumber' || this.sortColumn === 'studentName') {
+        if (this.sortColumn === 'regNumber' || this.sortColumn === 'studentName' || this.sortColumn === 'courseName') {
           return this.sortDirection === 'asc'
             ? String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' })
             : String(valB).localeCompare(String(valA), undefined, { numeric: true, sensitivity: 'base' });
@@ -214,14 +215,100 @@ export class FeeListComponent implements OnInit {
     this.viewDetails(fee);
   }
 
+  deleteReceipt(receipt: any) {
+    if (!confirm(`Are you sure you want to delete payment receipt ${receipt.receiptNo} of ₹${receipt.amount}?`)) {
+      return;
+    }
+    
+    this.dataService.deleteReceipt(receipt.id).subscribe({
+      next: (res: any) => {
+        if (res?.status === 'error') {
+          this.toastService.error(res?.message || 'Failed to delete payment');
+          return;
+        }
+        this.toastService.success('Payment deleted successfully!');
+        
+        // Reload fees list
+        this.loadFees();
+        
+        // Reload history for details modal
+        if (this.selectedFeeInfo && this.selectedFeeInfo.studentId) {
+          this.loadFeeHistory(this.selectedFeeInfo.studentId);
+          setTimeout(() => {
+            if (this.selectedFeeInfo) {
+              const updatedFee = this.fees.find(f => f.studentId === this.selectedFeeInfo?.studentId);
+              if (updatedFee) {
+                this.selectedFeeInfo = updatedFee;
+              }
+            }
+          }, 300);
+        }
+      },
+      error: (err: any) => {
+        const errorMsg = err?.error?.message || err?.message || 'Error deleting payment';
+        this.toastService.error(errorMsg);
+      }
+    });
+  }
+
+  getMonthlyPayable(fee: FeeRecord): number {
+    if (!fee) return 0;
+    if (fee.monthly_amount && fee.monthly_amount > 0) {
+      return Number(fee.monthly_amount);
+    }
+    if (fee.course_fee_flat && fee.course_fee_flat > 0) {
+      return Number(fee.course_fee_flat);
+    }
+    const units = fee.course_units || 1;
+    return Math.round(fee.totalAmount / units);
+  }
+
+  isMonthlyBilling(fee: FeeRecord): boolean {
+    if (!fee || !fee.course_fee_period) return false;
+    const p = fee.course_fee_period.toLowerCase();
+    return p.includes('month');
+  }
+
+  setQuickAmount(multiplier: number) {
+    if (!this.selectedFeeInfo) return;
+    if (multiplier === -1) {
+      this.paymentData.amount = this.selectedFeeInfo.balanceAmount;
+    } else {
+      const monthlyPayable = this.getMonthlyPayable(this.selectedFeeInfo);
+      this.paymentData.amount = Math.min(monthlyPayable * multiplier, this.selectedFeeInfo.balanceAmount);
+    }
+  }
+
+  getPeriodLabel(fee: FeeRecord | null): string {
+    if (!fee || !fee.course_fee_period) return 'Period';
+    const p = fee.course_fee_period.toLowerCase().trim();
+    if (p.includes('day') || p.includes('daily')) return 'Day';
+    if (p.includes('week') || p.includes('weekly')) return 'Week';
+    if (p.includes('month') || p.includes('monthly')) return 'Month';
+    if (p.includes('year') || p.includes('yearly')) return 'Year';
+    return 'Period';
+  }
+
+  setQuickAmountToPayable() {
+    if (!this.selectedFeeInfo) return;
+    this.paymentData.amount = this.selectedFeeInfo.this_period_payable !== undefined
+      ? this.selectedFeeInfo.this_period_payable
+      : this.selectedFeeInfo.balanceAmount;
+  }
+
   openCollectModal(fee?: FeeRecord) {
     if (fee) {
       this.selectedFeeInfo = fee;
+      const defaultAmount = fee.this_period_payable !== undefined
+        ? fee.this_period_payable
+        : fee.balanceAmount;
+
       this.paymentData = {
         studentId: fee.studentId,
-        amount: fee.balanceAmount,
+        amount: defaultAmount,
         method: 'Cash',
-        refNo: ''
+        refNo: '',
+        date: new Date().toISOString().split('T')[0]
       };
       this.selectedStudentName = fee.studentName || '';
     } else {
@@ -230,7 +317,8 @@ export class FeeListComponent implements OnInit {
         studentId: '',
         amount: 0,
         method: 'Cash',
-        refNo: ''
+        refNo: '',
+        date: new Date().toISOString().split('T')[0]
       };
       this.selectedStudentId = '';
       this.selectedStudentName = '';
@@ -262,7 +350,9 @@ export class FeeListComponent implements OnInit {
     const feeInfo = this.fees.find(f => f.studentId === student.id);
     if (feeInfo) {
       this.selectedFeeInfo = feeInfo;
-      this.paymentData.amount = feeInfo.balanceAmount;
+      this.paymentData.amount = feeInfo.this_period_payable !== undefined
+        ? feeInfo.this_period_payable
+        : feeInfo.balanceAmount;
     } else {
       this.selectedFeeInfo = null;
       this.paymentData.amount = 0;
@@ -317,7 +407,7 @@ export class FeeListComponent implements OnInit {
   exportToExcel() {
     const rawData = this.sortedFees().map(f => ({
       'Student Name': f.studentName,
-      'Batch': f.batchName,
+      'Course': f.courseName,
       'Total Fees': f.totalAmount,
       'Paid Amount': f.paidAmount,
       'Balance': f.balanceAmount,

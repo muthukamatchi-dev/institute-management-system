@@ -61,9 +61,14 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
                     <p class="text-[10px] font-black text-primary-500 uppercase tracking-widest mb-8">Capacity: {{ ex.total_marks }} Cumulative Marks</p>
                     
                     <button (click)="takeExam(ex)"
-                            [disabled]="!ex.can_take"
+                            [disabled]="!ex.can_take || ex.exam_type === 'performance'"
                             class="w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black uppercase tracking-[0.25em] text-[10px] rounded-[1.5rem] shadow-button hover:shadow-premium hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed">
-                        {{ ex.has_attempted && !ex.can_take ? 'Execution Complete' : 'Synchronize Assessment' }}
+                        <ng-container *ngIf="ex.exam_type !== 'performance'">
+                            {{ ex.has_attempted && !ex.can_take ? 'Execution Complete' : 'Synchronize Assessment' }}
+                        </ng-container>
+                        <ng-container *ngIf="ex.exam_type === 'performance'">
+                            {{ ex.has_attempted ? 'Execution Complete' : 'In-Person Evaluation Only' }}
+                        </ng-container>
                     </button>
                 </div>
             </div>
@@ -294,8 +299,11 @@ export class StudentExamComponent implements OnInit {
     }
 
     takeExam(exam: any) {
+        if (!exam?.can_take) {
+            return;
+        }
         const examId = exam.id || exam.exam_id;
-        this.router.navigate(['/public/exam', examId]);
+        this.router.navigate(['/internal/exam', examId]);
     }
 
     review(submission: any) {

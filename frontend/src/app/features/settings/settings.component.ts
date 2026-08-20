@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { ThemeService } from '../../services/theme.service';
 import { ToastService } from '../../services/toast.service';
@@ -71,7 +72,7 @@ export class SettingsComponent implements OnInit {
   // Appearance
   appearance = {
     color: '#3b82f6',
-    mode: 'light' as 'light' | 'dark'
+    mode: 'dark' as 'dark'
   };
 
   // Bulk Completion
@@ -84,7 +85,8 @@ export class SettingsComponent implements OnInit {
   advancedSettings = {
     adminAsStaff: false,
     allowPerformanceExams: false,
-    enableMultipleBranches: false
+    enableMultipleBranches: false,
+    enableStandardCourses: false
   };
 
   // Custom Fields
@@ -131,6 +133,9 @@ export class SettingsComponent implements OnInit {
     name: '',
     code: '',
     address: '',
+    city: '',
+    state: '',
+    pincode: '',
     phone: '',
     email: '',
     isMain: false,
@@ -141,10 +146,18 @@ export class SettingsComponent implements OnInit {
     private dataService: DataService,
     private themeService: ThemeService,
     private toastService: ToastService,
-    private branchContext: BranchContextService
+    private branchContext: BranchContextService,
+    public authService: AuthService
   ) { }
 
   ngOnInit() {
+    this.authService.currentUser.subscribe(user => {
+      if (this.isStaffOrStudent(user)) {
+        this.activeSection = 'general';
+        this.activePage = 'appearance';
+      }
+    });
+
     this.dataService.getSettings().subscribe({
       next: s => {
         if (s) {
@@ -173,10 +186,11 @@ export class SettingsComponent implements OnInit {
           this.courseSettings.lastNumber = Number(s.course_id_last_number) || 0;
 
           this.appearance.color = s.appearance_color || '#3b82f6';
-          this.appearance.mode = (s.appearance_mode as 'light' | 'dark') || 'light';
+          this.appearance.mode = 'dark';
           this.advancedSettings.adminAsStaff = s.admin_as_staff == 1;
           this.advancedSettings.allowPerformanceExams = s.allow_performance_exams == 1;
           this.advancedSettings.enableMultipleBranches = s.enableMultipleBranches || s.enable_multiple_branches == 1;
+          this.advancedSettings.enableStandardCourses = s.enableStandardCourses == 1 || s.enable_standard_courses == 1;
         }
         this.updatePreview('student');
         this.updatePreview('staff');
@@ -191,13 +205,27 @@ export class SettingsComponent implements OnInit {
     });
   }
 
+  isStaffOrStudent(user: any): boolean {
+    const role = (user?.role_name || user?.role || '').trim().toLowerCase();
+    return role === 'staff' || role === 'student';
+  }
+
+  getUserRole(): string {
+    const user = this.authService.currentUserValue;
+    return (user?.role_name || user?.role || '').trim().toLowerCase();
+  }
+
   setSection(s: SettingsSection, defaultPage?: string) {
+    if (this.isStaffOrStudent(this.authService.currentUserValue)) return;
     this.activeSection = s;
     if (defaultPage) this.activePage = defaultPage;
     else this.activePage = s === 'general' ? 'overview' : 'institute-profile';
   }
 
-  setPage(p: string) { this.activePage = p; }
+  setPage(p: string) { 
+    if (this.isStaffOrStudent(this.authService.currentUserValue) && p !== 'appearance') return;
+    this.activePage = p; 
+  }
 
   updatePreview(type: 'student' | 'staff' | 'course') {
     let settings: any;
@@ -313,16 +341,16 @@ export class SettingsComponent implements OnInit {
     this.themeService.applySettings({ appearance_color: color });
   }
 
-  selectMode(mode: 'light' | 'dark') {
-    this.appearance.mode = mode;
-    this.themeService.applySettings({ appearance_mode: mode });
+  selectMode(mode: 'dark' = 'dark') {
+    this.appearance.mode = 'dark';
+    this.themeService.applySettings({ appearance_mode: 'dark' });
   }
 
   saveAppearance() {
     this.saveStatus = 'saving';
     const payload = {
       appearance_color: this.appearance.color,
-      appearance_mode: this.appearance.mode
+      appearance_mode: 'dark'
     };
     this.dataService.saveSettings(payload).subscribe({
       next: () => { this.saveStatus = 'saved'; setTimeout(() => this.saveStatus = '', 2500); },
@@ -360,12 +388,15 @@ export class SettingsComponent implements OnInit {
   saveAdvancedSettings() {
     this.saveStatus = 'saving';
     const enableMultipleBranches = this.advancedSettings.enableMultipleBranches ? 1 : 0;
+    const enableStandardCourses = this.advancedSettings.enableStandardCourses ? 1 : 0;
     const payload = {
       admin_as_staff: this.advancedSettings.adminAsStaff ? 1 : 0,
       allow_performance_exams: this.advancedSettings.allowPerformanceExams ? 1 : 0,
       // Keep snake_case for backwards compatibility; also send camelCase for the Spring Boot backend.
       enable_multiple_branches: enableMultipleBranches,
-      enableMultipleBranches: enableMultipleBranches
+      enableMultipleBranches: enableMultipleBranches,
+      enable_standard_courses: enableStandardCourses,
+      enableStandardCourses: enableStandardCourses
     };
     this.dataService.saveSettings(payload).subscribe({
       next: () => {
@@ -471,6 +502,9 @@ export class SettingsComponent implements OnInit {
         name: '',
         code: '',
         address: '',
+        city: '',
+        state: '',
+        pincode: '',
         phone: '',
         email: '',
         isMain: false,
@@ -531,5 +565,12 @@ export class SettingsComponent implements OnInit {
         error: () => this.toastService.error('Failed to set main branch')
       });
     }
+  }
+
+  getImageUrl(imagePath: string | undefined): string {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http')) return imagePath;
+    const normalizedPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `http://localhost:8081/${normalizedPath}`;
   }
 }

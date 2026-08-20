@@ -7,7 +7,8 @@ export class ExportHelper {
     const address = settings?.address || '';
     const phone = settings?.phone || '';
     const email = settings?.email || '';
-    const logoUrl = settings?.logo_path ? `http://localhost:8081/${settings.logo_path}` : null;
+    const normalizedLogoPath = settings?.logo_path ? (settings.logo_path.startsWith('/') ? settings.logo_path.slice(1) : settings.logo_path) : null;
+    const logoUrl = normalizedLogoPath ? `http://localhost:8081/${normalizedLogoPath}` : null;
 
     let currentY = 15;
     const startX = 14;
@@ -46,9 +47,10 @@ export class ExportHelper {
     currentY += 32;
 
     // Divider Line
+    const pageWidth = doc.internal.pageSize.getWidth();
     doc.setDrawColor(226, 232, 240); // slate-200
     doc.setLineWidth(0.5);
-    doc.line(14, currentY, 196, currentY);
+    doc.line(14, currentY, pageWidth - 14, currentY);
     currentY += 12;
 
     // Report Title

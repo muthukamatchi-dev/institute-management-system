@@ -21,8 +21,10 @@ public class InstituteService {
     private final CourseRepository courseRepo;
     private final BatchRepository batchRepo;
     private final StudentRepository studentRepo;
+    private final StudentBatchRepository studentBatchRepo;
     private final StaffRepository staffRepo;
     private final FeeRepository feeRepo;
+    private final ReceiptRepository receiptRepo;
     private final AttendanceRepository attendanceRepo;
     private final InstituteSettingRepository settingRepo;
     private final ActivityLogRepository activityLogRepo;
@@ -31,16 +33,18 @@ public class InstituteService {
     private final UserRepository userRepo;
 
     public InstituteService(CourseRepository courseRepo, BatchRepository batchRepo,
-                            StudentRepository studentRepo, StaffRepository staffRepo,
-                            FeeRepository feeRepo,
+                            StudentRepository studentRepo, StudentBatchRepository studentBatchRepo,
+                            StaffRepository staffRepo, FeeRepository feeRepo, ReceiptRepository receiptRepo,
                             AttendanceRepository attendanceRepo, InstituteSettingRepository settingRepo,
                             ActivityLogRepository activityLogRepo, NotificationRepository notificationRepo,
                             ScheduledClassRepository scheduledClassRepo, UserRepository userRepo) {
         this.courseRepo = courseRepo;
         this.batchRepo = batchRepo;
         this.studentRepo = studentRepo;
+        this.studentBatchRepo = studentBatchRepo;
         this.staffRepo = staffRepo;
         this.feeRepo = feeRepo;
+        this.receiptRepo = receiptRepo;
         this.attendanceRepo = attendanceRepo;
         this.settingRepo = settingRepo;
         this.activityLogRepo = activityLogRepo;
@@ -82,6 +86,22 @@ public class InstituteService {
         if (data.containsKey("syllabus_path")) course.setSyllabusPath((String) data.get("syllabus_path"));
         if (data.containsKey("image_path")) course.setImagePath((String) data.get("image_path"));
         if (data.containsKey("course_id")) course.setCourseId((String) data.get("course_id"));
+        if (data.containsKey("courseType")) course.setCourseType((String) data.get("courseType"));
+        if (data.containsKey("course_type")) course.setCourseType((String) data.get("course_type"));
+        if (data.containsKey("feePeriod")) course.setFeePeriod((String) data.get("feePeriod"));
+        if (data.containsKey("fee_period")) course.setFeePeriod((String) data.get("fee_period"));
+        if (data.containsKey("subjects")) {
+            Object subj = data.get("subjects");
+            if (subj instanceof String) {
+                course.setSubjects((String) subj);
+            } else {
+                try {
+                    course.setSubjects(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(subj));
+                } catch (Exception e) {
+                    course.setSubjects("[]");
+                }
+            }
+        }
 
         Course saved = courseRepo.save(course);
 
@@ -134,6 +154,7 @@ public class InstituteService {
             map.put("timing", b.getTiming());
             map.put("start_date", b.getStartDate());
             map.put("status", b.getStatus());
+            map.put("subject", b.getSubject());
 
             // Join course name (Institute_model.php line 37-39)
             Course course = courseRepo.findById(b.getCourseId()).orElse(null);
@@ -202,6 +223,7 @@ public class InstituteService {
             batch.setStartDate(LocalDate.parse(data.get("start_date").toString()));
         }
         if (data.containsKey("status")) batch.setStatus((String) data.get("status"));
+        if (data.containsKey("subject")) batch.setSubject((String) data.get("subject"));
 
         applyAutomaticBatchStatus(batch);
 
@@ -211,13 +233,64 @@ public class InstituteService {
         // Handle students assignment (line 100-114)
         if (data.containsKey("students") && data.get("students") instanceof List) {
             List<?> studentIds = (List<?>) data.get("students");
+
+            // Duplicate Validation logic
+            Course course = courseRepo.findById(saved.getCourseId()).orElse(null);
+            boolean isStandard = course != null && "standard".equalsIgnoreCase(course.getCourseType());
+            
+            for (Object sid : studentIds) {
+                Long studentId = Long.valueOf(sid.toString());
+                List<StudentBatch> studentBatches = studentBatchRepo.findByStudentId(studentId);
+                for (StudentBatch sb : studentBatches) {
+                    if (!sb.getBatchId().equals(saved.getId())) {
+                        Batch otherBatch = batchRepo.findById(sb.getBatchId()).orElse(null);
+                        if (otherBatch != null && otherBatch.getCourseId().equals(saved.getCourseId())) {
+                            if (isStandard) {
+                                String curSubject = saved.getSubject() != null ? saved.getSubject().trim() : "";
+                                String otherSubject = otherBatch.getSubject() != null ? otherBatch.getSubject().trim() : "";
+                                if (curSubject.equalsIgnoreCase(otherSubject)) {
+                                    Student studentObj = studentRepo.findById(studentId).orElse(null);
+                                    String studentName = studentObj != null ? studentObj.getName() : "Student ID " + studentId;
+                                    String courseName = course != null ? course.getName() : "Course ID " + saved.getCourseId();
+                                    throw new RuntimeException(studentName + " is already assigned to another batch for " 
+                                        + courseName + " - " + (curSubject.isEmpty() ? "General" : curSubject) + ".");
+                                }
+                            } else {
+                                // Non-standard course: student can only be in one batch for this course
+                                Student studentObj = studentRepo.findById(studentId).orElse(null);
+                                String studentName = studentObj != null ? studentObj.getName() : "Student ID " + studentId;
+                                String courseName = course != null ? course.getName() : "Course ID " + saved.getCourseId();
+                                throw new RuntimeException(studentName + " is already assigned to another batch for " + courseName + ".");
+                            }
+                        }
+                    }
+                }
+            }
+
             assignStudentsToBatch(saved.getId(), studentIds);
         }
 
         logActivity(0L, "admin", id != null ? "Batch Updated" : "New Batch Created",
             "Batch '" + batch.getBatchName() + "' " + (id != null ? "was updated." : "has been created."));
 
+        if (id == null) {
+            createNotification(null, "admin", "New Batch", "Batch '" + batch.getBatchName() + "' has been scheduled.", "batch");
+            createNotification(null, "staff", "New Batch", "Batch '" + batch.getBatchName() + "' has been scheduled.", "batch");
+        }
+
         return saved.getId();
+    }
+
+    private void syncStudentBatchId(Long studentId) {
+        studentRepo.findById(studentId).ifPresent(s -> {
+            List<StudentBatch> list = studentBatchRepo.findByStudentId(studentId);
+            if (list.isEmpty()) {
+                s.setBatchId(null);
+            } else {
+                s.setBatchId(list.get(0).getBatchId());
+            }
+            studentRepo.save(s);
+        });
     }
 
     /**
@@ -225,21 +298,34 @@ public class InstituteService {
      */
     @Transactional
     public void assignStudentsToBatch(Long batchId, List<?> studentIds) {
-        // Reset existing students of this batch (line 125-126)
-        List<Student> currentStudents = studentRepo.findByBatchId(batchId);
-        for (Student s : currentStudents) {
-            s.setBatchId(null);
-            studentRepo.save(s);
-        }
+        // Find student IDs currently in this batch in the join table
+        List<StudentBatch> currentAssocs = studentBatchRepo.findByBatchId(batchId);
+        List<Long> oldStudentIds = currentAssocs.stream().map(StudentBatch::getStudentId).collect(Collectors.toList());
 
+        // Reset existing student_batches of this batch
+        studentBatchRepo.deleteByBatchId(batchId);
+
+        // Add new associations
         if (studentIds != null && !studentIds.isEmpty()) {
             for (Object sid : studentIds) {
                 Long studentId = Long.valueOf(sid.toString());
-                studentRepo.findById(studentId).ifPresent(s -> {
-                    s.setBatchId(batchId);
-                    studentRepo.save(s);
-                });
+                StudentBatch sb = StudentBatch.builder()
+                        .studentId(studentId)
+                        .batchId(batchId)
+                        .build();
+                studentBatchRepo.save(sb);
             }
+        }
+
+        // Sync batchId for all affected students
+        Set<Long> affectedStudentIds = new HashSet<>(oldStudentIds);
+        if (studentIds != null) {
+            for (Object sid : studentIds) {
+                affectedStudentIds.add(Long.valueOf(sid.toString()));
+            }
+        }
+        for (Long studentId : affectedStudentIds) {
+            syncStudentBatchId(studentId);
         }
     }
 
@@ -248,15 +334,16 @@ public class InstituteService {
         Batch batch = batchRepo.findById(id).orElse(null);
         if (batch == null) return false;
 
-        // Clear students (line 48-49)
-        List<Student> students = studentRepo.findByBatchId(id);
-        for (Student s : students) {
-            s.setBatchId(null);
-            studentRepo.save(s);
-        }
+        // Clear student batch associations for this batch in the join table
+        List<StudentBatch> currentAssocs = studentBatchRepo.findByBatchId(id);
+        List<Long> studentIds = currentAssocs.stream().map(StudentBatch::getStudentId).collect(Collectors.toList());
 
-        // Delete attendance (line 57-58)
-        // Delete scheduled classes (line 62-63)
+        studentBatchRepo.deleteByBatchId(id);
+
+        // Sync legacy batchId for these students
+        for (Long studentId : studentIds) {
+            syncStudentBatchId(studentId);
+        }
 
         batchRepo.deleteById(id);
         logActivity(0L, "admin", "Batch Deleted", "Batch '" + batch.getBatchName() + "' was deleted.");
@@ -265,11 +352,74 @@ public class InstituteService {
 
     // ============ STUDENTS (Institute_model.php lines 148-264) ============
 
-    public List<Map<String, Object>> getAllStudents() {
+    public Map<String, Object> getPagedStudents(int page, int size, Long batchId, String search, String courseId, String status) {
         syncBatchStatusesAndNotifications();
-        List<Student> students = studentRepo.findAllByOrderByRegNumberAsc();
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Student s : students) {
+
+        List<Student> all = studentRepo.findAllByOrderByRegNumberAsc();
+
+        Set<Long> batchStudentIds = Collections.emptySet();
+        if (batchId != null) {
+            batchStudentIds = studentBatchRepo.findByBatchId(batchId).stream()
+                    .map(StudentBatch::getStudentId)
+                    .collect(Collectors.toSet());
+        }
+        final Set<Long> finalBatchStudentIds = batchStudentIds;
+
+        List<Student> filtered = all.stream().filter(s -> {
+            if (batchId != null && !finalBatchStudentIds.contains(s.getId())) {
+                return false;
+            }
+            if (courseId != null && !courseId.trim().isEmpty()) {
+                try {
+                    Long cId = Long.parseLong(courseId);
+                    if (!cId.equals(s.getCourseId())) return false;
+                } catch (NumberFormatException e) {
+                    if (s.getCourseId() == null || !courseId.equals(String.valueOf(s.getCourseId()))) return false;
+                }
+            }
+            if (status != null && !status.trim().isEmpty() && !"all".equalsIgnoreCase(status)) {
+                if (!status.equalsIgnoreCase(s.getStatus())) return false;
+            }
+            if (search != null && !search.trim().isEmpty()) {
+                String q = search.trim().toLowerCase();
+                boolean matchesName = s.getName() != null && s.getName().toLowerCase().contains(q);
+                boolean matchesMobile = s.getMobile() != null && s.getMobile().toLowerCase().contains(q);
+                boolean matchesReg = s.getRegNumber() != null && s.getRegNumber().toLowerCase().contains(q);
+                boolean matchesEmail = s.getEmail() != null && s.getEmail().toLowerCase().contains(q);
+                if (!matchesName && !matchesMobile && !matchesReg && !matchesEmail) return false;
+            }
+            return true;
+        }).collect(Collectors.toList());
+
+        int totalElements = filtered.size();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        if (totalPages == 0) totalPages = 1;
+
+        int startIdx = page * size;
+        List<Student> pagedList;
+        if (startIdx >= totalElements) {
+            pagedList = Collections.emptyList();
+        } else {
+            int endIdx = Math.min(startIdx + size, totalElements);
+            pagedList = filtered.subList(startIdx, endIdx);
+        }
+
+        List<StudentBatch> allAssocs = studentBatchRepo.findAll();
+        Map<Long, List<Long>> studentBatchIdsMap = allAssocs.stream()
+                .collect(Collectors.groupingBy(StudentBatch::getStudentId,
+                        Collectors.mapping(StudentBatch::getBatchId, Collectors.toList())));
+
+        Map<Long, String> batchSubjectsMap = batchRepo.findAll().stream()
+                .filter(b -> b.getSubject() != null)
+                .collect(Collectors.toMap(b -> b.getId(), b -> b.getSubject(), (a, b) -> a));
+
+        Map<Long, String> courseNames = courseRepo.findAll().stream()
+                .collect(Collectors.toMap(c -> c.getId(), c -> c.getName(), (a, b) -> a));
+        Map<Long, String> batchNames = batchRepo.findAll().stream()
+                .collect(Collectors.toMap(b -> b.getId(), b -> b.getBatchName(), (a, b) -> a));
+
+        List<Map<String, Object>> resultList = new ArrayList<>();
+        for (Student s : pagedList) {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("id", s.getId());
             map.put("name", s.getName());
@@ -281,7 +431,9 @@ public class InstituteService {
             map.put("dob", s.getDob());
             map.put("qualification", s.getQualification());
             map.put("course_id", s.getCourseId());
-            map.put("batch_id", s.getBatchId());
+            
+            Long displayedBatchId = batchId != null ? batchId : s.getBatchId();
+            map.put("batch_id", displayedBatchId);
             map.put("joining_date", s.getJoiningDate());
             map.put("status", s.getStatus());
             map.put("referred_by", s.getReferredBy());
@@ -289,14 +441,121 @@ public class InstituteService {
             map.put("instructor", s.getInstructor());
             map.put("timing", s.getTiming());
             map.put("start_date", s.getStartDate());
+            map.put("photo", s.getPhoto());
+            map.put("selected_subjects", s.getSelectedSubjects());
+            map.put("subject_allocations", s.getSubjectAllocations());
+
+            List<Long> sBatchIds = studentBatchIdsMap.getOrDefault(s.getId(), Collections.emptyList());
+            List<String> sBatchSubjects = sBatchIds.stream()
+                    .map(bid -> batchSubjectsMap.get(bid))
+                    .filter(sub -> sub != null)
+                    .collect(Collectors.toList());
+
+            map.put("batch_ids", sBatchIds);
+            map.put("batch_subjects", sBatchSubjects);
+
+            if (s.getCourseId() != null) {
+                map.put("course_name", courseNames.get(s.getCourseId()));
+            }
+            if (displayedBatchId != null && displayedBatchId != 0L) {
+                map.put("batch_name", batchNames.get(displayedBatchId));
+            }
+
+            List<Fee> fees = feeRepo.findByStudentId(s.getId());
+            if (!fees.isEmpty()) map.put("fee_status", fees.get(0).getStatus());
+            if (!map.containsKey("fee_status")) map.put("fee_status", "pending");
+
+            resultList.add(map);
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("content", resultList);
+        response.put("totalElements", totalElements);
+        response.put("totalPages", totalPages);
+        response.put("currentPage", page + 1);
+        response.put("pageSize", size);
+        return response;
+    }
+
+    public List<Map<String, Object>> getAllStudents() {
+        return getAllStudents(null);
+    }
+
+    public List<Map<String, Object>> getAllStudents(Long batchId) {
+        syncBatchStatusesAndNotifications();
+        List<Student> students = studentRepo.findAllByOrderByRegNumberAsc();
+        
+        Set<Long> batchStudentIds = Collections.emptySet();
+        if (batchId != null) {
+            batchStudentIds = studentBatchRepo.findByBatchId(batchId).stream()
+                    .map(StudentBatch::getStudentId)
+                    .collect(Collectors.toSet());
+        }
+
+        List<StudentBatch> allAssocs = studentBatchRepo.findAll();
+        Map<Long, List<Long>> studentBatchIdsMap = allAssocs.stream()
+                .collect(Collectors.groupingBy(StudentBatch::getStudentId,
+                        Collectors.mapping(StudentBatch::getBatchId, Collectors.toList())));
+
+        Map<Long, String> batchSubjectsMap = batchRepo.findAll().stream()
+                .filter(b -> b.getSubject() != null)
+                .collect(Collectors.toMap(b -> b.getId(), b -> b.getSubject(), (a, b) -> a));
+
+        Map<Long, String> batchNames = batchRepo.findAll().stream()
+                .collect(Collectors.toMap(b -> b.getId(), b -> b.getBatchName(), (a, b) -> a));
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Student s : students) {
+            if (batchId != null && !batchStudentIds.contains(s.getId())) {
+                continue;
+            }
+
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", s.getId());
+            map.put("name", s.getName());
+            map.put("mobile", s.getMobile());
+            map.put("email", s.getEmail());
+            map.put("reg_number", s.getRegNumber());
+            map.put("father_name", s.getFatherName());
+            map.put("parent_mobile", s.getParentMobile());
+            map.put("dob", s.getDob());
+            map.put("qualification", s.getQualification());
+            map.put("course_id", s.getCourseId());
+            
+            Long displayedBatchId = batchId != null ? batchId : s.getBatchId();
+            map.put("batch_id", displayedBatchId);
+            map.put("joining_date", s.getJoiningDate());
+            map.put("status", s.getStatus());
+            map.put("referred_by", s.getReferredBy());
+            map.put("referral_profession", s.getReferralProfession());
+            map.put("instructor", s.getInstructor());
+            map.put("timing", s.getTiming());
+            map.put("start_date", s.getStartDate());
+            map.put("photo", s.getPhoto());
+            map.put("selected_subjects", s.getSelectedSubjects());
+            map.put("subject_allocations", s.getSubjectAllocations());
+
+            List<Long> sBatchIds = studentBatchIdsMap.getOrDefault(s.getId(), Collections.emptyList());
+            List<String> sBatchSubjects = sBatchIds.stream()
+                    .map(bid -> batchSubjectsMap.get(bid))
+                    .filter(sub -> sub != null)
+                    .collect(Collectors.toList());
+
+            map.put("batch_ids", sBatchIds);
+            map.put("batch_subjects", sBatchSubjects);
 
             // Course name join (Institute_model.php line 150-152)
             if (s.getCourseId() != null) {
                 courseRepo.findById(s.getCourseId()).ifPresent(c -> map.put("course_name", c.getName()));
             }
             // Batch name join
-            if (s.getBatchId() != null) {
-                batchRepo.findById(s.getBatchId()).ifPresent(b -> map.put("batch_name", b.getBatchName()));
+            if (displayedBatchId != null && displayedBatchId != 0L) {
+                batchRepo.findById(displayedBatchId).ifPresent(b -> {
+                    String currentTenant = com.institute.tenant.TenantContext.getTenantId();
+                    if (currentTenant == null || "DEFAULT".equalsIgnoreCase(currentTenant) || currentTenant.equals(b.getTenantId())) {
+                        map.put("batch_name", b.getBatchName());
+                    }
+                });
             }
             // Fee status join
             List<Fee> fees = feeRepo.findByStudentId(s.getId());
@@ -390,10 +649,73 @@ public class InstituteService {
         if (data.containsKey("joining_date") && data.get("joining_date") != null && !data.get("joining_date").toString().isEmpty()) {
             student.setJoiningDate(LocalDate.parse(data.get("joining_date").toString()));
         }
+        if (data.containsKey("photo")) {
+            student.setPhoto((String) data.get("photo"));
+        }
+        if (data.containsKey("selectedSubjects")) {
+            Object selSub = data.get("selectedSubjects");
+            if (selSub instanceof String) {
+                student.setSelectedSubjects((String) selSub);
+            } else {
+                try {
+                    student.setSelectedSubjects(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(selSub));
+                } catch (Exception e) {
+                    student.setSelectedSubjects("[]");
+                }
+            }
+        }
+        if (data.containsKey("selected_subjects")) {
+            Object selSub = data.get("selected_subjects");
+            if (selSub instanceof String) {
+                student.setSelectedSubjects((String) selSub);
+            } else {
+                try {
+                    student.setSelectedSubjects(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(selSub));
+                } catch (Exception e) {
+                    student.setSelectedSubjects("[]");
+                }
+            }
+        }
 
         Student saved = studentRepo.save(student);
 
+        // Sync student_batches join table
+        if (data.containsKey("batch_id")) {
+            Long newBatchId = saved.getBatchId();
+            if (newBatchId == null) {
+                studentBatchRepo.deleteByStudentId(saved.getId());
+            } else {
+                Batch newBatchObj = batchRepo.findById(newBatchId).orElse(null);
+                if (newBatchObj != null) {
+                    String newSubject = newBatchObj.getSubject();
+                    // Find all batches the student is currently associated with
+                    List<StudentBatch> currentAssocs = studentBatchRepo.findByStudentId(saved.getId());
+                    for (StudentBatch assoc : currentAssocs) {
+                        if (!assoc.getBatchId().equals(newBatchId)) {
+                            // If the other batch is for the SAME subject, remove it
+                            Batch otherBatch = batchRepo.findById(assoc.getBatchId()).orElse(null);
+                            if (otherBatch != null && otherBatch.getSubject() != null && newSubject != null
+                                    && otherBatch.getSubject().trim().equalsIgnoreCase(newSubject.trim())) {
+                                studentBatchRepo.delete(assoc);
+                            }
+                        }
+                    }
+                }
+                // Add the new one if not present
+                if (!studentBatchRepo.findByStudentIdAndBatchId(saved.getId(), newBatchId).isPresent()) {
+                    studentBatchRepo.save(StudentBatch.builder()
+                            .studentId(saved.getId())
+                            .batchId(newBatchId)
+                            .build());
+                }
+            }
+        }
+
         if (isNew) {
+            if (saved.getRegNumber() != null && !saved.getRegNumber().isBlank()) {
+                advanceRegSequenceForSubmittedValue(saved.getRegNumber());
+            }
+
             // Auto-assign register number (line 199)
             generateAndAssignReg(saved.getId());
 
@@ -401,11 +723,41 @@ public class InstituteService {
             if (saved.getCourseId() != null) {
                 Course course = courseRepo.findById(saved.getCourseId()).orElse(null);
                 if (course != null) {
+                    BigDecimal baseFee = course.getFees() != null ? course.getFees() : BigDecimal.ZERO;
+                    
+                    if ("standard".equalsIgnoreCase(course.getCourseType()) && saved.getSelectedSubjects() != null && !saved.getSelectedSubjects().isEmpty()) {
+                        try {
+                            java.util.List<String> selectedNames = new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+                                saved.getSelectedSubjects(),
+                                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {}
+                            );
+                            
+                            java.util.List<java.util.Map<String, Object>> courseSubjects = new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+                                course.getSubjects(),
+                                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, Object>>>() {}
+                            );
+                            
+                            BigDecimal selectedSum = BigDecimal.ZERO;
+                            for (java.util.Map<String, Object> sub : courseSubjects) {
+                                String name = (String) sub.get("name");
+                                if (selectedNames.contains(name)) {
+                                    selectedSum = selectedSum.add(new BigDecimal(sub.get("fees").toString()));
+                                }
+                            }
+                            baseFee = selectedSum;
+                        } catch (Exception e) {
+                            // fallback to course.getFees()
+                        }
+                    }
+
+                    int units = parseDurationUnits(course.getDuration(), course.getFeePeriod());
+                    BigDecimal totalFee = baseFee.multiply(new BigDecimal(units));
+
                     Fee fee = Fee.builder()
                         .studentId(saved.getId())
-                        .totalAmount(course.getFees())
+                        .totalAmount(totalFee)
                         .paidAmount(BigDecimal.ZERO)
-                        .balanceAmount(course.getFees())
+                        .balanceAmount(totalFee)
                         .status("pending")
                         .build();
                     feeRepo.save(fee);
@@ -415,7 +767,10 @@ public class InstituteService {
             logActivity(0L, "admin", "New Student Added", "Student '" + saved.getName() + "' has been enrolled.");
             String courseName = saved.getCourseId() != null ?
                 courseRepo.findById(saved.getCourseId()).map(Course::getName).orElse("course") : "course";
-            createNotification(null, "admin", "Enrollment", "New student '" + saved.getName() + "' enrolled in " + courseName, "enrollment");
+            
+            // Notify both Admin and Staff
+            createNotification(null, "admin", "New Enrollment", "Student '" + saved.getName() + "' enrolled in " + courseName, "enrollment");
+            createNotification(null, "staff", "New Enrollment", "Student '" + saved.getName() + "' enrolled in " + courseName, "enrollment");
         } else {
             logActivity(0L, "admin", "Student Updated", "Student '" + saved.getName() + "' profile was updated.");
         }
@@ -435,16 +790,21 @@ public class InstituteService {
         //if (student.getCourseId() != null) return "error:Cannot delete student assigned to a course.";
         if (student.getBatchId() != null) return "error:Cannot delete student assigned to a batch.";
         
-        long feeCount = feeRepo.findByStudentId(id).size();
-        if (feeCount > 0) return "error:Cannot delete student with fee records.";
+        List<Fee> fees = feeRepo.findByStudentId(id);
+        boolean hasPaidFeeHistory = fees.stream()
+            .anyMatch(fee -> fee.getPaidAmount() != null && fee.getPaidAmount().compareTo(BigDecimal.ZERO) > 0);
+        long receiptCount = receiptRepo.findByStudentIdOrderByPaymentDateDesc(id).size();
+        if (hasPaidFeeHistory || receiptCount > 0) {
+            return "error:Cannot delete student with payment records.";
+        }
 
         long attendanceCount = attendanceRepo.findByStudentIdOrderByAttendanceDateDesc(id).size();
         if (attendanceCount > 0) return "error:Cannot delete student with attendance records.";
 
-        // If it got here, we can potentially delete, but check others too if needed
-        // For safety, original code deleted ALL records.
-        // User says: NOT ALLOW to delete.
-        
+        if (!fees.isEmpty()) {
+            feeRepo.deleteByStudentId(id);
+        }
+
         studentRepo.deleteById(id);
         logActivity(0L, "admin", "Student Deleted", "Student '" + student.getName() + "' was deleted.");
         return "success";
@@ -474,6 +834,7 @@ public class InstituteService {
             map.put("joining_date", s.getJoiningDate());
             map.put("status", s.getStatus());
             map.put("salary", s.getSalary());
+            map.put("photo", s.getPhoto());
             map.put("is_admin_staff", false);
             result.add(map);
         }
@@ -522,6 +883,7 @@ public class InstituteService {
         if (data.containsKey("experience")) staff.setExperience((String) data.get("experience"));
         if (data.containsKey("designation")) staff.setDesignation((String) data.get("designation"));
         if (data.containsKey("status")) staff.setStatus((String) data.get("status"));
+        if (data.containsKey("photo")) staff.setPhoto((String) data.get("photo"));
         if (data.containsKey("salary") && data.get("salary") != null) {
             staff.setSalary(new BigDecimal(data.get("salary").toString()));
         }
@@ -534,6 +896,8 @@ public class InstituteService {
         if (isNew) {
             generateAndAssignStaffId(saved.getId());
             logActivity(0L, "admin", "New Staff Added", "Staff member '" + saved.getName() + "' has been added.");
+            createNotification(null, "admin", "New Staff", "Staff member '" + saved.getName() + "' joined the team.", "staff");
+            createNotification(null, "staff", "New Staff", "Staff member '" + saved.getName() + "' joined the team.", "staff");
         } else {
             logActivity(0L, "admin", "Staff Updated", "Staff member '" + saved.getName() + "' profile was updated.");
         }
@@ -551,8 +915,40 @@ public class InstituteService {
 
     // ============ SETTINGS (Institute_model.php lines 327-341) ============
 
+    @Transactional
+    public InstituteSetting getCurrentTenantSettings() {
+        String currentTenant = com.institute.tenant.TenantContext.getTenantId();
+        if (currentTenant != null && !"DEFAULT".equals(currentTenant) && !"SYSTEM".equals(currentTenant)) {
+            settingRepo.fixLegacyTenants(currentTenant);
+        }
+        List<InstituteSetting> list = settingRepo.findAll();
+        if (!list.isEmpty()) {
+            return list.get(0);
+        }
+        // Create brand new settings record for this tenant starting from 1
+        InstituteSetting s = InstituteSetting.builder()
+            .name(currentTenant != null ? currentTenant : "Institute")
+            .instituteName(currentTenant != null ? currentTenant : "Institute")
+            .tenantId(currentTenant != null ? currentTenant : "DEFAULT")
+            .regPrefix("STU")
+            .regStartFrom("1")
+            .regLastNumber("0")
+            .regMode("auto")
+            .staffIdPrefix("STF")
+            .staffIdStartFrom("1")
+            .staffIdLastNumber("0")
+            .staffIdMode("auto")
+            .courseIdPrefix("CRS")
+            .courseIdStartFrom("1")
+            .courseIdLastNumber("0")
+            .courseIdMode("auto")
+            .build();
+        return settingRepo.save(s);
+    }
+
+    @Transactional
     public InstituteSetting getSettings() {
-        return settingRepo.findById(1L).orElse(null);
+        return getCurrentTenantSettings();
     }
 
     private static Integer parseBooleanInt(Object raw) {
@@ -570,46 +966,59 @@ public class InstituteService {
         }
     }
 
+    @Transactional
     public void updateSettings(Map<String, Object> data) {
-        InstituteSetting settings = settingRepo.findById(1L).orElse(new InstituteSetting());
-        settings.setId(1L);
+        InstituteSetting settings = getCurrentTenantSettings();
 
-        if (data.containsKey("name")) settings.setName((String) data.get("name"));
-        if (data.containsKey("institute_name")) {
-            String instName = (String) data.get("institute_name");
+        if (data.containsKey("name") && data.get("name") != null) settings.setName(data.get("name").toString());
+        if (data.containsKey("institute_name") && data.get("institute_name") != null) {
+            String instName = data.get("institute_name").toString();
             settings.setInstituteName(instName);
             settings.setName(instName); // Ensure the non-null name field is also updated
         }
-        if (data.containsKey("email")) settings.setEmail((String) data.get("email"));
-        if (data.containsKey("phone")) settings.setPhone((String) data.get("phone"));
-        if (data.containsKey("address")) settings.setAddress((String) data.get("address"));
-        if (data.containsKey("logo_path")) settings.setLogoPath((String) data.get("logo_path"));
-        if (data.containsKey("registration_id")) settings.setRegistrationId((String) data.get("registration_id"));
-        if (data.containsKey("reg_prefix")) settings.setRegPrefix((String) data.get("reg_prefix"));
-        if (data.containsKey("reg_suffix")) settings.setRegSuffix((String) data.get("reg_suffix"));
-        if (data.containsKey("reg_start_from")) settings.setRegStartFrom(data.get("reg_start_from").toString());
-        if (data.containsKey("reg_mode")) settings.setRegMode((String) data.get("reg_mode"));
-        if (data.containsKey("reg_last_number")) settings.setRegLastNumber(data.get("reg_last_number").toString());
-        if (data.containsKey("staff_id_prefix")) settings.setStaffIdPrefix((String) data.get("staff_id_prefix"));
-        if (data.containsKey("staff_id_suffix")) settings.setStaffIdSuffix((String) data.get("staff_id_suffix"));
-        if (data.containsKey("staff_id_start_from")) settings.setStaffIdStartFrom(data.get("staff_id_start_from").toString());
-        if (data.containsKey("staff_id_mode")) settings.setStaffIdMode((String) data.get("staff_id_mode"));
-        if (data.containsKey("staff_id_last_number")) settings.setStaffIdLastNumber(data.get("staff_id_last_number").toString());
-        if (data.containsKey("course_id_prefix")) settings.setCourseIdPrefix((String) data.get("course_id_prefix"));
-        if (data.containsKey("course_id_suffix")) settings.setCourseIdSuffix((String) data.get("course_id_suffix"));
-        if (data.containsKey("course_id_start_from")) settings.setCourseIdStartFrom(data.get("course_id_start_from").toString());
-        if (data.containsKey("course_id_mode")) settings.setCourseIdMode((String) data.get("course_id_mode"));
-        if (data.containsKey("course_id_last_number")) settings.setCourseIdLastNumber(data.get("course_id_last_number").toString());
-        if (data.containsKey("appearance_color")) settings.setAppearanceColor((String) data.get("appearance_color"));
-        if (data.containsKey("appearance_mode")) settings.setAppearanceMode((String) data.get("appearance_mode"));
-        if (data.containsKey("admin_as_staff")) settings.setAdminAsStaff(Integer.valueOf(data.get("admin_as_staff").toString()));
-        if (data.containsKey("allow_performance_exams")) settings.setAllowPerformanceExams(Integer.valueOf(data.get("allow_performance_exams").toString()));
+        if (data.containsKey("email")) settings.setEmail(data.get("email") != null ? data.get("email").toString() : null);
+        if (data.containsKey("phone")) settings.setPhone(data.get("phone") != null ? data.get("phone").toString() : null);
+        if (data.containsKey("address")) settings.setAddress(data.get("address") != null ? data.get("address").toString() : null);
+        if (data.containsKey("logo_path")) settings.setLogoPath(data.get("logo_path") != null ? data.get("logo_path").toString() : null);
+        if (data.containsKey("registration_id")) settings.setRegistrationId(data.get("registration_id") != null ? data.get("registration_id").toString() : null);
+        if (data.containsKey("reg_prefix")) settings.setRegPrefix(data.get("reg_prefix") != null ? data.get("reg_prefix").toString() : null);
+        if (data.containsKey("reg_suffix")) settings.setRegSuffix(data.get("reg_suffix") != null ? data.get("reg_suffix").toString() : null);
+        if (data.containsKey("reg_start_from")) settings.setRegStartFrom(data.get("reg_start_from") != null ? data.get("reg_start_from").toString() : null);
+        if (data.containsKey("reg_mode")) settings.setRegMode(data.get("reg_mode") != null ? data.get("reg_mode").toString() : null);
+        if (data.containsKey("reg_last_number")) settings.setRegLastNumber(data.get("reg_last_number") != null ? data.get("reg_last_number").toString() : null);
+        if (data.containsKey("staff_id_prefix")) settings.setStaffIdPrefix(data.get("staff_id_prefix") != null ? data.get("staff_id_prefix").toString() : null);
+        if (data.containsKey("staff_id_suffix")) settings.setStaffIdSuffix(data.get("staff_id_suffix") != null ? data.get("staff_id_suffix").toString() : null);
+        if (data.containsKey("staff_id_start_from")) settings.setStaffIdStartFrom(data.get("staff_id_start_from") != null ? data.get("staff_id_start_from").toString() : null);
+        if (data.containsKey("staff_id_mode")) settings.setStaffIdMode(data.get("staff_id_mode") != null ? data.get("staff_id_mode").toString() : null);
+        if (data.containsKey("staff_id_last_number")) settings.setStaffIdLastNumber(data.get("staff_id_last_number") != null ? data.get("staff_id_last_number").toString() : null);
+        if (data.containsKey("course_id_prefix")) settings.setCourseIdPrefix(data.get("course_id_prefix") != null ? data.get("course_id_prefix").toString() : null);
+        if (data.containsKey("course_id_suffix")) settings.setCourseIdSuffix(data.get("course_id_suffix") != null ? data.get("course_id_suffix").toString() : null);
+        if (data.containsKey("course_id_start_from")) settings.setCourseIdStartFrom(data.get("course_id_start_from") != null ? data.get("course_id_start_from").toString() : null);
+        if (data.containsKey("course_id_mode")) settings.setCourseIdMode(data.get("course_id_mode") != null ? data.get("course_id_mode").toString() : null);
+        if (data.containsKey("course_id_last_number")) settings.setCourseIdLastNumber(data.get("course_id_last_number") != null ? data.get("course_id_last_number").toString() : null);
+        if (data.containsKey("appearance_color")) settings.setAppearanceColor(data.get("appearance_color") != null ? data.get("appearance_color").toString() : null);
+        if (data.containsKey("appearance_mode")) settings.setAppearanceMode(data.get("appearance_mode") != null ? data.get("appearance_mode").toString() : null);
+
+        Object adminAsStaffRaw = null;
+        if (data.containsKey("adminAsStaff")) adminAsStaffRaw = data.get("adminAsStaff");
+        if (adminAsStaffRaw == null && data.containsKey("admin_as_staff")) adminAsStaffRaw = data.get("admin_as_staff");
+        if (adminAsStaffRaw != null) settings.setAdminAsStaff(parseBooleanInt(adminAsStaffRaw));
+
+        Object allowPerfExamsRaw = null;
+        if (data.containsKey("allowPerformanceExams")) allowPerfExamsRaw = data.get("allowPerformanceExams");
+        if (allowPerfExamsRaw == null && data.containsKey("allow_performance_exams")) allowPerfExamsRaw = data.get("allow_performance_exams");
+        if (allowPerfExamsRaw != null) settings.setAllowPerformanceExams(parseBooleanInt(allowPerfExamsRaw));
 
         // The frontend historically sends snake_case; keep supporting camelCase too.
         Object enableBranchesRaw = null;
         if (data.containsKey("enableMultipleBranches")) enableBranchesRaw = data.get("enableMultipleBranches");
         if (enableBranchesRaw == null && data.containsKey("enable_multiple_branches")) enableBranchesRaw = data.get("enable_multiple_branches");
         if (enableBranchesRaw != null) settings.setEnableMultipleBranches(parseBooleanInt(enableBranchesRaw));
+
+        Object enableStdCoursesRaw = null;
+        if (data.containsKey("enableStandardCourses")) enableStdCoursesRaw = data.get("enableStandardCourses");
+        if (enableStdCoursesRaw == null && data.containsKey("enable_standard_courses")) enableStdCoursesRaw = data.get("enable_standard_courses");
+        if (enableStdCoursesRaw != null) settings.setEnableStandardCourses(parseBooleanInt(enableStdCoursesRaw));
 
         settings.setUpdatedAt(LocalDateTime.now());
         settingRepo.save(settings);
@@ -625,7 +1034,7 @@ public class InstituteService {
         Student student = studentRepo.findById(studentId).orElse(null);
         if (student == null || (student.getRegNumber() != null && !student.getRegNumber().isEmpty())) return;
 
-        InstituteSetting settings = settingRepo.findById(1L).orElse(null);
+        InstituteSetting settings = getCurrentTenantSettings();
         if (settings == null || !"auto".equals(settings.getRegMode())) return;
 
         String prefix = settings.getRegPrefix() != null ? settings.getRegPrefix() : "STU";
@@ -642,12 +1051,30 @@ public class InstituteService {
         settingRepo.save(settings);
     }
 
+    @Transactional
+    public void advanceRegSequenceForSubmittedValue(String submittedRegNumber) {
+        if (submittedRegNumber == null || submittedRegNumber.isBlank()) return;
+
+        InstituteSetting settings = getCurrentTenantSettings();
+        if (settings == null || settings.getRegMode() == null || !"auto".equalsIgnoreCase(settings.getRegMode())) return;
+
+        String expectedNext = getNextRegNumber();
+        if (!submittedRegNumber.trim().equals(expectedNext)) return;
+
+        int start = settings.getRegStartFrom() != null ? Integer.parseInt(settings.getRegStartFrom()) : 1;
+        int last = settings.getRegLastNumber() != null ? Integer.parseInt(settings.getRegLastNumber()) : (start - 1);
+        int next = Math.max(last + 1, start);
+
+        settings.setRegLastNumber(String.valueOf(next));
+        settingRepo.save(settings);
+    }
+
     /**
      * Migrated from: Institute_model.php -> generate_and_assign_staff_id() lines 801-817
      */
     @Transactional
     public void generateAndAssignStaffId(Long staffDbId) {
-        InstituteSetting settings = settingRepo.findById(1L).orElse(null);
+        InstituteSetting settings = getCurrentTenantSettings();
         if (settings == null || !"auto".equals(settings.getStaffIdMode())) return;
 
         String prefix = settings.getStaffIdPrefix() != null ? settings.getStaffIdPrefix() : "STF";
@@ -672,7 +1099,7 @@ public class InstituteService {
      */
     @Transactional
     public void generateAndAssignCourseId(Long courseDbId) {
-        InstituteSetting settings = settingRepo.findById(1L).orElse(null);
+        InstituteSetting settings = getCurrentTenantSettings();
         if (settings == null || !"auto".equals(settings.getCourseIdMode())) return;
 
         String prefix = settings.getCourseIdPrefix() != null ? settings.getCourseIdPrefix() : "CRS";
@@ -693,7 +1120,7 @@ public class InstituteService {
     }
 
     public String getNextRegNumber() {
-        InstituteSetting settings = settingRepo.findById(1L).orElse(null);
+        InstituteSetting settings = getCurrentTenantSettings();
         if (settings == null) return "REG-001";
         String prefix = settings.getRegPrefix() != null ? settings.getRegPrefix() : "STU";
         String suffix = settings.getRegSuffix() != null ? settings.getRegSuffix() : "";
@@ -704,7 +1131,7 @@ public class InstituteService {
     }
 
     public String getNextStaffId() {
-        InstituteSetting settings = settingRepo.findById(1L).orElse(null);
+        InstituteSetting settings = getCurrentTenantSettings();
         if (settings == null) return "STF-001";
         String prefix = settings.getStaffIdPrefix() != null ? settings.getStaffIdPrefix() : "STF";
         String suffix = settings.getStaffIdSuffix() != null ? settings.getStaffIdSuffix() : "";
@@ -715,7 +1142,7 @@ public class InstituteService {
     }
 
     public String getNextCourseId() {
-        InstituteSetting settings = settingRepo.findById(1L).orElse(null);
+        InstituteSetting settings = getCurrentTenantSettings();
         if (settings == null) return "CRS-001";
         String prefix = settings.getCourseIdPrefix() != null ? settings.getCourseIdPrefix() : "CRS";
         String suffix = settings.getCourseIdSuffix() != null ? settings.getCourseIdSuffix() : "";
@@ -970,8 +1397,16 @@ public class InstituteService {
         return true;
     }
 
+    @Transactional
     public List<Map<String, Object>> getStaffSchedule(Long requestingStaffId, Long targetStaffId, LocalDate date) {
         if (date == null) date = LocalDate.now();
+
+        // Heal legacy data missing tenant_id (caused by missing @EntityListeners on ScheduledClass)
+        String currentTenant = com.institute.tenant.TenantContext.getTenantId();
+        if (currentTenant != null && !"DEFAULT".equals(currentTenant) && !"SYSTEM".equals(currentTenant)) {
+            scheduledClassRepo.fixLegacyTenants(currentTenant);
+        }
+
         List<ScheduledClass> schedule;
         if (requestingStaffId != null && requestingStaffId >= 1000000 && targetStaffId == null) {
             schedule = scheduledClassRepo.findByClassDateOrderByStartTimeAsc(date);
@@ -989,17 +1424,58 @@ public class InstituteService {
     public boolean updateOneToOneAllocation(Long studentId, Map<String, Object> data) {
         Student student = studentRepo.findById(studentId).orElse(null);
         if (student == null) return false;
-        if (data.containsKey("instructor")) student.setInstructor(data.get("instructor").toString());
+        if (data.containsKey("instructor")) student.setInstructor(data.get("instructor") != null ? data.get("instructor").toString() : null);
         if (data.containsKey("timing")) student.setTiming((String) data.get("timing"));
-        if (data.containsKey("startDate") && data.get("startDate") != null) student.setStartDate(LocalDate.parse(data.get("startDate").toString()));
+        if (data.containsKey("startDate") && data.get("startDate") != null && !data.get("startDate").toString().isEmpty()) {
+            student.setStartDate(LocalDate.parse(data.get("startDate").toString()));
+        }
         if (data.containsKey("status")) student.setStatus((String) data.get("status"));
+        if (data.containsKey("subjectAllocations")) student.setSubjectAllocations((String) data.get("subjectAllocations"));
         studentRepo.save(student);
         return true;
     }
 
     public List<Map<String, Object>> getStudentsForStaff(Long staffId) {
+        List<Map<String, Object>> staffBatches = getBatchesForStaff(staffId);
+        Set<Long> staffBatchIds = staffBatches.stream()
+            .map(b -> (Long) b.get("id"))
+            .collect(Collectors.toSet());
+
         return getAllStudents().stream()
-            .filter(student -> matchesStaff(student.get("instructor"), staffId) || belongsToStaffBatch(student.get("batch_id"), staffId))
+            .filter(student -> {
+                if (matchesStaff(student.get("instructor"), staffId)) {
+                    return true;
+                }
+                Object batchIdsObj = student.get("batch_ids");
+                if (batchIdsObj instanceof List) {
+                    List<?> batchIds = (List<?>) batchIdsObj;
+                    for (Object bid : batchIds) {
+                        if (staffBatchIds.contains(Long.valueOf(bid.toString()))) {
+                            return true;
+                        }
+                    }
+                }
+                return belongsToStaffBatch(student.get("batch_id"), staffId);
+            })
+            .map(student -> {
+                Map<String, Object> newMap = new LinkedHashMap<>(student);
+                Object batchIdsObj = student.get("batch_ids");
+                if (batchIdsObj instanceof List) {
+                    List<?> batchIds = (List<?>) batchIdsObj;
+                    for (Object bid : batchIds) {
+                        Long bId = Long.valueOf(bid.toString());
+                        if (staffBatchIds.contains(bId)) {
+                            newMap.put("batch_id", bId);
+                            staffBatches.stream()
+                                .filter(b -> bId.equals(b.get("id")))
+                                .findFirst()
+                                .ifPresent(b -> newMap.put("batch_name", b.get("batch_name")));
+                            break;
+                        }
+                    }
+                }
+                return newMap;
+            })
             .collect(Collectors.toList());
     }
 
@@ -1146,5 +1622,163 @@ public class InstituteService {
             String.valueOf(scheduledClass.getStudentId()),
             String.valueOf(scheduledClass.getStartTime()),
             String.valueOf(scheduledClass.getEndTime()));
+    }
+
+    public static int parseDurationUnits(String duration, String feePeriod) {
+        if (duration == null || feePeriod == null) return 1;
+        String durClean = duration.toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+        String periodClean = feePeriod.toLowerCase().trim();
+        if (periodClean.contains("course") || periodClean.contains("one-time") || periodClean.contains("one time")) return 1;
+        
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\d+");
+        java.util.regex.Matcher m = p.matcher(durClean);
+        int number = 1;
+        if (m.find()) {
+            try {
+                number = Integer.parseInt(m.group());
+            } catch (Exception e) {}
+        }
+        
+        if (periodClean.contains("day") || periodClean.contains("daily")) {
+            if (durClean.contains("month")) return number * 30;
+            if (durClean.contains("year")) return number * 365;
+            if (durClean.contains("week")) return number * 7;
+            return number;
+        }
+        if (periodClean.contains("week") || periodClean.contains("weekly")) {
+            if (durClean.contains("month")) return number * 4;
+            if (durClean.contains("year")) return number * 52;
+            if (durClean.contains("day")) return Math.max(1, number / 7);
+            return number;
+        }
+        if (periodClean.contains("month") || periodClean.contains("monthly")) {
+            if (durClean.contains("year")) return number * 12;
+            if (durClean.contains("week")) return Math.max(1, number / 4);
+            if (durClean.contains("day")) return Math.max(1, number / 30);
+            return number;
+        }
+        if (periodClean.contains("year") || periodClean.contains("yearly")) {
+            if (durClean.contains("month")) return Math.max(1, number / 12);
+            return number;
+        }
+        
+        return 1;
+    }
+
+    public static BigDecimal calculateFeeOverdue(Student student, Course course, Fee fee) {
+        if (student == null || course == null || fee == null) {
+            return BigDecimal.ZERO;
+        }
+        if (fee.getBalanceAmount() == null || fee.getBalanceAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        LocalDate joinDate = student.getJoiningDate() != null ? student.getJoiningDate() : 
+                           (student.getStartDate() != null ? student.getStartDate() : 
+                            (student.getCreatedAt() != null ? student.getCreatedAt().toLocalDate() : LocalDate.now()));
+        LocalDate currentDate = LocalDate.now();
+
+        long elapsed = 0;
+        if (currentDate.isAfter(joinDate) || currentDate.isEqual(joinDate)) {
+            String period = course.getFeePeriod() != null ? course.getFeePeriod().toLowerCase().trim() : "course";
+            if (period.equals("day") || period.equals("daily")) {
+                elapsed = java.time.temporal.ChronoUnit.DAYS.between(joinDate, currentDate) + 1;
+            } else if (period.equals("week") || period.equals("weekly")) {
+                elapsed = java.time.temporal.ChronoUnit.WEEKS.between(joinDate, currentDate) + 1;
+            } else if (period.equals("month") || period.equals("monthly")) {
+                elapsed = java.time.temporal.ChronoUnit.MONTHS.between(joinDate, currentDate) + 1;
+            } else if (period.equals("year") || period.equals("yearly")) {
+                elapsed = java.time.temporal.ChronoUnit.YEARS.between(joinDate, currentDate) + 1;
+            } else { // "one-time" or "course"
+                elapsed = 1;
+            }
+        }
+
+        int units = parseDurationUnits(course.getDuration(), course.getFeePeriod());
+        long elapsedPeriods = Math.min((long) units, elapsed);
+
+        BigDecimal rate = BigDecimal.ZERO;
+        if (units > 0 && fee.getTotalAmount() != null) {
+            rate = fee.getTotalAmount().divide(new BigDecimal(units), 2, java.math.RoundingMode.HALF_UP);
+        } else {
+            rate = fee.getTotalAmount() != null ? fee.getTotalAmount() : BigDecimal.ZERO;
+        }
+
+        BigDecimal totalExpectedLastPeriods = rate.multiply(new BigDecimal(Math.max(0, elapsedPeriods - 1)));
+
+        BigDecimal paid = fee.getPaidAmount() != null ? fee.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal overdue = BigDecimal.ZERO;
+        if (elapsedPeriods > 1) {
+            overdue = totalExpectedLastPeriods.subtract(paid);
+            if (overdue.compareTo(BigDecimal.ZERO) < 0) {
+                overdue = BigDecimal.ZERO;
+            }
+        }
+        return overdue.min(fee.getBalanceAmount());
+    }
+
+    public static BigDecimal calculateThisPeriodPayable(Student student, Course course, Fee fee) {
+        if (student == null || course == null || fee == null) {
+            return BigDecimal.ZERO;
+        }
+        if (fee.getBalanceAmount() == null || fee.getBalanceAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        LocalDate joinDate = student.getJoiningDate() != null ? student.getJoiningDate() : 
+                           (student.getStartDate() != null ? student.getStartDate() : 
+                            (student.getCreatedAt() != null ? student.getCreatedAt().toLocalDate() : LocalDate.now()));
+        LocalDate currentDate = LocalDate.now();
+
+        long elapsed = 0;
+        if (currentDate.isAfter(joinDate) || currentDate.isEqual(joinDate)) {
+            String period = course.getFeePeriod() != null ? course.getFeePeriod().toLowerCase().trim() : "course";
+            if (period.equals("day") || period.equals("daily")) {
+                elapsed = java.time.temporal.ChronoUnit.DAYS.between(joinDate, currentDate) + 1;
+            } else if (period.equals("week") || period.equals("weekly")) {
+                elapsed = java.time.temporal.ChronoUnit.WEEKS.between(joinDate, currentDate) + 1;
+            } else if (period.equals("month") || period.equals("monthly")) {
+                elapsed = java.time.temporal.ChronoUnit.MONTHS.between(joinDate, currentDate) + 1;
+            } else if (period.equals("year") || period.equals("yearly")) {
+                elapsed = java.time.temporal.ChronoUnit.YEARS.between(joinDate, currentDate) + 1;
+            } else { // "one-time" or "course"
+                elapsed = 1;
+            }
+        }
+
+        int units = parseDurationUnits(course.getDuration(), course.getFeePeriod());
+        long elapsedPeriods = Math.min((long) units, elapsed);
+
+        BigDecimal rate = BigDecimal.ZERO;
+        if (units > 0 && fee.getTotalAmount() != null) {
+            rate = fee.getTotalAmount().divide(new BigDecimal(units), 2, java.math.RoundingMode.HALF_UP);
+        } else {
+            rate = fee.getTotalAmount() != null ? fee.getTotalAmount() : BigDecimal.ZERO;
+        }
+
+        BigDecimal totalExpectedLastPeriods = rate.multiply(new BigDecimal(Math.max(0, elapsedPeriods - 1)));
+
+        BigDecimal paid = fee.getPaidAmount() != null ? fee.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal overdue = BigDecimal.ZERO;
+        if (elapsedPeriods > 1) {
+            overdue = totalExpectedLastPeriods.subtract(paid);
+            if (overdue.compareTo(BigDecimal.ZERO) < 0) {
+                overdue = BigDecimal.ZERO;
+            }
+        }
+        overdue = overdue.min(fee.getBalanceAmount());
+
+        BigDecimal currentPeriodDue = rate;
+        BigDecimal remainingPaidForCurrent = paid.subtract(totalExpectedLastPeriods);
+        if (remainingPaidForCurrent.compareTo(BigDecimal.ZERO) > 0) {
+            currentPeriodDue = rate.subtract(remainingPaidForCurrent);
+            if (currentPeriodDue.compareTo(BigDecimal.ZERO) < 0) {
+                currentPeriodDue = BigDecimal.ZERO;
+            }
+        }
+        currentPeriodDue = currentPeriodDue.min(fee.getBalanceAmount());
+
+        BigDecimal thisPeriodPayable = overdue.add(currentPeriodDue);
+        return thisPeriodPayable.min(fee.getBalanceAmount());
     }
 }

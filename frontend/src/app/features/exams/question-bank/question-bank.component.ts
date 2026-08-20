@@ -26,6 +26,7 @@ export class QuestionBankComponent implements OnInit {
     selectedCourse: Course | null = null;
     courseSearchTerm = '';
     templateSearchTerm = '';
+    selectedSubject = '';
 
     // Modals
     isCreateModalOpen = false;
@@ -60,6 +61,7 @@ export class QuestionBankComponent implements OnInit {
         return {
             title: '',
             courseId: '',
+            subject: '',
             questions: []
         };
     }
@@ -75,7 +77,43 @@ export class QuestionBankComponent implements OnInit {
 
     selectCourse(course: Course) {
         this.selectedCourse = course;
+        this.selectedSubject = '';
         this.loadTemplates(course.id);
+    }
+
+    selectSubject(subjectName: string) {
+        this.selectedSubject = subjectName;
+    }
+
+    isCourseStandard(course: Course | null): boolean {
+        return !!(course && (course.courseType === 'standard' || course.course_type === 'standard'));
+    }
+
+    isNewTemplateCourseStandard(): boolean {
+        const course = this.getNewTemplateCourse();
+        return this.isCourseStandard(course);
+    }
+
+    getNewTemplateCourse(): Course | null {
+        if (!this.newTemplate.courseId) return null;
+        return this.courses.find(c => String(c.id) === String(this.newTemplate.courseId)) || null;
+    }
+
+    parseCourseSubjects(subjectsRaw: any): any[] {
+        if (!subjectsRaw) return [];
+        if (Array.isArray(subjectsRaw)) return subjectsRaw;
+        try {
+            const parsed = JSON.parse(subjectsRaw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+
+    onCourseChange() {
+        if (!this.isNewTemplateCourseStandard()) {
+            this.newTemplate.subject = '';
+        }
     }
 
     loadTemplates(courseId: string) {
@@ -102,14 +140,24 @@ export class QuestionBankComponent implements OnInit {
 
     get filteredTemplates() {
         const search = this.templateSearchTerm.toLowerCase().trim();
-        if (!search) return this.questionTemplates;
-        return this.questionTemplates.filter(t => t.title.toLowerCase().includes(search));
+        let templates = this.questionTemplates;
+        if (this.selectedSubject) {
+            templates = templates.filter(t => t.subject === this.selectedSubject);
+        }
+        if (!search) return templates;
+        return templates.filter(t => t.title.toLowerCase().includes(search));
     }
 
     openCreateModal() {
         this.newTemplate = this.resetTemplate();
         if (this.selectedCourse) {
             this.newTemplate.courseId = this.selectedCourse.id;
+            if (this.isCourseStandard(this.selectedCourse)) {
+                const subs = this.parseCourseSubjects(this.selectedCourse.subjects);
+                if (subs.length > 0) {
+                    this.newTemplate.subject = this.selectedSubject || subs[0].name;
+                }
+            }
         }
         if (this.questionBuilder) this.questionBuilder.cancelEdit();
         this.isCreateModalOpen = true;
@@ -154,9 +202,14 @@ export class QuestionBankComponent implements OnInit {
 
     removeQuestion(index: number) {
         this.newTemplate.questions.splice(index, 1);
-        if (this.questionBuilder.editIndex === index) {
+        if (this.questionBuilder && this.questionBuilder.editIndex === index) {
             this.questionBuilder.cancelEdit();
         }
+    }
+
+    getTemplateTotalMarks(): number {
+        if (!this.newTemplate?.questions) return 0;
+        return this.newTemplate.questions.reduce((sum: number, q: any) => sum + (Number(q.marks) || 0), 0);
     }
 
     saveTemplate() {

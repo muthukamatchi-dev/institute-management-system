@@ -62,14 +62,20 @@ import { ToastService } from '../../../services/toast.service';
                                     <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg">{{ ans.question_type }}</span>
                                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question Content</span>
                                 </div>
-                                <div class="flex items-center gap-6">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Marks</label>
-                                    <div class="flex items-center gap-3">
-                                        <input type="number" [(ngModel)]="ans.marks_obtained" class="w-16 px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-black text-center text-lg focus:ring-2 ring-rose-500 outline-none border-none">
+                                    <div class="flex items-center gap-6">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Marks</label>
+                                        <div class="flex items-center gap-3">
+                                        <input type="number" [(ngModel)]="ans.marks_obtained"
+                                            [disabled]="isReadOnly() || ans.question_type === 'mcq' || submission?.status_eval === 'evaluated'"
+                                            [max]="ans.question_marks"
+                                            min="0"
+                                            step="0.01"
+                                            (change)="recalculateTotal()"
+                                            class="w-16 px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-black text-center text-lg focus:ring-2 ring-rose-500 outline-none border-none">
                                         <span class="text-xs font-black text-slate-400">/ {{ ans.question_marks }}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
                             <h4 class="text-2xl font-bold text-slate-800 dark:text-white leading-relaxed">{{ ans.question_text }}</h4>
 
@@ -97,7 +103,7 @@ import { ToastService } from '../../../services/toast.service';
                                     </div>
                                 </div>
 
-                                <div *ngIf="ans.question_type === 'text'">
+                                <div *ngIf="ans.question_type === 'text' || ans.question_type === 'task'">
                                     <p class="text-xl text-slate-700 dark:text-slate-300 font-serif leading-relaxed italic whitespace-pre-wrap">
                                         "{{ ans.answer_text || 'Zero input recorded.' }}"
                                     </p>
@@ -108,7 +114,7 @@ import { ToastService } from '../../../services/toast.service';
                 </div>
 
                 <!-- Footer Action -->
-                <div class="flex justify-center pt-10">
+                <div class="flex justify-center pt-10" *ngIf="!isReadOnly()">
                     <button (click)="saveEvaluation()" class="px-16 py-6 bg-rose-600 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-[11px] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-4">
                         Finalize Report
                     </button>
@@ -120,6 +126,7 @@ import { ToastService } from '../../../services/toast.service';
 })
 export class ExternalResultsComponent implements OnInit {
     submission: any = null;
+    mode: 'view' | 'edit' = 'edit';
 
     constructor(
         private route: ActivatedRoute,
@@ -130,6 +137,9 @@ export class ExternalResultsComponent implements OnInit {
 
     ngOnInit() {
         const id = this.route.snapshot.paramMap.get('id');
+        this.route.queryParamMap.subscribe(params => {
+            this.mode = params.get('mode') === 'view' ? 'view' : 'edit';
+        });
         if (id) {
             this.loadDetails(id);
         }
@@ -138,6 +148,7 @@ export class ExternalResultsComponent implements OnInit {
     loadDetails(id: string) {
         this.dataService.getExternalSubmissionDetails(id).subscribe((res: any) => {
             this.submission = res.data;
+            this.recalculateTotal();
         });
     }
 
@@ -148,19 +159,44 @@ export class ExternalResultsComponent implements OnInit {
     }
 
     saveEvaluation() {
+        const invalid = this.submission.answers.find((a: any) =>
+            Number(a.marks_obtained) > (Number(a.question_marks) || 0) || Number(a.marks_obtained) < 0
+        );
+
+        if (invalid) {
+            this.toastService.warning(`Marks for question "${invalid.question_text}" cannot exceed ${invalid.question_marks} or be less than 0.`);
+            return;
+        }
+
         const evaluations = this.submission.answers.map((a: any) => ({
-            id: a.id,
-            marks_obtained: a.marks_obtained,
-            is_correct: a.marks_obtained > 0 ? 1 : 0
+            answer_id: a.id,
+            marks: a.marks_obtained,
+            is_correct: a.question_type === 'mcq' ? a.is_correct : (Number(a.marks_obtained) > 0 ? 1 : 0)
         }));
 
         this.dataService.evaluateExternalExam({
             submission_id: this.submission.id,
             evaluations: evaluations
-        }).subscribe(() => {
-            this.toastService.success('Scorecard finalized successfully!');
-            this.loadDetails(this.submission.id);
+        }).subscribe({
+            next: () => {
+                this.toastService.success('Scorecard finalized successfully!');
+                this.loadDetails(this.submission.id);
+            },
+            error: (err) => {
+                this.toastService.error(err.error?.message || 'Failed to finalize external evaluation');
+            }
         });
+    }
+
+    recalculateTotal() {
+        if (!this.submission?.answers) return;
+        const total = this.submission.answers.reduce((acc: number, a: any) =>
+            acc + (Number(a.marks_obtained) || 0), 0);
+        this.submission.score = total;
+    }
+
+    isReadOnly() {
+        return this.mode === 'view';
     }
 
     goBack() {

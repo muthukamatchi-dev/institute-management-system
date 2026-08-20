@@ -21,8 +21,8 @@ public class ReportsController {
     }
 
     @GetMapping("/dashboard_stats")
-    public ResponseEntity<ApiResponse> dashboardStats() {
-        return ResponseEntity.ok(ApiResponse.success(service.getDashboardStats()));
+    public ResponseEntity<ApiResponse> dashboardStats(@RequestParam(required = false) Map<String, String> filters) {
+        return ResponseEntity.ok(ApiResponse.success(service.getDashboardStats(filters)));
     }
 
     @GetMapping("/recent_activities")
@@ -40,9 +40,19 @@ public class ReportsController {
         return ResponseEntity.ok(ApiResponse.success(service.getAttendanceReport(filters)));
     }
 
+    @GetMapping("/attendance_analytics")
+    public ResponseEntity<ApiResponse> attendanceAnalytics(@RequestParam(required = false) Map<String, String> filters) {
+        return ResponseEntity.ok(ApiResponse.success(service.getAttendanceAnalytics(filters)));
+    }
+
     @GetMapping("/profit_loss")
     public ResponseEntity<ApiResponse> profitLoss(@RequestParam(required = false) Map<String, String> filters) {
         return ResponseEntity.ok(ApiResponse.success(service.getProfitLoss(filters)));
+    }
+
+    @GetMapping("/fees_diary")
+    public ResponseEntity<ApiResponse> feesDiary(@RequestParam(required = false) Map<String, String> filters) {
+        return ResponseEntity.ok(ApiResponse.success(service.getFeesDiary(filters)));
     }
 
     @GetMapping("/expenses_report")
@@ -62,7 +72,8 @@ public class ReportsController {
 
     @GetMapping("/enrollment_trends")
     public ResponseEntity<ApiResponse> enrollmentTrends(@RequestParam(required = false) Map<String, String> filters) {
-        return ResponseEntity.ok(ApiResponse.success(service.getEnrollmentTrends(filters)));
+        String tenantId = com.institute.tenant.TenantContext.getTenantId();
+        return ResponseEntity.ok(ApiResponse.success(service.getEnrollmentTrends(filters, tenantId)));
     }
 
     @GetMapping("/student_map")
@@ -78,5 +89,16 @@ public class ReportsController {
     @GetMapping("/staff_worklog")
     public ResponseEntity<ApiResponse> staffWorklog(@RequestParam(required = false) Map<String, String> filters) {
         return ResponseEntity.ok(ApiResponse.success(service.getStaffWorklog(filters)));
+    }
+
+    @GetMapping("/day_book")
+    public ResponseEntity<ApiResponse> dayBook(@RequestParam(name = "date", required = false) String dateStr) {
+        java.time.LocalDate date = dateStr != null && !dateStr.isBlank() ? java.time.LocalDate.parse(dateStr) : java.time.LocalDate.now();
+        return ResponseEntity.ok(ApiResponse.success(service.getDayBookData(date)));
+    }
+
+    @GetMapping("/due_reminders")
+    public ResponseEntity<ApiResponse> dueReminders() {
+        return ResponseEntity.ok(ApiResponse.success(service.getDueReminders()));
     }
 }

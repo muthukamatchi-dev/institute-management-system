@@ -87,11 +87,18 @@ public class InstituteController {
 
     // GET /api/institute/students
     @GetMapping("/students")
-    public ResponseEntity<ApiResponse> getStudents(@RequestParam(name = "batch_id", required = false) Long batch_id) {
-        List<Map<String, Object>> students = service.getAllStudents();
-        if (batch_id != null) {
-            students = students.stream().filter(s -> batch_id.equals(s.get("batch_id"))).collect(java.util.stream.Collectors.toList());
+    public ResponseEntity<ApiResponse> getStudents(
+            @RequestParam(name = "batch_id", required = false) Long batch_id,
+            @RequestParam(name = "page", required = false) Integer page,
+            @RequestParam(name = "size", required = false, defaultValue = "10") Integer size,
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "course_id", required = false) String course_id,
+            @RequestParam(name = "status", required = false) String status) {
+        if (page != null) {
+            Map<String, Object> pagedData = service.getPagedStudents(page, size, batch_id, search, course_id, status);
+            return ResponseEntity.ok(ApiResponse.success(pagedData));
         }
+        List<Map<String, Object>> students = service.getAllStudents(batch_id);
         return ResponseEntity.ok(ApiResponse.success(students));
     }
 
@@ -372,7 +379,11 @@ public class InstituteController {
         if (originalFilename == null || originalFilename.isBlank()) {
             return "upload";
         }
-        return originalFilename.replace("\\", "_").replace("/", "_").replace("..", "_");
+        return originalFilename.trim()
+            .replace("\\", "_")
+            .replace("/", "_")
+            .replace("..", "_")
+            .replace(" ", "_");
     }
 
     private Path resolveUploadDirectory(String subdirectory) throws Exception {

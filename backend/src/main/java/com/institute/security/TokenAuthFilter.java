@@ -2,11 +2,14 @@ package com.institute.security;
 
 import com.institute.model.Staff;
 import com.institute.model.Student;
+import com.institute.model.Tenant;
 import com.institute.model.User;
 import com.institute.repository.StaffRepository;
 import com.institute.repository.StudentRepository;
+import com.institute.repository.TenantRepository;
 import com.institute.repository.UserRepository;
 import com.institute.tenant.TenantContext;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,12 +24,14 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Token Authentication Filter
- * Migrated from: Api_Controller.php -> validate_auth()
- * Original logic: 
- *   1. Get token from Authorization header
- *   2. Check users table, then staff table, then students table
- *   3. Return user object with role info
+ * Token Authentication Filter — SaaS Multi-Tenant Version
+ *
+ * Request flow:
+ * 1. Extract tenant_id from X-Tenant-ID header
+ * 2. Validate tenant exists, is active, and trial not expired
+ * 3. Route to correct database (shared vs dedicated)
+ * 4. Authenticate user via token lookup
+ * 5. Set security context with roles
  */
 @Component
 public class TokenAuthFilter extends OncePerRequestFilter {
@@ -34,30 +39,64 @@ public class TokenAuthFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
     private final StaffRepository staffRepository;
     private final StudentRepository studentRepository;
+    private final TenantRepository tenantRepository;
+    private final JwtService jwtService;
 
     public TokenAuthFilter(UserRepository userRepository, StaffRepository staffRepository,
-                          StudentRepository studentRepository) {
+                          StudentRepository studentRepository, TenantRepository tenantRepository,
+                          JwtService jwtService) {
         this.userRepository = userRepository;
         this.staffRepository = staffRepository;
         this.studentRepository = studentRepository;
+        this.tenantRepository = tenantRepository;
+        this.jwtService = jwtService;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                      FilterChain filterChain) throws ServletException, IOException {
         try {
-            String tenantId = request.getHeader("X-Tenant-ID");
-            if (tenantId != null && !tenantId.isEmpty()) {
-                TenantContext.setCurrentTenant(tenantId);
-            } else {
+            // Tenant is already resolved by TenantInterceptor from subdomain/headers.
+            // We just read the current context.
+            String tenantId = TenantContext.getTenantId();
+            if (tenantId == null || tenantId.isEmpty()) {
+                tenantId = "DEFAULT";
+                TenantContext.setTenantId("DEFAULT");
                 TenantContext.setCurrentTenant("default");
+                TenantContext.setDatabaseMode("shared");
             }
 
+            // 3. Authenticate via token
             String authHeader = request.getHeader("Authorization");
             if (authHeader != null && !authHeader.isEmpty()) {
                 String token = authHeader.replace("Bearer ", "").trim();
 
-                // Check users table first (same as Auth_model.php -> verify_token)
+                if (isJwt(token) && jwtService.isTokenValid(token)) {
+                    Claims claims = jwtService.parseClaims(token);
+                    Map<String, Object> details = new HashMap<>();
+                    details.put("id", claims.get("id"));
+                    details.put("name", claims.get("name"));
+                    details.put("email", claims.get("email"));
+                    details.put("role", claims.get("role"));
+                    details.put("role_name", claims.get("role_name"));
+                    details.put("token", token);
+                    details.put("type", claims.get("type"));
+                    details.put("tenant_id", claims.get("tenant_id"));
+                    details.put("branch_id", claims.get("branch_id"));
+
+                    List<SimpleGrantedAuthority> authorities = buildAuthorities(
+                        claims.get("role_name") != null ? claims.get("role_name").toString() : null,
+                        claims.get("type") != null ? claims.get("type").toString() : null
+                    );
+
+                    UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(details, null, authorities);
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                // Check users table first
                 Optional<User> userOpt = userRepository.findByToken(token);
                 if (userOpt.isPresent()) {
                     User user = userOpt.get();
@@ -69,15 +108,10 @@ public class TokenAuthFilter extends OncePerRequestFilter {
                     details.put("role_name", user.getRole() != null ? user.getRole().getRoleName() : "user");
                     details.put("token", token);
                     details.put("type", "user");
+                    details.put("tenant_id", tenantId);
 
-                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-                    if (user.getRole() != null) {
-                        String roleName = user.getRole().getRoleName();
-                        if ("Admin".equalsIgnoreCase(roleName) || "Super Admin".equalsIgnoreCase(roleName)) {
-                            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
-                        }
-                    }
-                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                    List<SimpleGrantedAuthority> authorities = buildAuthorities(
+                        user.getRole() != null ? user.getRole().getRoleName() : null, "user");
 
                     UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(details, null, authorities);
@@ -99,17 +133,10 @@ public class TokenAuthFilter extends OncePerRequestFilter {
                     details.put("role", "staff");
                     details.put("role_name", "Staff");
                     details.put("token", token);
+                    details.put("tenant_id", tenantId);
 
-                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-                    authorities.add(new SimpleGrantedAuthority("ROLE_STAFF"));
-                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
-                    
-                    // If staff designation is Admin, give Admin role
-                    if (staff.getDesignation() != null && staff.getDesignation().equalsIgnoreCase("Admin")) {
-                        authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
-                        details.put("role", "admin");
-                        details.put("role_name", "Admin");
-                    }
+                    List<SimpleGrantedAuthority> authorities = buildAuthorities(
+                        details.get("role_name").toString(), "staff");
 
                     UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(details, null, authorities);
@@ -131,10 +158,9 @@ public class TokenAuthFilter extends OncePerRequestFilter {
                     details.put("role", "student");
                     details.put("role_name", "Student");
                     details.put("token", token);
+                    details.put("tenant_id", tenantId);
 
-                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-                    authorities.add(new SimpleGrantedAuthority("ROLE_STUDENT"));
-                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                    List<SimpleGrantedAuthority> authorities = buildAuthorities("Student", "student");
 
                     UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(details, null, authorities);
@@ -148,5 +174,34 @@ public class TokenAuthFilter extends OncePerRequestFilter {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private boolean isJwt(String token) {
+        return token != null && token.split("\\.").length == 3;
+    }
+
+    private List<SimpleGrantedAuthority> buildAuthorities(String roleName, String userType) {
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        if ("staff".equalsIgnoreCase(userType)) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_STAFF"));
+        }
+        if ("student".equalsIgnoreCase(userType)) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_STUDENT"));
+        }
+        if ("user".equalsIgnoreCase(userType) || "staff".equalsIgnoreCase(userType) || "student".equalsIgnoreCase(userType)) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        }
+
+        if (roleName != null) {
+            String normalizedRole = roleName.trim().replace("_", "").replace(" ", "").toLowerCase();
+            if ("admin".equals(normalizedRole) || "instituteadmin".equals(normalizedRole)) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            }
+            if ("superadmin".equals(normalizedRole) || "systemadmin".equals(normalizedRole)) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"));
+                authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            }
+        }
+        return authorities;
     }
 }

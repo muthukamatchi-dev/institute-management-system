@@ -11,7 +11,10 @@ import java.util.List;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
     @Query("SELECT n FROM Notification n WHERE " +
-           "(n.userId = :userId OR LOWER(n.userType) = LOWER(:userType) OR n.userType = 'all') " +
+           "(n.userId = :userId OR " +
+           "LOWER(n.userType) = LOWER(:userType) OR " +
+           "(LOWER(:userType) = 'user' AND LOWER(n.userType) = 'admin') OR " +
+           "n.userType = 'all') " +
            "ORDER BY n.createdAt DESC")
     List<Notification> findUserNotifications(@Param("userId") Long userId, @Param("userType") String userType);
 

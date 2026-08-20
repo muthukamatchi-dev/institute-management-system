@@ -5,6 +5,10 @@ import { LayoutComponent } from './shared/components/layout.component';
 export const routes: Routes = [
     { path: 'login', component: LoginComponent },
     {
+        path: 'find-institute',
+        loadComponent: () => import('./features/auth/find-institute.component').then(m => m.FindInstituteComponent)
+    },
+    {
         path: '',
         component: LayoutComponent,
         children: [
@@ -12,6 +16,10 @@ export const routes: Routes = [
             {
                 path: 'dashboard',
                 loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
+            },
+            {
+                path: 'day-book',
+                loadComponent: () => import('./features/day-book/day-book.component').then(m => m.DayBookComponent)
             },
             {
                 path: 'students',
@@ -74,6 +82,10 @@ export const routes: Routes = [
                 loadComponent: () => import('./features/exams/external/external-exam.component').then(m => m.ExternalExamComponent)
             },
             {
+                path: 'exams/entries',
+                loadComponent: () => import('./features/exams/entries/exam-entries.component').then(m => m.ExamEntriesComponent)
+            },
+            {
                 path: 'exams/external/results/:id',
                 loadComponent: () => import('./features/exams/external/external-results.component').then(m => m.ExternalResultsComponent)
             },
@@ -86,6 +98,10 @@ export const routes: Routes = [
                 loadComponent: () => import('./features/students/my-progress.component').then(m => m.MyProgressComponent)
             },
             // Staff Routes
+            {
+                path: 'staff/my-attendance',
+                loadComponent: () => import('./features/staff/staff-my-attendance.component').then(m => m.StaffMyAttendanceComponent)
+            },
             {
                 path: 'staff/schedule',
                 loadComponent: () => import('./features/staff/staff-schedule.component').then(m => m.StaffScheduleComponent)
@@ -105,12 +121,23 @@ export const routes: Routes = [
             {
                 path: 'staff/attendance',
                 loadComponent: () => import('./features/staff/staff-attendance.component').then(m => m.StaffAttendanceComponent)
+            },
+            // Super Admin
+            {
+                path: 'super-admin',
+                loadComponent: () => import('./features/super-admin/super-admin.component').then(m => m.SuperAdminComponent)
             }
         ]
     },
     {
+        path: 'internal/exam/:examId',
+        loadComponent: () => import('./features/exams/public-exam-portal.component').then(m => m.PublicExamPortalComponent),
+        data: { examAccess: 'internal' }
+    },
+    {
         path: 'public/exam/:examId',
-        loadComponent: () => import('./features/exams/public-exam-portal.component').then(m => m.PublicExamPortalComponent)
+        loadComponent: () => import('./features/exams/public-exam-portal.component').then(m => m.PublicExamPortalComponent),
+        data: { examAccess: 'external' }
     },
     { path: '**', redirectTo: 'dashboard' }
 ];

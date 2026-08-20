@@ -1,0 +1,438 @@
+<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-4 lg:px-0">
+        <div>
+            <h2 class="text-3xl lg:text-4xl font-black text-slate-800 dark:text-white tracking-tight">Offline Exam
+                Entries</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm lg:text-base">Record and manage
+                paper-and-pen examination scores for students.</p>
+        </div>
+        <button (click)="openCreateModal()"
+            class="w-full lg:w-auto group relative flex items-center justify-center gap-3 px-8 py-4 bg-primary-600 dark:bg-primary-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 dark:hover:bg-primary-400 transition-all shadow-xl shadow-primary-500/20 active:scale-95">
+            <span class="text-lg group-hover:rotate-90 transition-transform">+</span>
+            Create new Exam Entries
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Courses Navigation -->
+        <div class="lg:col-span-3 space-y-4">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-6 shadow-sm border border-slate-100 dark:border-slate-800/50 overflow-hidden">
+                <h3
+                    class="hidden lg:block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6 px-4">
+                    Courses</h3>
+
+                <div class="hidden lg:block relative mb-6 px-2">
+                    <input type="text" [(ngModel)]="courseSearchTerm" placeholder="Find course..."
+                        class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-xs font-bold text-slate-700 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-primary-500/10 transition-all">
+                    <span class="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+                </div>
+
+                <div
+                    class="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:max-h-[60vh] custom-scrollbar pb-2 lg:pb-0">
+                    <button *ngFor="let course of filteredCourses" (click)="selectCourse(course)"
+                        [class.bg-slate-50]="selectedCourse?.id === course.id"
+                        [class.dark:bg-slate-800]="selectedCourse?.id === course.id"
+                        [class.text-primary-600]="selectedCourse?.id === course.id"
+                        [class.dark:text-primary-400]="selectedCourse?.id === course.id"
+                        class="whitespace-nowrap flex-shrink-0 flex items-center gap-3 lg:gap-4 px-4 lg:px-6 py-3 lg:py-4 rounded-xl lg:rounded-3xl text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800 group relative border-2 border-transparent w-full"
+                        [class.border-primary-500]="selectedCourse?.id === course.id">
+                        <div
+                            class="w-8 h-8 lg:w-10 lg:h-10 rounded-lg lg:rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors text-xs lg:text-base">
+                            {{ course.name.charAt(0) }}
+                        </div>
+                        <span class="font-bold text-xs lg:text-sm truncate">{{ course.name }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Entries List -->
+        <div class="lg:col-span-9 space-y-6">
+            <div *ngIf="!selectedCourse"
+                class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-100 dark:border-slate-800">
+                <div
+                    class="w-24 h-24 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center text-4xl mb-6">
+                    📚</div>
+                <h3 class="text-2xl font-black text-slate-800 dark:text-white">Select a Course</h3>
+                <p class="text-slate-400 dark:text-slate-500 max-w-xs mt-2">Choose a course to view and manage its exam
+                    entries.</p>
+            </div>
+
+            <div *ngIf="selectedCourse" class="space-y-6">
+                <!-- Toolbar -->
+                <div
+                    class="flex flex-col sm:flex-row sm:items-center justify-between bg-white dark:bg-slate-900 px-6 sm:px-10 py-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800/50 gap-6">
+                    <div class="flex items-center gap-4 sm:gap-6">
+                        <div
+                            class="w-12 h-12 sm:w-16 sm:h-16 bg-primary-50 dark:bg-primary-900/20 rounded-2xl sm:rounded-3xl flex items-center justify-center text-primary-600 dark:text-primary-400 text-xl sm:text-2xl font-black flex-shrink-0">
+                            {{ selectedCourse.name.charAt(0) }}
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white truncate">{{
+                                selectedCourse.name }}</h3>
+                            <p class="text-slate-400 dark:text-slate-500 font-medium text-xs sm:text-sm">Exam Entries
+                                Recorded</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+                        <!-- Select Subject (if standard course selected) -->
+                        <div *ngIf="isCourseStandard(selectedCourse)" class="relative w-full sm:w-48">
+                            <select [(ngModel)]="selectedSubject"
+                                class="w-full pl-6 pr-10 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-[10px] sm:text-xs font-black text-slate-800 dark:text-white outline-none focus:ring-4 focus:ring-primary-500/5 transition-all shadow-inner cursor-pointer appearance-none">
+                                <option value="">All Subjects</option>
+                                <option *ngFor="let sub of parseCourseSubjects(selectedCourse.subjects)"
+                                    [value]="sub.name">{{ sub.name }}</option>
+                            </select>
+                            <span
+                                class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[8px] sm:text-[10px]">▼</span>
+                        </div>
+
+                        <!-- Search -->
+                        <div class="relative w-full sm:w-64">
+                            <input type="text" [(ngModel)]="entrySearchTerm" placeholder="Search exams..."
+                                class="w-full pl-12 pr-6 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-[10px] sm:text-xs font-black text-slate-800 dark:text-white placeholder-slate-400 outline-none focus:ring-4 focus:ring-primary-500/5 transition-all shadow-inner">
+                            <span class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                        </div>
+
+                        <span
+                            class="px-6 py-3.5 bg-primary-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary-500/20 whitespace-nowrap text-center">
+                            {{ filteredEntries.length }} Exams
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Exam Entries Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div *ngFor="let entry of filteredEntries"
+                        class="group bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-slate-200 dark:hover:shadow-none border border-slate-100 dark:border-slate-800/50 transition-all active:scale-[0.98]">
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-14 h-14 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-400 text-xl font-bold">
+                                    📝
+                                </div>
+                                <span *ngIf="entry.subject"
+                                    class="px-3.5 py-1.5 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 rounded-xl text-xs font-black uppercase tracking-wider">
+                                    {{ entry.subject }}
+                                </span>
+                            </div>
+                            <div
+                                class="flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                <button (click)="editEntry(entry)"
+                                    class="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">✏️</button>
+                                <button (click)="deleteEntry(entry.id)"
+                                    class="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">🗑️</button>
+                            </div>
+                        </div>
+
+                        <h4 class="text-xl font-black text-slate-800 dark:text-white mb-2">{{ entry.title }}</h4>
+                        <div class="space-y-1 mb-8">
+                            <p class="text-slate-400 dark:text-slate-500 font-medium text-xs">
+                                📅 {{ entry.exam_date | date: 'medium' }}
+                            </p>
+                            <p class="text-slate-400 dark:text-slate-500 font-medium text-xs">
+                                🎯 Total Marks: <b>{{ entry.total_marks }}</b> | Questions: <b>{{ entry.question_count
+                                    }}</b>
+                            </p>
+                            <p class="text-slate-400 dark:text-slate-500 font-medium text-xs">
+                                👥 Students Recorded: <b>{{ entry.student_count }}</b>
+                            </p>
+                        </div>
+
+                        <div
+                            class="pt-6 border-t border-slate-50 dark:border-slate-800/50 flex items-center justify-between gap-4">
+                            <button (click)="viewEntry(entry)"
+                                class="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                View Entry & Marks
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div *ngIf="filteredEntries.length === 0"
+                        class="col-span-1 md:col-span-2 bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-16 flex flex-col items-center justify-center text-center">
+                        <div
+                            class="w-20 h-20 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm">
+                            ➕</div>
+                        <h4 class="text-lg font-black text-slate-400 dark:text-slate-600">No Exam Entries Found</h4>
+                        <p class="text-slate-400 dark:text-slate-700 text-sm mt-1 mb-6">Start by recording the marks of
+                            your first offline examination.</p>
+                        <button (click)="openCreateModal()"
+                            class="text-primary-600 dark:text-primary-400 font-black text-xs uppercase tracking-widest hover:underline">Create
+                            Entry Now</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Create / Edit Exam Entries -->
+<!-- Modal: Create / Edit Exam Entries -->
+<app-modal [isOpen]="isCreateModalOpen" (onClose)="isCreateModalOpen = false" (onSubmit)="saveEntry()"
+    [title]="newEntry.id ? 'Edit Exam Entry' : 'Create Exam Entry'"
+    [actionLabel]="newEntry.id ? 'Update Entry' : 'Save Entry'" size="huge">
+    <div class="space-y-8">
+        <!-- Part 1: Basic Config -->
+        <div>
+            <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">1. Exam Information</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Examination
+                        Name</label>
+                    <input type="text" [(ngModel)]="newEntry.title" placeholder="e.g. Mid Term Exam, Unit Test 1..."
+                        class="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/15">
+                </div>
+
+                <div class="space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Date
+                        & Time</label>
+                    <input type="datetime-local" [(ngModel)]="newEntry.exam_date"
+                        class="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/15">
+                </div>
+
+                <div class="space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Associated
+                        Course</label>
+                    <select [(ngModel)]="newEntry.course_id" (change)="onCourseChange()"
+                        [disabled]="newEntry.id != null"
+                        class="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/15 cursor-pointer">
+                        <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
+                    </select>
+                </div>
+
+                <div *ngIf="isCourseStandard(getSelectedFormCourse())" class="space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Subject</label>
+                    <select [(ngModel)]="newEntry.subject"
+                        class="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/15 cursor-pointer">
+                        <option value="">Select Subject</option>
+                        <option *ngFor="let sub of parseCourseSubjects(getSelectedFormCourse()?.subjects)"
+                            [value]="sub.name">{{ sub.name }}</option>
+                    </select>
+                </div>
+
+                <div class="space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Total
+                        Marks</label>
+                    <input type="number" [(ngModel)]="newEntry.total_marks" (change)="distributeMarksEqually()"
+                        class="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/15">
+                </div>
+
+                <div class="space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">No.
+                        of Questions</label>
+                    <input type="number" [(ngModel)]="newEntry.question_count" (change)="onQuestionCountChange()"
+                        class="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/15">
+                </div>
+            </div>
+        </div>
+
+        <!-- Part 2: Selection Mode & Searchable Select -->
+        <div>
+            <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">2. Selection Mode</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Dropdown 'Batch / Students' -->
+                <div class="space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Select
+                        By</label>
+                    <select [(ngModel)]="selectionType" (change)="onSelectionTypeChange()"
+                        class="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/15 cursor-pointer">
+                        <option value="batch">Batch</option>
+                        <option value="student">Students</option>
+                    </select>
+                </div>
+
+                <!-- Searchable multi-select for Batches -->
+                <div *ngIf="selectionType === 'batch'" class="md:col-span-2 space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Select
+                        Course Batches</label><br>
+                    <app-searchable-select [options]="getFilteredBatchesForCourse()" [multiple]="true"
+                        placeholder="Search & Select Batches..." labelKey="batchName" valueKey="id" itemsLabel="batches"
+                        [modelValue]="selectedBatchIdsArray" (onChange)="onBatchesSelected($event)">
+                    </app-searchable-select>
+                </div>
+
+                <!-- Searchable multi-select for Students -->
+                <div *ngIf="selectionType === 'student'" class="md:col-span-2 space-y-2">
+                    <label
+                        class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Select
+                        Course Students</label>
+                    <app-searchable-select [options]="getFilteredStudentsForCourse()" [multiple]="true"
+                        placeholder="Search & Select Students..." labelKey="name" subLabelKey="regNumber" valueKey="id"
+                        itemsLabel="students" [modelValue]="selectedStudentIdsArray"
+                        (onChange)="onStudentsSelected($event)">
+                    </app-searchable-select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Part 3: Questions Marks Config -->
+        <div>
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest">3. Question Marks Breakdown</h4>
+                <button type="button" (click)="distributeMarksEqually()"
+                    class="text-xs font-black text-primary-600 uppercase tracking-wider hover:underline">
+                    Distribute Marks Equally
+                </button>
+            </div>
+            <div class="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+                <div *ngFor="let m of questionMaxMarks; let i = index; trackBy: trackByIndex" class="space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Q{{ i + 1 }} Max
+                        Marks</label>
+                    <input type="number" [(ngModel)]="questionMaxMarks[i]" (ngModelChange)="onQuestionMaxMarkChange()"
+                        class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-black text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/15">
+                </div>
+            </div>
+        </div>
+
+        <!-- Part 4: Students & Result Records -->
+        <div>
+            <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">4. Enter Marks</h4>
+
+            <div class="grid grid-cols-1 gap-6">
+                <!-- Scores entry table -->
+                <div class="space-y-4">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-wider block">Score Sheets</span>
+
+                    <div class="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-3xl">
+                        <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                            <thead>
+                                <tr
+                                    class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                    <th class="px-6 py-4">Student</th>
+                                    <th *ngFor="let m of questionMaxMarks; let i = index; trackBy: trackByIndex"
+                                        class="px-1 py-3 text-center min-w-[45px] text-[10px]">
+                                        Q{{ i + 1 }}<br><span class="text-slate-400 font-normal text-[8px]">({{ m }})</span>
+                                    </th>
+                                    <th class="px-6 py-4 text-right">Total</th>
+                                    <th class="px-6 py-4">Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                <tr *ngFor="let s of getSelectedStudentList()"
+                                    class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 text-xs font-semibold">
+                                    <td class="px-6 py-4">
+                                        <p class="font-black text-slate-800 dark:text-white">{{ s.name }}</p>
+                                        <p class="text-[10px] font-bold text-slate-400">{{ s.regNumber }}</p>
+                                    </td>
+                                    <td *ngFor="let m of questionMaxMarks; let i = index; trackBy: trackByIndex" class="px-1 py-3 text-center">
+                                        <input type="number" [(ngModel)]="studentScores[s.id].questionScores[i]"
+                                            (change)="validateScore(s.id, i)"
+                                            style="width: 42px;"
+                                            class="px-1 py-1 bg-slate-50 dark:bg-slate-800 border-none rounded-md text-center font-bold text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/10">
+                                    </td>
+                                    <td class="px-6 py-4 text-right font-black text-slate-800 dark:text-white">
+                                        {{ studentScores[s.id].totalScore }} / {{ newEntry.total_marks }}
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <input type="text" [(ngModel)]="studentScores[s.id].remarks"
+                                            placeholder="Notes..."
+                                            class="w-full min-w-[100px] px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-primary-500/10">
+                                    </td>
+                                </tr>
+                                <tr *ngIf="getSelectedStudentList().length === 0">
+                                    <td [attr.colspan]="3 + questionMaxMarks.length"
+                                        class="px-6 py-12 text-center text-xs font-black text-slate-400 uppercase tracking-wider">
+                                        No students selected. Select batches/students above to enter marks.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Modal: View Exam Entry details -->
+<app-modal [isOpen]="isViewModalOpen" (onClose)="isViewModalOpen = false" [title]="selectedEntry?.title" size="huge"
+    [showFooter]="false">
+    <div class="space-y-8">
+        <!-- Details grid -->
+        <div
+            class="grid grid-cols-2 sm:grid-cols-4 gap-6 bg-slate-50 dark:bg-slate-800/40 p-6 rounded-3xl border border-slate-100 dark:border-slate-800/50">
+            <div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exam Date & Time</p>
+                <p class="text-sm font-black text-slate-800 dark:text-white mt-1">{{ selectedEntry?.exam_date |
+                    date:'medium' }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Associated Course</p>
+                <p class="text-sm font-black text-slate-800 dark:text-white mt-1">{{ selectedEntry?.course_name }}</p>
+            </div>
+            <div *ngIf="selectedEntry?.subject">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subject</p>
+                <p class="text-sm font-black text-slate-800 dark:text-white mt-1">{{ selectedEntry?.subject }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Marks</p>
+                <p class="text-sm font-black text-slate-800 dark:text-white mt-1">{{ selectedEntry?.total_marks }} Marks
+                </p>
+            </div>
+        </div>
+
+        <!-- Recorded results table -->
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">Recorded Score Sheets</h4>
+                <div class="flex gap-3">
+                    <button (click)="exportToExcel()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center gap-2">
+                        📊 Export Excel
+                    </button>
+                    <button (click)="exportToPDF()" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors flex items-center gap-2">
+                        📄 Export PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-3xl">
+                <table class="w-full text-left border-collapse bg-white dark:bg-slate-900">
+                    <thead>
+                        <tr
+                            class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                            <th class="px-6 py-4">Reg Number</th>
+                            <th class="px-6 py-4">Student Name</th>
+                            <th *ngFor="let m of selectedEntry?.parsedQuestionMarks; let i = index; trackBy: trackByIndex" class="px-1 py-3 text-center min-w-[45px] text-[10px]">
+                                Q{{ i + 1 }}<br><span class="text-slate-400 font-normal text-[8px]">({{ m }})</span>
+                            </th>
+                            <th class="px-6 py-4 text-right">Total Marks</th>
+                            <th class="px-6 py-4">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
+                        <tr *ngFor="let res of selectedEntry?.results"
+                            class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                            <td class="px-6 py-4 text-slate-400 font-bold">{{ res.reg_number }}</td>
+                            <td class="px-6 py-4 font-black text-slate-800 dark:text-white">{{ res.student_name }}</td>
+                            <td *ngFor="let score of res.parsedScores; let i = index; trackBy: trackByIndex"
+                                class="px-1 py-3 text-center font-bold text-slate-700 dark:text-slate-300">
+                                {{ score }}
+                            </td>
+                            <td class="px-6 py-4 text-right font-black text-slate-800 dark:text-white">
+                                {{ res.total_marks_obtained }} / {{ selectedEntry?.total_marks }}
+                            </td>
+                            <td class="px-6 py-4 text-slate-400 font-medium italic">{{ res.remarks || '-' }}</td>
+                        </tr>
+                        <tr *ngIf="selectedEntry?.results?.length === 0">
+                            <td [attr.colspan]="4 + (selectedEntry?.parsedQuestionMarks?.length || 0)"
+                                class="px-6 py-8 text-center text-xs text-slate-400 font-black uppercase tracking-wider">
+                                No student scores recorded for this exam.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</app-modal>

@@ -16,32 +16,57 @@ export class BranchContextService {
   private branchesSource = new BehaviorSubject<Branch[]>([]);
   branches$ = this.branchesSource.asObservable();
 
+  private isHeaderHiddenSource = new BehaviorSubject<boolean>(false);
+  isHeaderHidden$ = this.isHeaderHiddenSource.asObservable();
+
   constructor(private dataService: DataService) {
-    this.refreshContext();
+    // Only refresh context if a token exists, to avoid 401 loops on login page
+    if (localStorage.getItem('token')) {
+      this.refreshContext();
+    }
   }
 
   refreshContext() {
-    this.dataService.getSettings().subscribe(settings => {
-      const enabled = settings.enableMultipleBranches || settings.enable_multiple_branches == 1;
-      this.isEnabledSource.next(enabled);
-      
-      if (enabled) {
-        this.dataService.getActiveBranches().subscribe(branches => {
-          this.branchesSource.next(branches);
-          
-          // Set default if none selected or the selected one isn't in the list
-          const saved = localStorage.getItem('selectedBranchId');
-          const mainBranchId = branches.find(b => b.isMain)?.id;
-          
-          if (!saved || (saved !== 'all' && !branches.find(b => String(b.id) === saved))) {
-            const defaultId = mainBranchId || 'all';
-            this.setSelectedBranchId(defaultId);
-          } else {
-            this.selectedBranchIdSource.next(saved === 'all' ? 'all' : saved);
-          }
-        });
-      }
+    if (!localStorage.getItem('token')) return;
+
+    this.dataService.getSettings().subscribe({
+      next: (settings) => {
+        const enabled = settings.enableMultipleBranches || settings.enable_multiple_branches == 1;
+        this.isEnabledSource.next(enabled);
+
+        if (enabled) {
+          this.dataService.getActiveBranches().subscribe(branches => {
+            this.branchesSource.next(branches);
+
+            const selectedBranchId = this.resolveSelectedBranchId(branches);
+            this.setSelectedBranchId(selectedBranchId);
+          });
+        }
+      },
+      error: (err) => console.log('Branch context refresh skipped (unauthorized)')
     });
+  }
+
+  private resolveSelectedBranchId(branches: Branch[]): string | number | 'all' {
+    const saved = localStorage.getItem('selectedBranchId');
+    if (saved === 'all') {
+      return 'all';
+    }
+
+    const mainBranch = branches.find(branch => branch.isMain);
+    const mainBranchId = mainBranch?.id;
+    const fallbackBranchId = mainBranchId ?? branches[0]?.id;
+
+    if (!saved) {
+      return fallbackBranchId ?? 'all';
+    }
+
+    const matchingBranch = branches.find(branch => String(branch.id) === String(saved));
+    if (matchingBranch?.id !== undefined) {
+      return matchingBranch.id;
+    }
+
+    return fallbackBranchId ?? 'all';
   }
 
   setSelectedBranchId(id: string | number | 'all') {
@@ -59,5 +84,9 @@ export class BranchContextService {
 
   getBranches(): Branch[] {
     return this.branchesSource.getValue();
+  }
+
+  setHeaderHidden(hidden: boolean) {
+    this.isHeaderHiddenSource.next(hidden);
   }
 }

@@ -2,6 +2,7 @@ package com.institute.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Filter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -11,6 +12,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(BranchEntityListener.class)
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class ExamSubmission {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,4 +45,8 @@ public class ExamSubmission {
 
     @Column(length = 20)
     private String status = "ongoing";
+
+    @Builder.Default
+    @Column(name = "tenant_id", length = 100)
+    private String tenantId = "default";
 }

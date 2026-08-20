@@ -10,9 +10,13 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
+    Optional<User> findByUsernameIgnoreCase(String username);
     Optional<User> findByUsernameAndPassword(String username, String password);
     Optional<User> findByToken(String token);
+    Optional<User> findByTokenAndTenantId(String token, String tenantId);
     Optional<User> findByEmail(String email);
+    Optional<User> findByUsernameAndTenantId(String username, String tenantId);
+    Optional<User> findByUsernameIgnoreCaseAndTenantIdIgnoreCase(String username, String tenantId);
     
     @Query("SELECT u FROM User u JOIN u.role r WHERE " +
            "LOWER(r.roleName) IN ('admin', 'super admin') OR LOWER(u.username) = 'admin'")

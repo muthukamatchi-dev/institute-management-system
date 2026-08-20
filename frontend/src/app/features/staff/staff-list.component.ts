@@ -29,6 +29,8 @@ export class StaffListComponent implements OnInit {
   isModalOpen = false;
   isStaffIdManual = false;
   nextStaffId = '';
+  isDetailsModalOpen = false;
+  selectedStaffDetails: any = null;
 
   isImportModalOpen = false;
   isGuidanceOpen = false;
@@ -59,7 +61,8 @@ export class StaffListComponent implements OnInit {
       joiningDate: new Date().toISOString().split('T')[0],
       status: 'active',
       staff_id: '',
-      salary: 0
+      salary: 0,
+      photo: ''
     };
   }
 
@@ -257,5 +260,118 @@ export class StaffListComponent implements OnInit {
 
   toggleGuidance() {
     this.isGuidanceOpen = !this.isGuidanceOpen;
+  }
+
+  onPhotoChange(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.resizeAndCompressImage(file, 300, 300, 0.7)
+        .then(base64 => {
+          this.newStaff.photo = base64;
+        })
+        .catch(err => {
+          this.toastService.error('Error processing photo');
+          console.error(err);
+        });
+    }
+  }
+
+  removePhoto() {
+    this.newStaff.photo = '';
+  }
+
+  resizeAndCompressImage(file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event: any) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressedBase64);
+          } else {
+            reject(new Error('Failed to get 2D context'));
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  viewStaffDetails(staff: any) {
+    this.selectedStaffDetails = staff;
+    this.isDetailsModalOpen = true;
+  }
+
+  closeDetailsModal() {
+    this.selectedStaffDetails = null;
+    this.isDetailsModalOpen = false;
+  }
+
+  getImageUrl(imagePath?: string): string {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http') || imagePath.startsWith('data:')) return imagePath;
+    const normalizedPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${this.dataService.getServerUrl()}/${normalizedPath}`;
+  }
+
+  printIDCard() {
+    const printContent = document.getElementById('staff-id-card');
+    if (!printContent) return;
+    const windowUrl = 'about:blank';
+    const uniqueName = new Date().getTime();
+    const windowName = 'Print' + uniqueName;
+    const prtWindow = window.open(windowUrl, windowName, 'left=100,top=100,width=450,height=650');
+    if (prtWindow) {
+      prtWindow.document.write(`
+        <html>
+          <head>
+            <title>Print ID Card</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              body { margin: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #0f172a; }
+            </style>
+          </head>
+          <body>
+            <div class="scale-110">
+              ${printContent.outerHTML}
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  window.close();
+                }, 500);
+              }
+            </script>
+          </body>
+        </html>
+      `);
+      prtWindow.document.close();
+      prtWindow.focus();
+    }
   }
 }

@@ -158,7 +158,7 @@
                                     class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Scheduled</span>
                                 <span
                                     class="text-[11px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">{{
-                                    (exam.exam_date | date:'mediumDate') || 'Open Date' }}</span>
+                                    (exam.exam_date | date:'dd-MM-yyyy') || 'Open Date' }}</span>
                             </div>
                         </div>
                     </div>
@@ -527,11 +527,16 @@
                 </div>
 
                 <!-- Reassign for already Assigned -->
-                <div *ngIf="assignTab === 'assigned'">
+                <div *ngIf="assignTab === 'assigned'" class="flex items-center gap-2">
                     <button
                         (click)="$event.stopPropagation(); reassign({exam_id: selectedExam.id, student_id: s.id, student_name: s.name})"
                         class="px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase rounded-lg border border-blue-100/50 hover:bg-blue-100 transition-all">
                         ↺ Reassign
+                    </button>
+                    <button
+                        (click)="$event.stopPropagation(); unassign({exam_id: selectedExam.id, student_id: s.id, student_name: s.name})"
+                        class="px-3 py-1.5 bg-rose-50 text-rose-600 text-[10px] font-black uppercase rounded-lg border border-rose-100/50 hover:bg-rose-100 transition-all">
+                        X Cancel
                     </button>
                 </div>
             </div>
@@ -743,7 +748,7 @@
                             <div class="text-xs font-bold text-slate-500">{{ p.reg_number }}</div>
                         </td>
                         <td class="px-8 py-5">
-                            <div class="text-xs font-bold text-slate-500">{{ p.assigned_at | date:'mediumDate' }}</div>
+                            <div class="text-xs font-bold text-slate-500">{{ p.assigned_at | date:'dd-MM-yyyy' }}</div>
                         </td>
                         <td class="px-8 py-5 text-right">
                             <span

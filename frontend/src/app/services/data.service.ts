@@ -15,6 +15,10 @@ export class DataService {
 
     constructor(private http: HttpClient) { }
 
+    getServerUrl(): string {
+        return this.apiUrl.replace('/api', '');
+    }
+
     // Staff
     getStaff(): Observable<Staff[]> {
         return this.http.get<any>(`${this.apiUrl}/institute/staff`).pipe(
@@ -87,8 +91,75 @@ export class DataService {
                     instructor: s.instructor,
                     instructorName: s.instructor_name,
                     timing: s.timing,
-                    startDate: s.start_date
+                    startDate: s.start_date,
+                    selectedSubjects: s.selected_subjects ?? s.selectedSubjects,
+                    photo: s.photo,
+                    subjectAllocations: s.subject_allocations ?? s.subjectAllocations,
+                    batchIds: s.batch_ids || [],
+                    batchSubjects: s.batch_subjects || []
                 }));
+            })
+        );
+    }
+
+    getPagedStudents(page: number = 1, size: number = 10, search: string = '', courseId: string = '', status: string = 'active'): Observable<any> {
+        let params = new HttpParams()
+            .set('page', (page - 1).toString())
+            .set('size', size.toString());
+
+        if (search) params = params.set('search', search);
+        if (courseId) params = params.set('course_id', courseId);
+        if (status) params = params.set('status', status);
+
+        return this.http.get<any>(`${this.apiUrl}/institute/students`, { params }).pipe(
+            map(res => {
+                const data = res?.data;
+                if (!data) return { content: [], totalElements: 0, totalPages: 1 };
+
+                const mapItem = (s: any) => ({
+                    id: String(s.id),
+                    regNumber: s.reg_number,
+                    name: s.name,
+                    fatherName: s.father_name,
+                    mobile: s.mobile,
+                    parentMobile: s.parent_mobile,
+                    dob: s.dob,
+                    qualification: s.qualification,
+                    email: s.email,
+                    courseId: String(s.course_id || ''),
+                    batchId: String(s.batch_id || '0'),
+                    joiningDate: s.joining_date,
+                    status: s.status || 'active',
+                    courseName: s.course_name,
+                    batchName: s.batch_name,
+                    feeStatus: s.fee_status || 'pending',
+                    referredBy: s.referred_by,
+                    referralProfession: s.referral_profession,
+                    photo: s.photo,
+                    selectedSubjects: s.selected_subjects ?? s.selectedSubjects,
+                    batchIds: s.batch_ids || [],
+                    batchSubjects: s.batch_subjects || []
+                });
+
+                if (data.content && Array.isArray(data.content)) {
+                    const mappedContent = data.content.map(mapItem);
+                    return {
+                        content: mappedContent,
+                        totalElements: data.totalElements || mappedContent.length,
+                        totalPages: data.totalPages || 1
+                    };
+                }
+
+                if (Array.isArray(data)) {
+                    const mapped = data.map(mapItem);
+                    return {
+                        content: mapped,
+                        totalElements: mapped.length,
+                        totalPages: Math.ceil(mapped.length / size) || 1
+                    };
+                }
+
+                return { content: [], totalElements: 0, totalPages: 1 };
             })
         );
     }
@@ -109,7 +180,9 @@ export class DataService {
             status: student.status || 'active',
             joining_date: student.joiningDate || new Date().toISOString().split('T')[0],
             referred_by: student.referredBy,
-            referral_profession: student.referralProfession
+            referral_profession: student.referralProfession,
+            selected_subjects: student.selectedSubjects ?? student.selected_subjects,
+            photo: student.photo
         };
         return this.http.post(`${this.apiUrl}/institute/save_student`, payload);
     }
@@ -138,7 +211,10 @@ export class DataService {
                     fees: Number(c.fees),
                     status: c.status,
                     syllabusPath: c.syllabus_path ?? c.syllabusPath,
-                    imagePath: c.image_path ?? c.imagePath
+                    imagePath: c.image_path ?? c.imagePath,
+                    courseType: c.course_type ?? c.courseType,
+                    subjects: c.subjects,
+                    feePeriod: c.fee_period ?? c.feePeriod
                 }));
             })
         );
@@ -155,7 +231,10 @@ export class DataService {
             fees: course.fees,
             status: course.status || 'active',
             syllabus_path: course.syllabusPath,
-            image_path: course.imagePath
+            image_path: course.imagePath,
+            course_type: course.courseType ?? course.course_type,
+            subjects: course.subjects,
+            fee_period: course.feePeriod ?? course.fee_period
         };
         return this.http.post(`${this.apiUrl}/institute/save_course`, payload);
     }
@@ -213,7 +292,8 @@ export class DataService {
                     timing: b.timing,
                     startDate: b.start_date,
                     status: b.status,
-                    studentCount: parseInt(b.student_count) || 0
+                    studentCount: parseInt(b.student_count) || 0,
+                    subject: b.subject
                 }));
             })
         );
@@ -228,7 +308,8 @@ export class DataService {
             timing: batch.timing,
             start_date: batch.startDate,
             status: batch.status || 'upcoming',
-            students: batch.students || []
+            students: batch.students || [],
+            subject: batch.subject
         };
         return this.http.post(`${this.apiUrl}/institute/save_batch`, payload);
     }
@@ -243,7 +324,8 @@ export class DataService {
             instructor: student.instructor,
             timing: student.timing,
             startDate: student.startDate,
-            status: student.status
+            status: student.status,
+            subjectAllocations: student.subjectAllocations
         });
     }
 
@@ -271,9 +353,23 @@ export class DataService {
                     paymentMethod: f.payment_method,
                     refNo: f.ref_no,
                     reminder_date: f.reminder_date,
-                    is_reminder_enabled: f.is_reminder_enabled
+                    is_reminder_enabled: f.is_reminder_enabled,
+                    course_duration: f.course_duration,
+                    course_fee_period: f.course_fee_period,
+                    course_fee_flat: f.course_fee_flat != null ? Number(f.course_fee_flat) : undefined,
+                    course_units: f.course_units != null ? Number(f.course_units) : undefined,
+                    monthly_amount: f.monthly_amount != null ? Number(f.monthly_amount) : undefined,
+                    fee_overdue: f.fee_overdue != null ? Number(f.fee_overdue) : undefined,
+                    this_period_payable: f.this_period_payable != null ? Number(f.this_period_payable) : undefined
                 }));
             })
+        );
+    }
+
+    getFeesDiary(filters: any = {}): Observable<any[]> {
+        const query = this.buildQuery(filters);
+        return this.http.get<any>(`${this.apiUrl}/reports/fees_diary${query}`).pipe(
+            map(res => res.data || [])
         );
     }
 
@@ -318,6 +414,10 @@ export class DataService {
         );
     }
 
+    deleteReceipt(receiptId: string): Observable<any> {
+        return this.http.post(`${this.apiUrl}/operations/delete_receipt`, { id: receiptId });
+    }
+
     saveFeeReminder(data: any): Observable<any> {
         return this.http.post(`${this.apiUrl}/operations/save_fee_reminder`, data);
     }
@@ -354,8 +454,9 @@ export class DataService {
     }
 
     // Dashboard Stats
-    getStats(): Observable<DashboardStats> {
-        return this.http.get<any>(`${this.apiUrl}/reports/dashboard_stats`).pipe(
+    getStats(filters: any = {}): Observable<DashboardStats> {
+        const query = this.buildQuery(filters);
+        return this.http.get<any>(`${this.apiUrl}/reports/dashboard_stats${query}`).pipe(
             map(res => {
                 const d = res?.data || {};
                 return {
@@ -408,22 +509,17 @@ export class DataService {
         );
     }
 
-    // Recent Activities — from real receipts + enrollments
-    getRecentActivities(): Observable<RecentActivity[]> {
-        return this.http.get<any>(`${this.apiUrl}/reports/recent_activities`).pipe(
-            map(res => res.data.map((a: any) => ({
-                id: a.id,
-                type: a.type as RecentActivity['type'],
-                description: a.description,
-                timestamp: a.timestamp
-            })))
-        );
-    }
-
     // Upcoming Deadlines — students with balance + ongoing batches
     getUpcomingDeadlines(): Observable<any[]> {
         return this.http.get<any>(`${this.apiUrl}/reports/upcoming_deadlines`).pipe(
             map(res => res.data)
+        );
+    }
+
+    // Due Fee Reminders — for dashboard popup on login
+    getDueReminders(): Observable<any[]> {
+        return this.http.get<any>(`${this.apiUrl}/reports/due_reminders`).pipe(
+            map(res => res.data || [])
         );
     }
 
@@ -470,6 +566,14 @@ export class DataService {
 
     clonePreviousSchedule(date: string): Observable<any> {
         return this.http.get<any>(`${this.apiUrl}/institute/clone_previous_schedule?date=${date}`);
+    }
+
+    getTodayStaffAttendance(): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/staff-attendance/today`);
+    }
+
+    saveStaffAttendance(payload: any): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/staff-attendance/save`, payload);
     }
 
     // Exams (Reconstructed)
@@ -553,6 +657,10 @@ export class DataService {
         return this.http.post(`${this.apiUrl}/exams/reassign`, { exam_id: examId, student_id: studentId });
     }
 
+    unassignExam(examId: string, studentId: string): Observable<any> {
+        return this.http.post(`${this.apiUrl}/exams/unassign`, { exam_id: examId, student_id: studentId });
+    }
+
     saveExternalParticipant(data: any): Observable<any> {
         return this.http.post(`${this.apiUrl}/exams/save_participant`, data);
     }
@@ -586,7 +694,9 @@ export class DataService {
     }
 
     externalLogin(examId: any, email: any, password: any): Observable<any> {
-        return this.http.post(`${this.apiUrl}/exams/external_login`, { exam_id: examId, email, password });
+        return this.http.post<any>(`${this.apiUrl}/exams/external_login`, { exam_id: examId, email, password }).pipe(
+            map(res => res?.data ?? null)
+        );
     }
 
     getExamSubmissions(examId: string): Observable<any[]> {
@@ -652,6 +762,28 @@ export class DataService {
 
     deleteQuestionBankItem(id: string): Observable<any> {
         return this.http.post(`${this.apiUrl}/exams/delete_question_bank`, { id });
+    }
+
+    // Offline Exam Entries
+    getExamEntries(courseId?: string): Observable<any[]> {
+        const query = courseId ? `?course_id=${courseId}` : '';
+        return this.http.get<any>(`${this.apiUrl}/exams/entries${query}`).pipe(
+            map(res => res?.data || [])
+        );
+    }
+
+    getExamEntryDetails(id: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/exams/entry_details?id=${id}`).pipe(
+            map(res => res?.data || null)
+        );
+    }
+
+    saveExamEntry(entry: any): Observable<any> {
+        return this.http.post(`${this.apiUrl}/exams/save_entry`, entry);
+    }
+
+    deleteExamEntry(id: string): Observable<any> {
+        return this.http.post(`${this.apiUrl}/exams/delete_entry`, { id });
     }
 
     // Study Materials
@@ -736,16 +868,37 @@ export class DataService {
         return this.http.post(`${this.apiUrl}/institute/mark_notification_read`, {});
     }
 
-    getAttendanceReport(filters: any = {}): Observable<any[]> {
+    getAttendanceReport(filters: any = {}): Observable<any> {
         const query = this.buildQuery(filters);
         return this.http.get<any>(`${this.apiUrl}/reports/attendance_report${query}`).pipe(
-            map(res => (res.data || []).map((s: any) => ({
-                ...s,
-                total_sessions: parseInt(s.total_sessions) || 0,
-                present_count: parseInt(s.present_count) || 0,
-                absent_count: parseInt(s.absent_count) || 0,
-                percentage: s.total_sessions > 0 ? Math.round((s.present_count / s.total_sessions) * 100) : 0
-            })))
+            map(res => {
+                const data = res?.data || {};
+                if (data.content && Array.isArray(data.content)) {
+                    data.content = data.content.map((s: any) => ({
+                        ...s,
+                        total_sessions: parseInt(s.total_sessions) || 0,
+                        present_count: parseInt(s.present_count) || 0,
+                        absent_count: parseInt(s.absent_count) || 0,
+                        late_count: parseInt(s.late_count) || 0,
+                        leave_count: parseInt(s.leave_count) || 0,
+                        percentage: Number(s.percentage) || 0
+                    }));
+                }
+                return data;
+            })
+        );
+    }
+
+    getAttendanceAnalytics(filters: any = {}): Observable<any> {
+        const query = this.buildQuery(filters);
+        return this.http.get<any>(`${this.apiUrl}/reports/attendance_analytics${query}`).pipe(
+            map(res => res?.data || {})
+        );
+    }
+
+    getDayBook(date: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/reports/day_book?date=${date}`).pipe(
+            map(res => res.data || {})
         );
     }
 
@@ -782,6 +935,11 @@ export class DataService {
     getAuditLogs(filters: any = {}): Observable<any[]> {
         const query = this.buildQuery(filters);
         return this.http.get<any>(`${this.apiUrl}/reports/audit_logs${query}`).pipe(map(r => r.data || []));
+    }
+
+    getRecentActivities(filters: any = {}): Observable<RecentActivity[]> {
+        const query = this.buildQuery(filters);
+        return this.http.get<any>(`${this.apiUrl}/reports/recent_activities${query}`).pipe(map(r => r.data || []));
     }
 
     getStaffWorklog(filters: any = {}): Observable<any[]> {
@@ -858,11 +1016,23 @@ export class DataService {
 
     // Branches
     getBranches(): Observable<Branch[]> {
-        return this.http.get<Branch[]>(`${this.apiUrl}/branches`);
+        return this.http.get<Branch[]>(`${this.apiUrl}/branches`).pipe(
+            map(branches => [...branches].sort((a, b) => {
+                if (a.isMain && !b.isMain) return -1;
+                if (!a.isMain && b.isMain) return 1;
+                return a.name.localeCompare(b.name);
+            }))
+        );
     }
 
     getActiveBranches(): Observable<Branch[]> {
-        return this.http.get<Branch[]>(`${this.apiUrl}/branches/active`);
+        return this.http.get<Branch[]>(`${this.apiUrl}/branches/active`).pipe(
+            map(branches => [...branches].sort((a, b) => {
+                if (a.isMain && !b.isMain) return -1;
+                if (!a.isMain && b.isMain) return 1;
+                return a.name.localeCompare(b.name);
+            }))
+        );
     }
 
     saveBranch(branch: Branch): Observable<Branch> {
@@ -920,7 +1090,9 @@ export class DataService {
             appearance_mode: settings?.appearance_mode ?? settings?.appearanceMode,
             admin_as_staff: settings?.admin_as_staff ?? settings?.adminAsStaff,
             allow_performance_exams: settings?.allow_performance_exams ?? settings?.allowPerformanceExams,
-            enableMultipleBranches: settings?.enableMultipleBranches ?? settings?.enable_multiple_branches
+            enableMultipleBranches: settings?.enableMultipleBranches ?? settings?.enable_multiple_branches,
+            enableStandardCourses: settings?.enableStandardCourses ?? settings?.enable_standard_courses,
+            enable_standard_courses: settings?.enableStandardCourses ?? settings?.enable_standard_courses
         };
     }
 }

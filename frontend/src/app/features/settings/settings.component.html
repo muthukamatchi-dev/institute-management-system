@@ -18,7 +18,7 @@
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">General</p>
                     </div>
 
-                    <button (click)="setSection('general', 'overview')"
+                    <button *ngIf="!isStaffOrStudent(authService.currentUserValue)" (click)="setSection('general', 'overview')"
                         [class.bg-primary-50]="activeSection === 'general' && activePage === 'overview'"
                         [class.dark:bg-primary-900/10]="activeSection === 'general' && activePage === 'overview'"
                         [class.text-primary-700]="activeSection === 'general' && activePage === 'overview'"
@@ -36,7 +36,7 @@
                         <p class="sm:hidden lg:hidden text-xs font-bold">General</p>
                     </button>
 
-                    <button (click)="setSection('general', 'notifications')"
+                    <button *ngIf="!isStaffOrStudent(authService.currentUserValue)" (click)="setSection('general', 'notifications')"
                         [class.bg-primary-50]="activeSection === 'general' && activePage === 'notifications'"
                         [class.dark:bg-primary-900/10]="activeSection === 'general' && activePage === 'notifications'"
                         [class.text-primary-700]="activeSection === 'general' && activePage === 'notifications'"
@@ -73,7 +73,7 @@
                 </div>
 
                 <!-- Automation Section -->
-                <div class="flex lg:flex-col gap-1 items-center lg:items-stretch">
+                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)" class="flex lg:flex-col gap-1 items-center lg:items-stretch">
                     <div class="hidden lg:block px-3 py-2 mt-4 mb-1">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">IDs</p>
                     </div>
@@ -131,7 +131,7 @@
                 </div>
 
                 <!-- Info Section -->
-                <div class="flex lg:flex-col gap-1 items-center lg:items-stretch">
+                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)" class="flex lg:flex-col gap-1 items-center lg:items-stretch">
                     <div class="hidden lg:block px-3 py-2 mt-4 mb-1">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Profile</p>
                     </div>
@@ -172,7 +172,7 @@
                 </div>
 
                 <!-- Operations Section -->
-                <div class="flex lg:flex-col gap-1 items-center lg:items-stretch">
+                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)" class="flex lg:flex-col gap-1 items-center lg:items-stretch">
                     <div class="hidden lg:block px-3 py-2 mt-4 mb-1">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Operations</p>
                     </div>
@@ -795,50 +795,29 @@
                         </div>
                     </div>
 
-                    <!-- Dark Mode Toggle -->
+                    <!-- Display Mode (Dark Mode Only) -->
                     <div>
                         <label
                             class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">Display
                             Mode</label>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Light Mode Card -->
-                            <button (click)="selectMode('light')" [class.ring-2]="appearance.mode === 'light'"
-                                [class.ring-primary-500]="appearance.mode === 'light'"
-                                [class.bg-primary-50/50]="appearance.mode === 'light'"
-                                class="flex items-center gap-4 p-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 hover:border-primary-200 dark:hover:border-primary-700 transition-all text-left outline-none">
-                                <div
-                                    class="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-2xl">
-                                    ☀️</div>
-                                <div>
-                                    <p class="font-black text-slate-800 dark:text-slate-200 text-sm">Light Mode</p>
-                                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Clean, bright and crisp
-                                        interface</p>
-                                </div>
-                                <div *ngIf="appearance.mode === 'light'"
-                                    class="ml-auto w-6 h-6 rounded-full bg-primary-500 flex items-center justify-center text-white font-bold text-[10px]">
-                                    ✓</div>
-                            </button>
-
+                        <div class="max-w-md">
                             <!-- Dark Mode Card -->
-                            <button (click)="selectMode('dark')" [class.ring-2]="appearance.mode === 'dark'"
-                                [class.ring-primary-500]="appearance.mode === 'dark'"
-                                [class.bg-slate-900]="appearance.mode === 'dark'"
-                                class="flex items-center gap-4 p-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-all text-left group outline-none">
+                            <div
+                                class="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary-500/30 bg-slate-900 shadow-md text-left transition-all">
                                 <div
-                                    class="w-12 h-12 rounded-xl bg-slate-800 dark:bg-slate-700 border border-slate-700 dark:border-slate-600 shadow-sm flex items-center justify-center text-2xl">
+                                    class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl">
                                     🌙</div>
-                                <div>
-                                    <p class="font-black text-sm group-hover:text-slate-800 dark:group-hover:text-white"
-                                        [class.text-slate-400]="appearance.mode === 'light'"
-                                        [class.text-white]="appearance.mode === 'dark'">Dark Mode</p>
-                                    <p class="text-xs mt-0.5" [class.text-slate-500]="appearance.mode === 'light'"
-                                        [class.text-slate-400]="appearance.mode === 'dark'">Soft on eyes, sleek dark
-                                        theme</p>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-black text-white text-sm">Dark Mode</p>
+                                        <span class="px-2 py-0.5 text-[9px] font-extrabold uppercase bg-primary-500/20 text-primary-400 border border-primary-500/30 rounded-full tracking-wider">System Default</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-0.5">Soft on eyes, sleek dark theme</p>
                                 </div>
-                                <div *ngIf="appearance.mode === 'dark'"
-                                    class="ml-auto w-6 h-6 rounded-full bg-primary-500 flex items-center justify-center text-white font-bold text-[10px]">
+                                <div
+                                    class="w-6 h-6 rounded-full bg-primary-500 flex items-center justify-center text-white font-bold text-[10px]">
                                     ✓</div>
-                            </button>
+                            </div>
                         </div>
                     </div>
 
@@ -885,7 +864,7 @@
                     <div class="flex items-center gap-8">
                         <div (click)="triggerLogoUpload()"
                             class="w-28 h-28 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center group cursor-pointer hover:border-primary-400 dark:hover:border-primary-700 transition-all hover:shadow-lg relative overflow-hidden">
-                            <img *ngIf="profile.logoPath" [src]="'http://localhost:8081/' + profile.logoPath"
+                            <img *ngIf="profile.logoPath" [src]="getImageUrl(profile.logoPath)"
                                 class="absolute inset-0 w-full h-full object-contain p-2">
                             <div *ngIf="!profile.logoPath" class="contents">
                                 <span class="text-4xl mb-1">🖼️</span>
@@ -1233,6 +1212,29 @@
                         </label>
                     </div>
 
+                    <div
+                        class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                        <div class="flex items-center gap-5">
+                            <div
+                                class="w-14 h-14 rounded-2xl bg-cyan-50 dark:bg-cyan-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                🎓
+                            </div>
+                            <div>
+                                <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Standard Courses</p>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                    When enabled, you can define standard courses (e.g. 1st std, 10 std) with subject lists and separate subject fees.
+                                </p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" [(ngModel)]="advancedSettings.enableStandardCourses"
+                                class="sr-only peer">
+                            <div
+                                class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                            </div>
+                        </label>
+                    </div>
+
                     <div class="pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                         <div>
                             <p *ngIf="saveStatus === 'saved'"
@@ -1515,6 +1517,25 @@
                         Address</label>
                     <textarea [(ngModel)]="newBranch.address" rows="3" placeholder="Enter branch location details..."
                         class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 transition-all font-medium text-sm"></textarea>
+                </div>
+
+                <!-- City, State, Pincode -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">City</label>
+                        <input type="text" [(ngModel)]="newBranch.city" placeholder="e.g. New York"
+                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 transition-all font-bold text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">State</label>
+                        <input type="text" [(ngModel)]="newBranch.state" placeholder="e.g. NY"
+                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 transition-all font-bold text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pincode / Zip</label>
+                        <input type="text" [(ngModel)]="newBranch.pincode" placeholder="e.g. 10001"
+                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 transition-all font-bold text-sm">
+                    </div>
                 </div>
 
                 <!-- Main Branch Toggle -->

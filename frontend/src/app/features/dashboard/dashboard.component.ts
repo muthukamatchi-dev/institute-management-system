@@ -1,25 +1,28 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { DataService } from '../../services/data.service';
 import { AuthService } from '../../services/auth.service';
 import { DashboardStats, RecentActivity } from '../../models';
-import { Observable, forkJoin } from 'rxjs';
+import { forkJoin } from 'rxjs';
 import { Chart, registerables } from 'chart.js';
+import { ModalComponent } from '../../shared/ui/modal.component';
 Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, ModalComponent],
   templateUrl: './dashboard.component.html'
 })
 export class DashboardComponent implements OnInit {
-  stats$: Observable<DashboardStats> | undefined;
+  stats: DashboardStats | undefined;
   activities: RecentActivity[] = [];
   activitiesLoading = true;
   deadlines: any[] = [];
   deadlinesLoading = true;
+  dueReminders: any[] = [];
+  isReminderPopupOpen = false;
   today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   currentUser: any;
 
@@ -27,6 +30,23 @@ export class DashboardComponent implements OnInit {
   enrollmentChart: any;
   revenueChart: any;
   expenseChart: any;
+  enrollmentTrends: any[] = [];
+  revenueBreakdown: any[] = [];
+  expenseBreakdown: any[] = [];
+
+  selectedRange = 'last_month';
+  ranges = [
+    { id: 'today', name: 'Today' },
+    { id: 'yesterday', name: 'Yesterday' },
+    { id: 'this_week', name: 'This Week' },
+    { id: 'last_week', name: 'Last Week' },
+    { id: 'this_month', name: 'This Month' },
+    { id: 'last_month', name: 'Last Month' },
+    { id: 'this_quarter', name: 'This Quarter' },
+    { id: 'last_quarter', name: 'Last Quarter' },
+    { id: 'this_fiscal_year', name: 'This Fiscal Year' },
+    { id: 'last_fiscal_year', name: 'Last Fiscal Year' }
+  ];
 
   constructor(private dataService: DataService, private authService: AuthService, private router: Router) { }
 
@@ -42,15 +62,7 @@ export class DashboardComponent implements OnInit {
       }
     });
 
-    this.stats$ = this.dataService.getStats();
-
-    this.dataService.getRecentActivities().subscribe({
-      next: data => {
-        this.activities = data;
-        this.activitiesLoading = false;
-      },
-      error: () => this.activitiesLoading = false
-    });
+    this.refreshDashboard();
 
     this.dataService.getUpcomingDeadlines().subscribe({
       next: data => {
@@ -60,15 +72,51 @@ export class DashboardComponent implements OnInit {
       error: () => this.deadlinesLoading = false
     });
 
+    // Check for due fee reminders and show popup
+    this.dataService.getDueReminders().subscribe({
+      next: reminders => {
+        if (reminders && reminders.length > 0) {
+          this.dueReminders = reminders;
+          this.isReminderPopupOpen = true;
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  refreshDashboard() {
+    // Stats and Activities are now "normal" (all-time)
+    this.dataService.getStats({}).subscribe(res => this.stats = res);
+
+    this.activitiesLoading = true;
+    this.dataService.getRecentActivities({}).subscribe({
+      next: data => {
+        this.activities = data;
+        this.activitiesLoading = false;
+      },
+      error: () => this.activitiesLoading = false
+    });
+
+    // Only charts work on the basis of selected option
     this.initCharts();
   }
 
+  onRangeChange(event: any) {
+    this.selectedRange = event.target.value;
+    this.refreshDashboard();
+  }
+
   initCharts() {
+    const filters = { range: this.selectedRange };
+
     forkJoin({
-      trends: this.dataService.getEnrollmentTrends(),
-      revenue: this.dataService.getCourseRevenue(),
-      expenses: this.dataService.getExpenseStats()
+      trends: this.dataService.getEnrollmentTrends(filters),
+      revenue: this.dataService.getCourseRevenue(filters),
+      expenses: this.dataService.getExpenseStats(filters)
     }).subscribe(res => {
+      this.enrollmentTrends = res.trends || [];
+      this.revenueBreakdown = res.revenue || [];
+      this.expenseBreakdown = res.expenses || [];
       this.createEnrollmentChart(res.trends);
       this.createRevenueChart(res.revenue);
       this.createExpenseChart(res.expenses);
@@ -78,6 +126,15 @@ export class DashboardComponent implements OnInit {
   createEnrollmentChart(trends: any[]) {
     const ctx = document.getElementById('enrollmentChart') as HTMLCanvasElement;
     if (!ctx) return;
+
+    if (this.enrollmentChart) {
+      this.enrollmentChart.destroy();
+    }
+
+    if (!trends?.length) {
+      this.enrollmentChart = null;
+      return;
+    }
 
     const labels = trends.map(t => t.month);
     const data = trends.map(t => t.count);
@@ -115,7 +172,16 @@ export class DashboardComponent implements OnInit {
     const ctx = document.getElementById('revenueChart') as HTMLCanvasElement;
     if (!ctx) return;
 
-    const labels = revenue.map(r => r.course_name);
+    if (this.revenueChart) {
+      this.revenueChart.destroy();
+    }
+
+    if (!revenue?.length) {
+      this.revenueChart = null;
+      return;
+    }
+
+    const labels = revenue.map(r => r.course_name || r.name || 'Unknown');
     const data = revenue.map(r => r.total_revenue);
 
     this.revenueChart = new Chart(ctx, {
@@ -149,6 +215,15 @@ export class DashboardComponent implements OnInit {
   createExpenseChart(expenses: any[]) {
     const ctx = document.getElementById('expenseChart') as HTMLCanvasElement;
     if (!ctx) return;
+
+    if (this.expenseChart) {
+      this.expenseChart.destroy();
+    }
+
+    if (!expenses?.length) {
+      this.expenseChart = null;
+      return;
+    }
 
     const labels = expenses.map(e => e.category);
     const data = expenses.map(e => e.total_amount);

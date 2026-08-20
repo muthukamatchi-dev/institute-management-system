@@ -3,6 +3,7 @@ import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { User } from '../models';
+import { TenantService } from './tenant.service';
 
 @Injectable({
     providedIn: 'root'
@@ -11,8 +12,15 @@ export class AuthService {
     private apiUrl = 'http://localhost:8081/api';
     private currentUserSubject = new BehaviorSubject<User | null>(null);
     public currentUser = this.currentUserSubject.asObservable();
+    public get currentUserValue(): User | null {
+        return this.currentUserSubject.value;
+    }
 
-    constructor(private http: HttpClient, private router: Router) {
+    constructor(
+        private http: HttpClient,
+        private router: Router,
+        private tenantService: TenantService
+    ) {
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
             this.currentUserSubject.next(JSON.parse(savedUser));
@@ -30,24 +38,31 @@ export class AuthService {
             .then(res => res.json())
             .then(config => {
                 if (config.autoLogin?.enabled) {
-                    const { username, password, tenantId } = config.autoLogin;
-                    localStorage.setItem('tenantId', tenantId || 'default');
+                    const { username, password } = config.autoLogin;
                     this.login(username, password).subscribe();
                 }
             })
             .catch(err => console.log('Auto-login skip', err));
     }
 
+    /**
+     * Login — no tenant code needed.
+     * Tenant is resolved by the backend from the subdomain in the Host header.
+     */
     login(username: string, password: string): Observable<any> {
-        return this.http.post<any>(`${this.apiUrl}/auth/login`, { username, password }).pipe(
+        const payload: any = { username, password };
+
+        return this.http.post<any>(`${this.apiUrl}/auth/login`, payload).pipe(
             tap(res => {
                 if (res.status === 'success') {
                     const user = res.user;
                     localStorage.setItem('currentUser', JSON.stringify(user));
-                    localStorage.setItem('token', user.token);
-                    // Ensure tenantId persists
-                    if (!localStorage.getItem('tenantId')) {
-                        localStorage.setItem('tenantId', 'default');
+                    const jwtToken = (user as any).jwt_token;
+                    localStorage.setItem('token', jwtToken || user.token);
+                    // Store tenant info from response
+                    localStorage.setItem('tenantId', user.tenant_code || 'SYSTEM');
+                    if (user.subdomain) {
+                        localStorage.setItem('tenantSubdomain', user.subdomain);
                     }
                     this.currentUserSubject.next(user);
                 }
@@ -61,7 +76,8 @@ export class AuthService {
 
         localStorage.removeItem('currentUser');
         localStorage.removeItem('token');
-        localStorage.removeItem('tenantId'); // Also clear tenant on logout
+        localStorage.removeItem('tenantId');
+        localStorage.removeItem('tenantSubdomain');
         this.currentUserSubject.next(null);
 
         this.router.navigate(['/login']);
@@ -81,6 +97,17 @@ export class AuthService {
 
     getTenantId(): string {
         return localStorage.getItem('tenantId') || 'default';
+    }
+
+    validateTenant(tenantCode: string): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/auth/validate-tenant`, { tenant_code: tenantCode });
+    }
+
+    isSuperAdmin(): boolean {
+        const user = this.currentUserSubject.value;
+        if (!user) return false;
+        const role = (user.role_name || user.role || '').trim().toLowerCase();
+        return role === 'super admin' || role === 'super_admin';
     }
 
     changePassword(newPassword: string): Observable<any> {
