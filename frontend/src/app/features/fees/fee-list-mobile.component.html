@@ -1,0 +1,357 @@
+<!-- Mobile Fee List Template -->
+<div class="m-fees p-3 pb-24 space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">Fee Management</h2>
+      <p class="text-xs text-slate-500">Track collections & dues</p>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <input type="text" [(ngModel)]="searchTerm" placeholder="Search student name or reg..." 
+         class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white shadow-sm">
+
+  <!-- Fee Record Cards -->
+  <div class="space-y-3">
+    <div *ngFor="let f of sortedFees()" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-3">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ f.studentName }}</h3>
+          <p class="text-xs text-slate-500 font-mono">{{ f.regNumber }} • {{ f.courseName || 'Course' }}</p>
+        </div>
+        <span [class.bg-emerald-100]="f.status === 'paid'" [class.text-emerald-700]="f.status === 'paid'"
+              [class.bg-amber-100]="f.status === 'partially_paid'" [class.text-amber-700]="f.status === 'partially_paid'"
+              [class.bg-rose-100]="f.status === 'pending'" [class.text-rose-700]="f.status === 'pending'"
+              class="px-2.5 py-1 rounded-full text-xs font-bold capitalize">
+          {{ f.status }}
+        </span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 text-xs bg-slate-50 dark:bg-slate-900 p-2.5 rounded-lg text-center">
+        <div>
+          <span class="text-[10px] text-slate-400 block font-bold">TOTAL</span>
+          <span class="font-extrabold text-slate-700 dark:text-slate-200">₹{{ f.totalAmount | number:'1.0-0' }}</span>
+        </div>
+        <div>
+          <span class="text-[10px] text-emerald-500 block font-bold">PAID</span>
+          <span class="font-extrabold text-emerald-600">₹{{ f.paidAmount | number:'1.0-0' }}</span>
+        </div>
+        <div>
+          <span class="text-[10px] text-rose-500 block font-bold">DUE</span>
+          <span class="font-extrabold text-rose-600">₹{{ f.balanceAmount | number:'1.0-0' }}</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/50 justify-end">
+        <button (click)="openCollectModal(f)" class="px-3.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-sm">
+          💰 Collect Fee
+        </button>
+        <button (click)="viewDetails(f)" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold">
+          Details
+        </button>
+      </div>
+    </div>
+    <div *ngIf="sortedFees().length === 0" class="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No fee records found.
+    </div>
+  </div>
+</div>
+
+<!-- Details Modal -->
+<app-modal [isOpen]="isDetailsModalOpen" title="Fees Details" [showFooter]="false"
+    (onClose)="isDetailsModalOpen = false">
+    <div class="space-y-6 py-2" *ngIf="selectedFeeInfo">
+        <!-- Student Header -->
+        <div
+            class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div
+                class="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center text-xl font-bold">
+                {{ selectedFeeInfo.studentName?.charAt(0) }}
+            </div>
+            <div>
+                <h3 class="font-black text-slate-800 dark:text-white">{{ selectedFeeInfo.studentName }}</h3>
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">{{ selectedFeeInfo.regNumber }} •
+                    {{ selectedFeeInfo.courseName }} • {{ selectedFeeInfo.batchName }}</p>
+            </div>
+        </div>
+
+        <!-- Status Summary Cards -->
+        <div class="grid grid-cols-2 gap-4">
+            <div
+                class="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-[2rem] border border-emerald-100 dark:border-emerald-900/50">
+                <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Paid</p>
+                <p class="text-xl font-black text-emerald-700 dark:text-emerald-400">₹{{ selectedFeeInfo.paidAmount |
+                    number }}</p>
+            </div>
+            <div
+                class="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-[2rem] border border-rose-100 dark:border-rose-900/50">
+                <p class="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Balance Due</p>
+                <p class="text-xl font-black text-rose-700 dark:text-rose-400">₹{{ selectedFeeInfo.balanceAmount |
+                    number }}</p>
+            </div>
+        </div>
+
+        <!-- Fee Structure Detail -->
+        <div *ngIf="selectedFeeInfo.course_fee_period"
+            class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-2">
+            <p class="font-bold uppercase tracking-wider text-[10px] text-slate-400">Fee Calculation Details</p>
+            <div class="flex justify-between">
+                <span>{{ getPeriodLabel(selectedFeeInfo) }} Rate:</span>
+                <span class="font-bold text-slate-800 dark:text-slate-200">
+                    ₹{{ getMonthlyPayable(selectedFeeInfo) | number }}
+                    <span *ngIf="selectedFeeInfo.course_fee_period !== 'course'">/ {{ selectedFeeInfo.course_fee_period
+                        }}</span>
+                    <span *ngIf="selectedFeeInfo.course_fee_period === 'course'"> (One-time)</span>
+                </span>
+            </div>
+            <div class="flex justify-between" *ngIf="selectedFeeInfo.course_fee_period !== 'course'">
+                <span>Course Duration:</span>
+                <span class="font-bold text-slate-800 dark:text-slate-200">{{ selectedFeeInfo.course_duration }}</span>
+            </div>
+            <div class="flex justify-between" *ngIf="(selectedFeeInfo.fee_overdue || 0) > 0">
+                <span class="text-rose-500 font-medium">Overdue Amount:</span>
+                <span class="font-bold text-rose-600 dark:text-rose-400">₹{{ selectedFeeInfo.fee_overdue | number
+                    }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span>This {{ getPeriodLabel(selectedFeeInfo) }} Payable:</span>
+                <span class="font-bold text-slate-800 dark:text-slate-200">₹{{ ((selectedFeeInfo.this_period_payable ||
+                    0) - (selectedFeeInfo.fee_overdue || 0)) | number }}</span>
+            </div>
+            <div class="flex justify-between pt-1.5 border-t border-slate-200 dark:border-slate-700">
+                <span>Total Amount to Pay:</span>
+                <span class="font-extrabold text-primary-600 dark:text-primary-400">₹{{
+                    selectedFeeInfo.this_period_payable | number }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span>Calculated Total Fees:</span>
+                <span class="font-bold text-slate-800 dark:text-slate-200">₹{{ selectedFeeInfo.totalAmount |
+                    number }}</span>
+            </div>
+        </div>
+
+        <!-- Payment History -->
+        <div>
+            <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                <span>⏱</span> Transaction History
+            </h4>
+            <div class="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                <div *ngIf="feeHistory.length === 0"
+                    class="text-center py-6 text-slate-400 italic text-sm border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl">
+                    No transactions found
+                </div>
+                <div *ngFor="let h of feeHistory"
+                    class="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 group hover:border-primary-500/30 transition-all">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-lg">💰</div>
+                        <div>
+                            <p class="font-black text-slate-700 dark:text-slate-300">₹{{ h.amount | number }}</p>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ h.date }} • {{
+                                h.method }}</p>
+                        </div>
+                    </div>
+                    <button type="button" (click)="deleteReceipt(h)"
+                        class="p-2 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 hover:text-rose-700 rounded-lg transition-colors"
+                        title="Delete payment">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reminder Section (For Unpaid/Partial) -->
+        <div *ngIf="selectedFeeInfo.balanceAmount > 0"
+            class="p-5 bg-indigo-50 dark:bg-indigo-900/20 rounded-[2rem] border border-indigo-100 dark:border-indigo-900/50 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h4 class="font-black text-indigo-900 dark:text-indigo-100 text-sm">Follow-up Reminder</h4>
+                    <p class="text-[11px] text-indigo-600/70 dark:text-indigo-400/70 font-medium leading-tight mt-0.5">
+                        Automated notification to collect due amount.</p>
+                </div>
+                <!-- Premium Toggle -->
+                <label class="relative inline-flex items-center cursor-pointer group">
+                    <input type="checkbox" [(ngModel)]="reminderData.enabled" (change)="saveReminder()"
+                        class="sr-only peer">
+                    <div
+                        class="w-11 h-6 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-500/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
+                    </div>
+                </label>
+            </div>
+
+            <div *ngIf="reminderData.enabled" class="animate-in slide-in-from-top-2 duration-300">
+                <label
+                    class="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 ml-1">Reminder
+                    Date</label>
+                <app-date-picker [(ngModel)]="reminderData.date" (change)="saveReminder()"></app-date-picker>
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button (click)="isDetailsModalOpen = false"
+                class="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                Close Details
+            </button>
+            <button *ngIf="selectedFeeInfo.balanceAmount > 0"
+                (click)="isDetailsModalOpen = false; openCollectModal(selectedFeeInfo)"
+                class="flex-[2] py-4 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:bg-primary-700 transition-all">
+                Update Payment
+            </button>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Collect Fee Modal -->
+<app-modal [isOpen]="isCollectModalOpen"
+    [title]="paymentData.studentId ? 'Collect Fee: ' + selectedStudentName : 'Global Fee Collection'"
+    actionLabel="Record Payment" (onClose)="isCollectModalOpen = false" (onSubmit)="savePayment()">
+    <div class="space-y-4">
+        <div *ngIf="!paymentData.studentId" class="relative">
+            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Select Student</label>
+            <div class="relative">
+                <input type="text" [(ngModel)]="studentSearchQuery" (focus)="showStudentDropdown = true"
+                    placeholder="Search by name, reg no or batch..."
+                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white focus:ring-2 focus:ring-primary-500/20 outline-none pr-10">
+                <div class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <span *ngIf="!showStudentDropdown">🔍</span>
+                    <span *ngIf="showStudentDropdown" (click)="showStudentDropdown = false"
+                        class="cursor-pointer">✕</span>
+                </div>
+            </div>
+
+            <!-- Custom Dropdown Results -->
+            <div *ngIf="showStudentDropdown"
+                class="absolute z-[100] left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden divide-y divide-slate-100 dark:divide-slate-800 custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
+                <div *ngIf="filteredStudentOptions.length === 0"
+                    class="p-4 text-center text-slate-500 dark:text-slate-400">
+                    No students found matching your search.
+                </div>
+                <div *ngFor="let student of filteredStudentOptions" (click)="selectStudent(student)"
+                    class="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group">
+                    <div class="flex flex-col">
+                        <span
+                            class="font-bold text-slate-800 dark:text-white group-hover:text-primary-500 transition-colors">
+                            {{ student.regNumber ? student.regNumber + ' - ' : '' }}{{ student.name }}
+                        </span>
+                        <span class="text-xs text-slate-400 dark:text-slate-500 italic mt-0.5">
+                            Batch: {{ student.batchName || 'Not Assigned' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backdrop to close dropdown -->
+            <div *ngIf="showStudentDropdown" class="fixed inset-0 z-[90]" (click)="showStudentDropdown = false"></div>
+        </div>
+
+        <div class="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 space-y-3"
+            *ngIf="selectedFeeInfo">
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                    <span class="font-bold text-slate-400 dark:text-slate-500 uppercase text-[10px] block">Total Course Fee</span>
+                    <span class="font-bold text-slate-700 dark:text-slate-200">₹{{ selectedFeeInfo.totalAmount | number }}</span>
+                </div>
+                <div class="text-right">
+                    <span class="font-bold text-primary-400 uppercase text-[10px] block">{{ getPeriodLabel(selectedFeeInfo) }} Rate</span>
+                    <span class="font-black text-primary-600 dark:text-primary-400">₹{{ getMonthlyPayable(selectedFeeInfo) | number }}</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-indigo-100 dark:border-indigo-900/50">
+                <div>
+                    <span class="font-bold text-rose-500 uppercase text-[10px] block">Overdue Fee</span>
+                    <span class="font-bold text-rose-700 dark:text-rose-400">₹{{ (selectedFeeInfo.fee_overdue || 0) | number }}</span>
+                </div>
+                <div class="text-right">
+                    <span class="font-bold text-indigo-500 dark:text-indigo-400 uppercase text-[10px] block">This {{ getPeriodLabel(selectedFeeInfo) }} Fee</span>
+                    <span class="font-bold text-indigo-700 dark:text-indigo-300">₹{{ ((selectedFeeInfo.this_period_payable || 0) - (selectedFeeInfo.fee_overdue || 0)) | number }}</span>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2 border-t border-indigo-100 dark:border-indigo-900/50">
+                <span class="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase">Amount to Pay</span>
+                <span class="text-xl font-black text-indigo-700 dark:text-indigo-300">₹{{ (selectedFeeInfo.this_period_payable || 0) | number }}</span>
+            </div>
+            <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px]">Remaining Balance</span>
+                <span class="text-slate-700 dark:text-slate-300 font-bold">₹{{ (selectedFeeInfo.balanceAmount - (paymentData.amount || 0)) | number }}</span>
+            </div>
+        </div>
+
+        <div>
+            <div class="flex justify-between items-center mb-1">
+                <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Payment Amount (₹)</label>
+                <span *ngIf="selectedFeeInfo" class="text-xs text-primary-500 font-extrabold">
+                    Default: ₹{{ selectedFeeInfo.this_period_payable | number }}
+                </span>
+            </div>
+            <input type="number" [(ngModel)]="paymentData.amount"
+                class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-slate-800 dark:text-white focus:ring-2 focus:ring-primary-500/20 font-bold text-lg outline-none"
+                placeholder="Enter amount to collect">
+
+            <!-- Quick Payment Selector Chips -->
+            <div *ngIf="selectedFeeInfo && selectedFeeInfo.balanceAmount > 0" class="flex flex-wrap gap-2 mt-2">
+                <button type="button" (click)="setQuickAmountToPayable()"
+                    [class.bg-primary-600]="paymentData.amount === selectedFeeInfo.this_period_payable"
+                    [class.text-white]="paymentData.amount === selectedFeeInfo.this_period_payable"
+                    [class.bg-slate-100]="paymentData.amount !== selectedFeeInfo.this_period_payable"
+                    [class.dark:bg-slate-800]="paymentData.amount !== selectedFeeInfo.this_period_payable"
+                    [class.text-slate-700]="paymentData.amount !== selectedFeeInfo.this_period_payable"
+                    [class.dark:text-slate-300]="paymentData.amount !== selectedFeeInfo.this_period_payable"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-slate-700 hover:border-primary-500">
+                    Amount to Pay (₹{{ selectedFeeInfo.this_period_payable | number }})
+                </button>
+
+                <button type="button" (click)="setQuickAmount(1)" *ngIf="isMonthlyBilling(selectedFeeInfo)"
+                    [class.bg-primary-600]="paymentData.amount === getMonthlyPayable(selectedFeeInfo)"
+                    [class.text-white]="paymentData.amount === getMonthlyPayable(selectedFeeInfo)"
+                    [class.bg-slate-100]="paymentData.amount !== getMonthlyPayable(selectedFeeInfo)"
+                    [class.dark:bg-slate-800]="paymentData.amount !== getMonthlyPayable(selectedFeeInfo)"
+                    [class.text-slate-700]="paymentData.amount !== getMonthlyPayable(selectedFeeInfo)"
+                    [class.dark:text-slate-300]="paymentData.amount !== getMonthlyPayable(selectedFeeInfo)"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-slate-700 hover:border-primary-500">
+                    1 Month (₹{{ getMonthlyPayable(selectedFeeInfo) | number }})
+                </button>
+                <button type="button" (click)="setQuickAmount(-1)"
+                    [class.bg-primary-600]="paymentData.amount === selectedFeeInfo.balanceAmount"
+                    [class.text-white]="paymentData.amount === selectedFeeInfo.balanceAmount"
+                    [class.bg-slate-100]="paymentData.amount !== selectedFeeInfo.balanceAmount"
+                    [class.dark:bg-slate-800]="paymentData.amount !== selectedFeeInfo.balanceAmount"
+                    [class.text-slate-700]="paymentData.amount !== selectedFeeInfo.balanceAmount"
+                    [class.dark:text-slate-300]="paymentData.amount !== selectedFeeInfo.balanceAmount"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-slate-700 hover:border-primary-500">
+                    Full Balance (₹{{ selectedFeeInfo.balanceAmount | number }})
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method</label>
+            <select [(ngModel)]="paymentData.method"
+                class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white focus:ring-2 focus:ring-primary-500/20 outline-none cursor-pointer">
+                <option value="Cash">Cash</option>
+                <option value="UPI">UPI / GPay</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Cheque">Cheque</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Date</label>
+            <app-date-picker [(ngModel)]="paymentData.date"></app-date-picker>
+        </div>
+
+        <div>
+            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Transaction Ref / Receipt No (Optional)</label>
+            <input type="text" [(ngModel)]="paymentData.refNo"
+                class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-slate-800 dark:text-white focus:ring-2 focus:ring-primary-500/20 outline-none"
+                placeholder="e.g. TXN123456 or REC-001">
+        </div>
+
+        <!-- Custom Fields Section -->
+        <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <app-custom-fields-renderer location="collect_fee"
+                [entityId]="selectedFeeInfo ? selectedFeeInfo.id : ''"></app-custom-fields-renderer>
+        </div>
+    </div>
+</app-modal>
+

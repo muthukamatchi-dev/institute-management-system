@@ -140,6 +140,11 @@ import { ToastService } from '../../services/toast.service';
               <span class="text-lg group-hover/item:scale-110 transition-transform">❓</span> 
               <span>Help Center</span>
             </a>
+
+            <button (click)="openAboutModal()" class="w-full flex items-center gap-3 px-5 py-2.5 text-sm text-slate-600 dark:text-slate-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 hover:text-primary-700 dark:hover:text-primary-400 transition-colors font-bold group/item text-left">
+              <span class="text-lg group-hover/item:scale-110 transition-transform">🏢</span> 
+              <span>About Institute</span>
+            </button>
             
             <button *ngIf="isInstallable" (click)="installPwa()" 
                     class="w-full flex items-center gap-3 px-5 py-2.5 text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-all font-black group/install overflow-hidden relative">
@@ -165,10 +170,191 @@ import { ToastService } from '../../services/toast.service';
         </div>
       </div>
     </header>
+
+    <!-- About Institute Modal Backdrop -->
+    <div *ngIf="showAboutModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 overflow-hidden animate-fade-in" (click)="closeAboutModal()">
+      
+      <!-- Modal Card (Sized to match red boxed mark) -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl max-w-5xl w-full overflow-hidden transform transition-all animate-scale-up" (click)="$event.stopPropagation()">
+        
+        <!-- Modal Header -->
+        <div class="relative px-7 py-4 bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600 text-white flex items-center justify-between overflow-hidden">
+          <div class="flex items-center gap-3.5 z-10">
+            <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl shadow-inner border border-white/20 flex-shrink-0">
+              🏢
+            </div>
+            <div>
+              <div class="flex items-center gap-2.5">
+                <h3 class="text-lg font-black tracking-tight">About {{ aboutDetails?.institute?.name || 'Institute' }}</h3>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 flex items-center gap-1 shadow-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  {{ aboutDetails?.plan?.status || 'Active' }}
+                </span>
+              </div>
+              <p class="text-xs text-white/80 font-medium">Software Specifications, Plan Subscription & Automatic DB Backup Configuration</p>
+            </div>
+          </div>
+
+          <button (click)="closeAboutModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white font-bold text-base z-10 flex-shrink-0">
+            ✕
+          </button>
+        </div>
+
+        <!-- Modal Content (Spacious 1050px layout, non-scrolling) -->
+        <div class="p-6 space-y-4 text-slate-800 dark:text-slate-200">
+          
+          <!-- Spinner loading state -->
+          <div *ngIf="loadingAbout" class="py-12 text-center">
+            <div class="inline-block w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-xs font-bold text-slate-400 dark:text-slate-500 mt-2">Loading institute & plan details...</p>
+          </div>
+
+          <div *ngIf="!loadingAbout" class="space-y-4">
+            
+            <!-- SECTION 1: Institute Plan & Software Details -->
+            <div class="space-y-2.5">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <span>📋</span> Plan Subscription & System Details
+                </h4>
+                <span class="text-xs font-black text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-3 py-1 rounded-xl border border-primary-100 dark:border-primary-800/40">
+                  {{ aboutDetails?.plan?.version || 'Classivo CMS v2.4.0 PRO' }}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Plan Tier Card -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-3.5 shadow-xs">
+                  <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white font-black flex items-center justify-center text-lg flex-shrink-0 shadow-md">
+                    💎
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Current Plan Tier</p>
+                    <p class="text-sm font-black text-slate-900 dark:text-white truncate mt-0.5">{{ aboutDetails?.plan?.planName || 'Enterprise Plan' }}</p>
+                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Mode: {{ aboutDetails?.plan?.databaseMode || 'Shared Multi-Tenant' }}</p>
+                  </div>
+                </div>
+
+                <!-- Registration ID & Support Card -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-3.5 shadow-xs">
+                  <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-black flex items-center justify-center text-lg flex-shrink-0 shadow-md">
+                    🆔
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Institute ID & Support</p>
+                    <p class="text-sm font-black text-slate-900 dark:text-white truncate mt-0.5">{{ aboutDetails?.institute?.registrationId || 'INS-1001' }}</p>
+                    <p class="text-xs font-bold text-primary-600 dark:text-primary-400 truncate">{{ aboutDetails?.plan?.supportEmail || 'support@classivo.app' }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 2: Automatic Google Drive DB Backup Settings -->
+            <div class="space-y-2.5">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <span>☁️</span> Automatic DB Backup (Google Drive)
+                </h4>
+                <span *ngIf="aboutDetails?.backup?.lastBackupAt" class="text-xs font-semibold text-slate-400 dark:text-slate-500">
+                  Last Backup: {{ aboutDetails.backup.lastBackupAt | date:'medium' }}
+                </span>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/50 space-y-3">
+                <!-- Google Drive URL Input Row -->
+                <div class="flex items-center gap-3">
+                  <div class="relative flex-1">
+                    <input type="url" [(ngModel)]="gdriveBackupUrl"
+                           placeholder="https://drive.google.com/drive/folders/your-folder-id"
+                           class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 outline-none text-slate-800 dark:text-slate-100 font-medium">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm">🔗</span>
+                  </div>
+
+                  <button (click)="onSaveBackupSettings()" [disabled]="savingBackupSettings"
+                          class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-2 flex-shrink-0 cursor-pointer">
+                    <span *ngIf="savingBackupSettings" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                    <span>💾 Save Schedule</span>
+                  </button>
+                </div>
+
+                <!-- Backup Frequency Selector Pills -->
+                <div class="flex items-center justify-between gap-3 pt-0.5">
+                  <span class="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Schedule Frequency:</span>
+                  <div class="flex items-center gap-2 flex-1 max-w-lg">
+                    <button type="button" *ngFor="let opt of ['Daily', 'Weekly', 'Monthly', 'Quarterly']"
+                            (click)="backupFrequency = opt"
+                            [class.bg-primary-600]="backupFrequency === opt"
+                            [class.text-white]="backupFrequency === opt"
+                            [class.shadow-md]="backupFrequency === opt"
+                            [class.bg-white]="backupFrequency !== opt"
+                            [class.dark:bg-slate-900]="backupFrequency !== opt"
+                            [class.text-slate-700]="backupFrequency !== opt"
+                            [class.dark:text-slate-200]="backupFrequency !== opt"
+                            [class.border-slate-300]="backupFrequency !== opt"
+                            [class.dark:border-slate-700]="backupFrequency !== opt"
+                            class="flex-1 py-2 px-3 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:border-primary-400">
+                      <span>{{ opt === 'Daily' ? '🕒' : opt === 'Weekly' ? '📅' : opt === 'Monthly' ? '🗓️' : '📊' }}</span>
+                      <span>{{ opt }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 3: Immediate Manual DB Backup Banner -->
+            <div class="p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-200 dark:border-blue-800/40 flex items-center justify-between gap-4 shadow-xs">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-10 h-10 rounded-xl bg-primary-600 text-white flex items-center justify-center text-lg shadow-md flex-shrink-0">
+                  📦
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-black text-slate-900 dark:text-white">Quick Manual Database Backup</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Export & download complete relational SQL database backup file directly to your local computer.</p>
+                </div>
+              </div>
+
+              <button (click)="onDownloadManualBackup()" [disabled]="downloadingBackup"
+                      class="px-5 py-2.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 group flex-shrink-0 cursor-pointer">
+                <span *ngIf="downloadingBackup" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span *ngIf="!downloadingBackup" class="text-sm group-hover:scale-125 transition-transform">📥</span>
+                <span>{{ downloadingBackup ? 'Generating...' : 'Manual DB Backup' }}</span>
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-7 py-3 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="font-bold">System Status: Operational</span>
+          </div>
+          <button (click)="closeAboutModal()" class="px-5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 font-bold text-xs text-slate-700 dark:text-slate-300 transition-colors cursor-pointer">
+            Close Window
+          </button>
+        </div>
+
+      </div>
+    </div>
   `
 })
 export class HeaderComponent implements OnInit, OnDestroy {
-  @Input() title: string = 'Dashboard';
+  private _title: string = 'Dashboard';
+  @Input()
+  get title(): string {
+    return this._title;
+  }
+  set title(val: string) {
+    if (!val) {
+      this._title = 'Dashboard';
+      return;
+    }
+    // Clean out query strings or hash parameters e.g. Attendance?batch_id=24...
+    const clean = val.split('?')[0].split('#')[0].trim();
+    this._title = clean || 'Dashboard';
+  }
   @Output() toggleSidebar = new EventEmitter<void>();
   user: User | null = null;
   showNotifications = false;
@@ -241,29 +427,34 @@ export class HeaderComponent implements OnInit, OnDestroy {
   loadNotifications() {
     this.dataService.getNotifications().subscribe(ns => {
       const seenIds = this.getSeenNotificationIds();
-      this.notifications = ns.filter(n => !n.is_read && !seenIds.has(String(n.id)));
-      this.unreadCount = this.notifications.length;
+      this.notifications = ns;
+      this.unreadCount = ns.filter(n => !n.is_read && !seenIds.has(String(n.id))).length;
     });
   }
 
   toggleNotifications(event: Event) {
     event.stopPropagation();
     this.showNotifications = !this.showNotifications;
-    if (this.showNotifications && this.unreadCount > 0) {
+    if (this.showNotifications) {
       const seenIds = this.getSeenNotificationIds();
       this.notifications.forEach(n => {
         if (n?.id != null) {
           seenIds.add(String(n.id));
         }
+        n.is_read = 1;
       });
       this.saveSeenNotificationIds(seenIds);
+      this.unreadCount = 0;
 
-      this.dataService.markNotificationsRead().subscribe(() => {
-        this.unreadCount = 0;
-        this.notifications.forEach(n => n.is_read = 1);
+      this.dataService.markNotificationsRead().subscribe({
+        next: () => {
+          this.unreadCount = 0;
+        },
+        error: () => {}
       });
     }
   }
+
 
   onSearchInput(event: any) {
     this.searchQuery = event.target.value;
@@ -381,6 +572,90 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.isInstallable = false;
       }
       this.deferredPrompt = null;
+    });
+  }
+
+  // About Modal State & Logic
+  showAboutModal = false;
+  aboutDetails: any = null;
+  loadingAbout = false;
+  savingBackupSettings = false;
+  downloadingBackup = false;
+
+  gdriveBackupUrl = '';
+  backupFrequency = 'Daily';
+
+  openAboutModal() {
+    this.showAboutModal = true;
+    this.loadingAbout = true;
+    this.dataService.getAboutInfo().subscribe({
+      next: (data) => {
+        this.aboutDetails = data;
+        if (data?.backup) {
+          this.gdriveBackupUrl = data.backup.gdriveBackupUrl || '';
+          this.backupFrequency = data.backup.backupFrequency || 'Daily';
+        }
+        this.loadingAbout = false;
+      },
+      error: (err) => {
+        console.error('Failed to load about details', err);
+        this.loadingAbout = false;
+      }
+    });
+  }
+
+  closeAboutModal() {
+    this.showAboutModal = false;
+  }
+
+  onSaveBackupSettings() {
+    if (this.savingBackupSettings) return;
+    this.savingBackupSettings = true;
+    this.dataService.saveBackupSettings({
+      gdrive_backup_url: this.gdriveBackupUrl,
+      backup_frequency: this.backupFrequency
+    }).subscribe({
+      next: () => {
+        this.savingBackupSettings = false;
+        this.toastService.success('Automatic DB Backup schedule saved!');
+        if (this.aboutDetails && this.aboutDetails.backup) {
+          this.aboutDetails.backup.gdriveBackupUrl = this.gdriveBackupUrl;
+          this.aboutDetails.backup.backupFrequency = this.backupFrequency;
+        }
+      },
+      error: (err) => {
+        this.savingBackupSettings = false;
+        this.toastService.error('Failed to save backup schedule settings');
+      }
+    });
+  }
+
+  onDownloadManualBackup() {
+    if (this.downloadingBackup) return;
+    this.downloadingBackup = true;
+    this.toastService.info('Preparing database backup export...', 3000);
+    this.dataService.downloadManualBackup().subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+        a.download = `institute_db_backup_${timestamp}.sql`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.downloadingBackup = false;
+        this.toastService.success('Manual DB Backup downloaded successfully!');
+        if (this.aboutDetails && this.aboutDetails.backup) {
+          this.aboutDetails.backup.lastBackupAt = new Date().toISOString();
+        }
+      },
+      error: (err) => {
+        this.downloadingBackup = false;
+        this.toastService.error('Failed to download manual database backup');
+      }
     });
   }
 }

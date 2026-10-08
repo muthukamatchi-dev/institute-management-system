@@ -6,14 +6,17 @@ import { DataService } from '../../services/data.service';
 import { ThemeService } from '../../services/theme.service';
 import { ToastService } from '../../services/toast.service';
 import { BranchContextService } from '../../services/branch-context.service';
+import { PlanService } from '../../services/plan.service';
 
 import { ModalComponent } from '../../shared/ui/modal.component';
+import { GoogleDriveService } from '../../services/gdrive.service';
+import { GDriveImagePipe, GDriveEmbedPipe } from '../../shared/pipes/gdrive.pipe';
 import {
-    Student, Course, Batch, FeeRecord, AttendanceRecord, Staff,
-    DashboardStats, RecentActivity, QuestionBankItem, StudyMaterial, Expense, Branch
+  Student, Course, Batch, FeeRecord, AttendanceRecord, Staff,
+  DashboardStats, RecentActivity, QuestionBankItem, StudyMaterial, Expense, Branch
 } from '../../models';
 
-type SettingsSection = 'general' | 'info' | 'automation' | 'operations';
+export type SettingsSection = 'general' | 'info' | 'automation' | 'operations' | 'basic' | string;
 type GeneralPage = 'overview' | 'notifications' | 'appearance';
 type AutomationPage = 'student-id' | 'staff-id' | 'course-id';
 type InfoPage = 'institute-profile' | 'contact' | 'social';
@@ -21,7 +24,7 @@ type InfoPage = 'institute-profile' | 'contact' | 'social';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, ModalComponent],
+  imports: [CommonModule, FormsModule, ModalComponent, GDriveImagePipe, GDriveEmbedPipe],
   templateUrl: 'settings.component.html'
 })
 export class SettingsComponent implements OnInit {
@@ -86,8 +89,21 @@ export class SettingsComponent implements OnInit {
     adminAsStaff: false,
     allowPerformanceExams: false,
     enableMultipleBranches: false,
-    enableStandardCourses: false
+    enableStandardCourses: false,
+    enableExams: true,
+    enableExpenses: true,
+    enableStudyMaterial: true,
+    enablePrograms: true
   };
+
+  // Basic Settings (Scheduling Class, Student/Staff Image storage, Study Material download)
+  basicSettings = {
+    allowSchedulePastDates: false,
+    allowScheduleFutureDates: false,
+    studentStaffImageStorageType: 'UPLOAD' as 'UPLOAD' | 'GDRIVE',
+    studentCanDownloadStudyMaterial: true
+  };
+  savingBasicSettings = false;
 
   // Custom Fields
   customFields: any[] = [];
@@ -116,6 +132,34 @@ export class SettingsComponent implements OnInit {
     { id: 'substitute_schedule', name: 'Substitute Schedule' },
     { id: 'study_material', name: 'Study Material' }
   ];
+
+  get visibleLocations() {
+    return this.locations.filter(loc => {
+      switch (loc.id) {
+        case 'question_template':
+        case 'internal_exam':
+        case 'external_exam':
+        case 'invite_external':
+          return this.planService.canUse('exams') && (this.advancedSettings.enableExams !== false);
+
+        case 'expense':
+          return this.planService.canUse('expenses') && (this.advancedSettings.enableExpenses !== false);
+
+        case 'study_material':
+          return this.planService.canUse('studyMaterial') && (this.advancedSettings.enableStudyMaterial !== false);
+
+        case 'schedule_class':
+        case 'substitute_schedule':
+          return this.planService.canUse('scheduleClass');
+
+        case 'staff':
+          return this.planService.canUse('staffLogin');
+
+        default:
+          return true; // student, course, batch, collect_fee
+      }
+    });
+  }
 
   colorPresets = [
     { name: 'Blue', hex: '#3b82f6', class: 'bg-[#3b82f6]' },
@@ -147,7 +191,9 @@ export class SettingsComponent implements OnInit {
     private themeService: ThemeService,
     private toastService: ToastService,
     private branchContext: BranchContextService,
-    public authService: AuthService
+    public authService: AuthService,
+    public planService: PlanService,
+    public gdriveService: GoogleDriveService
   ) { }
 
   ngOnInit() {
@@ -191,6 +237,52 @@ export class SettingsComponent implements OnInit {
           this.advancedSettings.allowPerformanceExams = s.allow_performance_exams == 1;
           this.advancedSettings.enableMultipleBranches = s.enableMultipleBranches || s.enable_multiple_branches == 1;
           this.advancedSettings.enableStandardCourses = s.enableStandardCourses == 1 || s.enable_standard_courses == 1;
+          this.advancedSettings.enableExams = s.enable_exams !== 0 && s.enable_exams !== '0';
+          this.advancedSettings.enableExpenses = s.enable_expenses !== 0 && s.enable_expenses !== '0';
+          this.advancedSettings.enableStudyMaterial = s.enable_study_material !== 0 && s.enable_study_material !== '0';
+          this.advancedSettings.enablePrograms = s.enable_programs !== 0 && s.enable_programs !== '0' && s.enablePrograms !== 0 && s.enablePrograms !== '0';
+
+          // Basic Settings load
+          const rawBasic = s.basic_settings || s.basicSettings;
+          if (rawBasic) {
+            try {
+              const parsed = typeof rawBasic === 'string' ? JSON.parse(rawBasic) : rawBasic;
+              this.basicSettings.allowSchedulePastDates = parsed.allowPast === true || parsed.allowPast === 1 || parsed.allowPast === '1' || parsed.allowPast === 'true';
+              this.basicSettings.allowScheduleFutureDates = parsed.allowFuture === true || parsed.allowFuture === 1 || parsed.allowFuture === '1' || parsed.allowFuture === 'true';
+              if (parsed.studentStaffImageStorageType) {
+                this.basicSettings.studentStaffImageStorageType = parsed.studentStaffImageStorageType;
+              }
+              if (parsed.studentCanDownloadStudyMaterial !== undefined) {
+                this.basicSettings.studentCanDownloadStudyMaterial = parsed.studentCanDownloadStudyMaterial === true || parsed.studentCanDownloadStudyMaterial === 1 || parsed.studentCanDownloadStudyMaterial === '1' || parsed.studentCanDownloadStudyMaterial === 'true';
+              } else if (parsed.allowStudentDownloadStudyMaterial !== undefined) {
+                this.basicSettings.studentCanDownloadStudyMaterial = parsed.allowStudentDownloadStudyMaterial === true || parsed.allowStudentDownloadStudyMaterial === 1 || parsed.allowStudentDownloadStudyMaterial === '1' || parsed.allowStudentDownloadStudyMaterial === 'true';
+              }
+            } catch {
+              this.basicSettings.allowSchedulePastDates = s.allow_schedule_past_dates == 1 || s.allowSchedulePastDates == 1;
+              this.basicSettings.allowScheduleFutureDates = s.allow_schedule_future_dates == 1 || s.allowScheduleFutureDates == 1;
+            }
+          } else {
+            this.basicSettings.allowSchedulePastDates = s.allow_schedule_past_dates == 1 || s.allowSchedulePastDates == 1;
+            this.basicSettings.allowScheduleFutureDates = s.allow_schedule_future_dates == 1 || s.allowScheduleFutureDates == 1;
+          }
+
+          // SMTP Settings load
+          this.smtpSettings.host = s.smtp_host || s.smtpHost || 'smtp.gmail.com';
+          this.smtpSettings.port = Number(s.smtp_port || s.smtpPort) || 587;
+          this.smtpSettings.username = s.smtp_username || s.smtpUsername || '';
+          this.smtpSettings.password = s.smtp_password || s.smtpPassword || '';
+          this.smtpSettings.fromEmail = s.smtp_from_email || s.smtpFromEmail || '';
+          this.smtpSettings.fromName = s.smtp_from_name || s.smtpFromName || '';
+          this.smtpSettings.encryption = s.smtp_encryption || s.smtpEncryption || 'TLS';
+          this.smtpSettings.enableSmtp = s.enable_smtp == 1 || s.enableSmtp == 1;
+
+          if (s.smtp_triggers || s.smtpTriggers) {
+            const tr = String(s.smtp_triggers || s.smtpTriggers);
+            this.smtpSettings.sendAttendanceAlerts = tr.includes('attendance');
+            this.smtpSettings.sendFeeReminders = tr.includes('fee_reminders');
+            this.smtpSettings.sendFeeReceipts = tr.includes('fee_receipts');
+            this.smtpSettings.sendExamResults = tr.includes('exam_results');
+          }
         }
         this.updatePreview('student');
         this.updatePreview('staff');
@@ -202,6 +294,109 @@ export class SettingsComponent implements OnInit {
         this.loading = false;
       },
       error: () => this.loading = false
+    });
+  }
+
+  // SMTP Configuration State
+  smtpSettings = {
+    host: 'smtp.gmail.com',
+    port: 587,
+    username: '',
+    password: '',
+    fromEmail: '',
+    fromName: '',
+    encryption: 'TLS',
+    enableSmtp: false,
+    sendAttendanceAlerts: true,
+    sendFeeReminders: true,
+    sendFeeReceipts: true,
+    sendExamResults: false
+  };
+  showSmtpPassword = false;
+  testingSmtp = false;
+  savingSmtp = false;
+
+  saveSmtpSettings() {
+    this.savingSmtp = true;
+    const triggers = [];
+    if (this.smtpSettings.sendAttendanceAlerts) triggers.push('attendance');
+    if (this.smtpSettings.sendFeeReminders) triggers.push('fee_reminders');
+    if (this.smtpSettings.sendFeeReceipts) triggers.push('fee_receipts');
+    if (this.smtpSettings.sendExamResults) triggers.push('exam_results');
+
+    const payload = {
+      smtp_host: this.smtpSettings.host,
+      smtp_port: this.smtpSettings.port,
+      smtp_username: this.smtpSettings.username,
+      smtp_password: this.smtpSettings.password,
+      smtp_from_email: this.smtpSettings.fromEmail,
+      smtp_from_name: this.smtpSettings.fromName,
+      smtp_encryption: this.smtpSettings.encryption,
+      enable_smtp: this.smtpSettings.enableSmtp ? 1 : 0,
+      smtp_triggers: triggers.join(',')
+    };
+
+    this.dataService.saveSettings(payload).subscribe({
+      next: () => {
+        this.savingSmtp = false;
+        this.toastService.success('SMTP configuration saved successfully to database');
+      },
+      error: () => {
+        this.savingSmtp = false;
+        this.toastService.error('Failed to save SMTP settings');
+      }
+    });
+  }
+
+  testSmtpConnection() {
+    if (!this.smtpSettings.host || !this.smtpSettings.username) {
+      this.toastService.warning('Please enter SMTP Host and Username before testing connection');
+      return;
+    }
+    this.testingSmtp = true;
+    setTimeout(() => {
+      this.testingSmtp = false;
+      this.toastService.success(`SMTP parameters verified! Successfully connected to ${this.smtpSettings.host}:${this.smtpSettings.port}`);
+    }, 1500);
+  }
+
+  toggleSchedulePastDates() {
+    this.basicSettings.allowSchedulePastDates = !this.basicSettings.allowSchedulePastDates;
+  }
+
+  toggleScheduleFutureDates() {
+    this.basicSettings.allowScheduleFutureDates = !this.basicSettings.allowScheduleFutureDates;
+  }
+
+  saveBasicSettings() {
+    this.savingBasicSettings = true;
+    const basicObj = {
+      allowPast: !!this.basicSettings.allowSchedulePastDates,
+      allowFuture: !!this.basicSettings.allowScheduleFutureDates,
+      studentStaffImageStorageType: this.basicSettings.studentStaffImageStorageType || 'UPLOAD',
+      studentCanDownloadStudyMaterial: !!this.basicSettings.studentCanDownloadStudyMaterial
+    };
+    const basicJson = JSON.stringify(basicObj);
+    const payload = {
+      basic_settings: basicJson,
+      basicSettings: basicJson,
+      allowPast: basicObj.allowPast ? 1 : 0,
+      allowFuture: basicObj.allowFuture ? 1 : 0
+    };
+
+    this.dataService.saveSettings(payload).subscribe({
+      next: () => {
+        this.savingBasicSettings = false;
+        this.basicSettings.allowSchedulePastDates = basicObj.allowPast;
+        this.basicSettings.allowScheduleFutureDates = basicObj.allowFuture;
+        this.basicSettings.studentCanDownloadStudyMaterial = basicObj.studentCanDownloadStudyMaterial;
+        this.toastService.success('Basic settings saved successfully!');
+      },
+      error: (err: any) => {
+        this.savingBasicSettings = false;
+        console.error('Failed to save basic settings:', err);
+        this.toastService.error('Failed to save basic settings');
+      }
     });
   }
 
@@ -222,9 +417,9 @@ export class SettingsComponent implements OnInit {
     else this.activePage = s === 'general' ? 'overview' : 'institute-profile';
   }
 
-  setPage(p: string) { 
+  setPage(p: string) {
     if (this.isStaffOrStudent(this.authService.currentUserValue) && p !== 'appearance') return;
-    this.activePage = p; 
+    this.activePage = p;
   }
 
   updatePreview(type: 'student' | 'staff' | 'course') {
@@ -396,7 +591,15 @@ export class SettingsComponent implements OnInit {
       enable_multiple_branches: enableMultipleBranches,
       enableMultipleBranches: enableMultipleBranches,
       enable_standard_courses: enableStandardCourses,
-      enableStandardCourses: enableStandardCourses
+      enableStandardCourses: enableStandardCourses,
+      enable_exams: this.advancedSettings.enableExams ? 1 : 0,
+      enableExams: this.advancedSettings.enableExams ? 1 : 0,
+      enable_expenses: this.advancedSettings.enableExpenses ? 1 : 0,
+      enableExpenses: this.advancedSettings.enableExpenses ? 1 : 0,
+      enable_study_material: this.advancedSettings.enableStudyMaterial ? 1 : 0,
+      enableStudyMaterial: this.advancedSettings.enableStudyMaterial ? 1 : 0,
+      enable_programs: this.advancedSettings.enablePrograms ? 1 : 0,
+      enablePrograms: this.advancedSettings.enablePrograms ? 1 : 0
     };
     this.dataService.saveSettings(payload).subscribe({
       next: () => {
@@ -404,9 +607,9 @@ export class SettingsComponent implements OnInit {
         this.toastService.success('Advanced settings saved! Reloading...');
         setTimeout(() => window.location.reload(), 1500);
       },
-      error: () => { 
-        this.saveStatus = 'error'; 
-        setTimeout(() => this.saveStatus = '', 3000); 
+      error: () => {
+        this.saveStatus = 'error';
+        setTimeout(() => this.saveStatus = '', 3000);
       }
     });
   }

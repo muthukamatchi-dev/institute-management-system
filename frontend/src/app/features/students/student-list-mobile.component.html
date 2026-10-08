@@ -1,0 +1,776 @@
+<!-- Mobile Student List Template -->
+<div class="m-students">
+  <!-- Search & Filter Bar -->
+  <div class="m-students-toolbar">
+    <div class="m-students-search">
+      <span class="m-search-icon">🔍</span>
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Search students..." class="m-search-input">
+    </div>
+    <div class="m-students-filters">
+      <div class="flex-1">
+        <app-searchable-select [options]="courseOptionsForFilter" placeholder="All Courses"
+          searchPlaceholder="Search courses..." labelKey="name" valueKey="id" [modelValue]="filterCourse"
+          (modelValueChange)="filterCourse = $event; onFilterChange()">
+        </app-searchable-select>
+      </div>
+      <select [(ngModel)]="filterStatus" (change)="onFilterChange()" class="m-filter-select">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Student Count -->
+  <div class="m-students-meta">
+    <span class="m-students-count">{{ filteredStudents().length }} students</span>
+    <div class="flex items-center gap-2">
+      <button (click)="triggerImport()"
+        class="px-3 py-1.5 rounded-xl font-bold text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">📥
+        Import</button>
+      <button (click)="openAddModal()" class="m-add-btn">+ Add</button>
+    </div>
+  </div>
+
+  <!-- Student Cards -->
+  <div class="m-students-list">
+    <div *ngFor="let s of paginatedStudents()" class="m-student-card" (click)="viewStudentDetails(s)">
+      <div class="m-student-card-top">
+        <div class="m-student-avatar">
+          <img *ngIf="s.photo" [src]="s.photo" class="m-student-photo">
+          <span *ngIf="!s.photo">{{ s.name?.charAt(0)?.toUpperCase() }}</span>
+        </div>
+        <div class="m-student-info">
+          <p class="m-student-name">{{ s.name }}</p>
+          <p class="m-student-reg" *ngIf="s.regNumber">{{ s.regNumber }}</p>
+        </div>
+        <span class="m-student-status" [class.m-status-active]="s.status === 'active'"
+          [class.m-status-inactive]="s.status !== 'active'">
+          {{ s.status }}
+        </span>
+      </div>
+      <div class="m-student-card-details">
+        <div class="m-student-detail">
+          <span class="m-detail-label">Course</span>
+          <span class="m-detail-value">{{ s.courseName || '—' }}</span>
+        </div>
+        <div class="m-student-detail">
+          <span class="m-detail-label">Phone</span>
+          <span class="m-detail-value">{{ s.mobile || '—' }}</span>
+        </div>
+        <div class="m-student-detail">
+          <span class="m-detail-label">Fee</span>
+          <span class="m-detail-value" [class.m-fee-paid]="s.feeStatus === 'paid'"
+            [class.m-fee-pending]="s.feeStatus !== 'paid'">
+            {{ s.feeStatus }}
+          </span>
+        </div>
+      </div>
+      <div class="m-student-actions">
+        <button (click)="editStudent(s); $event.stopPropagation()" class="m-action-btn">✏️ Edit</button>
+        <a [href]="'tel:' + s.mobile" (click)="$event.stopPropagation()" class="m-action-btn" *ngIf="s.mobile">📞
+          Call</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="filteredStudents().length === 0"
+    class="flex flex-col items-center justify-center gap-2 py-12 bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 text-center p-6 my-4 shadow-sm">
+    <span class="text-4xl mb-1">🎓</span>
+    <p class="text-sm font-bold text-slate-700 dark:text-slate-200">No student records found</p>
+    <p class="text-xs text-slate-400 dark:text-slate-500">There are no students registered yet or matching your search
+      filter.</p>
+    <button (click)="openAddModal()"
+      class="mt-2 px-4 py-2 bg-primary-600 text-white text-xs font-bold rounded-xl shadow-md">+ Add Student</button>
+  </div>
+
+  <!-- Pagination -->
+  <div *ngIf="totalPages() > 1" class="m-pagination">
+    <button (click)="prevPage()" [disabled]="currentPage <= 1" class="m-page-btn">← Prev</button>
+    <span class="m-page-info">{{ currentPage }} / {{ totalPages() }}</span>
+    <button (click)="nextPage()" [disabled]="currentPage >= totalPages()" class="m-page-btn">Next
+      →</button>
+  </div>
+
+  <!-- Add/Edit Student Modal (reuses existing modal component) -->
+  <app-modal [isOpen]="isModalOpen" [title]="newStudent.id ? 'Edit Student' : 'Enroll New Student'" [showFooter]="false"
+    (onClose)="isModalOpen = false" size="lg">
+
+    <!-- Compact Mobile Stepper Bar -->
+    <div
+      class="mb-4 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-between text-xs font-bold border border-slate-200 dark:border-slate-700">
+      <button (click)="currentStep = 1"
+        class="flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-all"
+        [class.bg-primary-600]="currentStep === 1" [class.text-white]="currentStep === 1"
+        [class.text-slate-500]="currentStep !== 1">
+        <span>1. Profile</span>
+      </button>
+      <span class="text-slate-300 dark:text-slate-600 px-1">➔</span>
+      <button (click)="createdStudent ? currentStep = 2 : null" [disabled]="!createdStudent"
+        class="flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all"
+        [class.cursor-pointer]="!!createdStudent" [class.cursor-not-allowed]="!createdStudent"
+        [class.bg-indigo-600]="currentStep === 2" [class.text-white]="currentStep === 2"
+        [class.text-slate-500]="currentStep !== 2" [class.opacity-50]="!createdStudent">
+        <span>2. Courses</span>
+      </button>
+    </div>
+
+    <div *ngIf="currentStep === 1" class="m-modal-form space-y-4">
+      <div class="m-form-group">
+        <label class="m-form-label">Name *</label>
+        <input type="text" [(ngModel)]="newStudent.name" class="m-form-input" placeholder="Student name">
+      </div>
+      <div class="m-form-group">
+        <label class="m-form-label">Email</label>
+        <input type="email" [(ngModel)]="newStudent.email" class="m-form-input" placeholder="Email address">
+      </div>
+      <div class="m-form-group">
+        <label class="m-form-label">Mobile *</label>
+        <input type="tel" [(ngModel)]="newStudent.mobile" class="m-form-input" placeholder="Phone number">
+      </div>
+      <div class="m-form-group">
+        <label class="m-form-label">Father's Name</label>
+        <input type="text" [(ngModel)]="newStudent.fatherName" class="m-form-input" placeholder="Father's name">
+      </div>
+      <div class="m-form-group">
+        <label class="m-form-label">Highest Qualification</label>
+        <input type="text" [(ngModel)]="newStudent.qualification" class="m-form-input" placeholder="Qualification">
+      </div>
+      <div class="m-form-group">
+        <label class="m-form-label">Date of Birth</label>
+        <app-date-picker [(ngModel)]="newStudent.dob"></app-date-picker>
+      </div>
+      <div class="m-form-group">
+        <label class="m-form-label">Gender</label>
+        <select [(ngModel)]="newStudent.gender" class="m-form-input">
+          <option value="">Select Gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="others">Others</option>
+        </select>
+      </div>
+      <div class="m-form-group">
+        <label class="m-form-label">Address</label>
+        <textarea [(ngModel)]="newStudent.address" class="m-form-input" rows="2"
+          placeholder="Door No, Street, Area, City, Pincode" style="resize: none;"></textarea>
+      </div>
+
+      <!-- Custom Fields -->
+      <app-custom-fields-renderer [location]="'student'" [entityId]="newStudent.id || ''"></app-custom-fields-renderer>
+
+      <div class="m-form-actions pt-2 flex justify-end gap-2">
+        <button (click)="isModalOpen = false" class="m-btn-secondary">Cancel</button>
+        <button (click)="goToStep2()" [disabled]="saving" class="m-btn-primary">{{ saving ? 'Saving...' : 'Next →'
+          }}</button>
+      </div>
+    </div>
+
+    <div *ngIf="currentStep === 2" class="space-y-4 p-1">
+      <div class="p-3 bg-primary-50 dark:bg-primary-900/20 rounded-xl flex items-center justify-between">
+        <div>
+          <p class="font-bold text-xs text-slate-800 dark:text-white">{{ createdStudent?.name || newStudent.name }}</p>
+          <p class="text-[10px] text-slate-500">{{ createdStudent?.mobile || newStudent.mobile }}</p>
+        </div>
+        <span class="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">Saved ✅</span>
+      </div>
+
+      <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-700 dark:text-slate-300">📚 ENROLLED COURSES ({{
+            studentCourses.length }})</span>
+          <button (click)="openAdditionalCourseModal()"
+            class="px-2.5 py-1 bg-indigo-600 text-white font-bold text-[10px] rounded-lg">
+            + ADD COURSE
+          </button>
+        </div>
+
+        <div *ngIf="studentCourses.length === 0" class="text-center py-4 text-xs text-slate-400">
+          No enrollments found. Click "+ ADD COURSE" to enroll.
+        </div>
+
+        <div *ngFor="let sc of studentCourses"
+          class="p-2 bg-white dark:bg-slate-900 rounded-lg flex items-center justify-between text-xs border border-slate-100 dark:border-slate-800 shadow-sm">
+          <span>📖 {{ sc.course_name }} - <span class="capitalize text-emerald-600 dark:text-emerald-400 font-bold">{{
+              sc.status }}</span></span>
+          <div class="flex items-center gap-1">
+            <button (click)="editCourseEnrollment(sc)"
+              class="text-indigo-600 hover:text-indigo-700 font-bold text-[10px] p-1 flex items-center gap-0.5">✏️
+              Edit</button>
+            <button (click)="unenrollFromCourse(sc.course_id)"
+              class="text-rose-500 font-bold text-[10px] p-1">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800">
+        <button (click)="currentStep = 1"
+          class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 text-xs font-bold rounded-lg">
+          ← Back
+        </button>
+        <button (click)="finishWizard()"
+          class="px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow">
+          Complete Enrollment 🎉
+        </button>
+      </div>
+    </div>
+  </app-modal>
+
+  <!-- Details Modal -->
+  <app-modal [isOpen]="isDetailsModalOpen" [title]="selectedStudentDetails?.name || 'Student Details'"
+    (onClose)="isDetailsModalOpen = false" size="lg">
+    <div *ngIf="selectedStudentDetails" class="m-detail-modal">
+      <div class="m-detail-section">
+        <div class="m-detail-row">
+          <span class="m-detail-key">Reg No</span>
+          <span class="m-detail-val">{{ selectedStudentDetails.regNumber || '—' }}</span>
+        </div>
+        <div class="m-detail-row">
+          <span class="m-detail-key">Name</span>
+          <span class="m-detail-val">{{ selectedStudentDetails.name }}</span>
+        </div>
+        <div *ngIf="selectedStudentDetails.fatherName" class="m-detail-row">
+          <span class="m-detail-key">Father's Name</span>
+          <span class="m-detail-val">{{ selectedStudentDetails.fatherName }}</span>
+        </div>
+        <div *ngIf="selectedStudentDetails.qualification" class="m-detail-row">
+          <span class="m-detail-key">Qualification</span>
+          <span class="m-detail-val">{{ selectedStudentDetails.qualification }}</span>
+        </div>
+        <div class="m-detail-row">
+          <span class="m-detail-key">Phone</span>
+          <span class="m-detail-val">{{ selectedStudentDetails.mobile || '—' }}</span>
+        </div>
+        <div class="m-detail-row">
+          <span class="m-detail-key">Status</span>
+          <span class="m-detail-val">{{ selectedStudentDetails.status }}</span>
+        </div>
+        <div class="m-detail-row">
+          <span class="m-detail-key">Active Courses</span>
+          <span class="m-detail-val font-bold">
+            <ng-container *ngIf="studentCourses && studentCourses.length > 0">
+              <span *ngFor="let sc of studentCourses; let last = last" class="inline-flex items-center gap-1 mr-1">
+                <span>{{ sc.course_name }} - {{ sc.status | titlecase }}</span>
+                <button (click)="editCourseEnrollment(sc)" class="text-[10px]" title="Edit course">✏️</button>
+                <span *ngIf="!last">, </span>
+              </span>
+            </ng-container>
+            <ng-container *ngIf="!studentCourses || studentCourses.length === 0">
+              {{ selectedStudentDetails.courseName ? (selectedStudentDetails.courseName + ' - Active') : '—' }}
+            </ng-container>
+          </span>
+        </div>
+        <div class="m-detail-row">
+          <span class="m-detail-key">Fee Status</span>
+          <span class="m-detail-val">{{ selectedStudentDetails.feeStatus }}</span>
+        </div>
+        <div class="m-detail-row">
+          <span class="m-detail-key">Joined</span>
+          <span class="m-detail-val">{{ selectedStudentDetails.joiningDate | date:'dd-MM-yyyy' }}</span>
+        </div>
+      </div>
+    </div>
+  </app-modal>
+
+  <!-- IMPORT MODAL MOBILE -->
+  <app-modal [isOpen]="isImportModalOpen" title="Import Students (XLS / CSV)" (onClose)="isImportModalOpen = false"
+    (onSubmit)="processImport()">
+    <div class="space-y-4 text-left">
+      <div
+        class="p-3 bg-primary-50 dark:bg-primary-900/20 rounded-2xl border border-primary-100 dark:border-primary-900/30">
+        <div class="flex items-center justify-between gap-2">
+          <h4 class="text-xs font-bold text-primary-800 dark:text-primary-300">Format Requirements</h4>
+          <button type="button" (click)="downloadSampleXls()"
+            class="px-2.5 py-1.5 bg-white dark:bg-slate-800 text-primary-700 dark:text-primary-300 font-bold text-[10px] rounded-xl border border-primary-300 dark:border-primary-700 shadow-sm flex items-center gap-1 flex-shrink-0">
+            <span>📥</span> Sample (.xlsx)
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+          Required: <b>Name*, Mobile*</b>.<br>
+          Optional: Reg Number, Email, Father Name, Joining Date, Course Name, Batch Name, Status.
+        </p>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">Select File (.xlsx, .xls,
+          .csv)</label>
+        <div class="relative group">
+          <input type="file" (change)="onFileChange($event)"
+            class="w-full px-3 py-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-medium text-slate-500 file:hidden cursor-pointer bg-slate-50 dark:bg-slate-900"
+            accept=".xlsx, .xls, .csv">
+          <div *ngIf="importFile"
+            class="mt-2 p-2.5 bg-primary-50 dark:bg-primary-900/20 rounded-xl border border-primary-100 flex items-center gap-2">
+            <span class="text-base">📄</span>
+            <span class="text-xs font-bold text-primary-700 dark:text-primary-400 truncate flex-1">{{ importFile.name
+              }}</span>
+            <button (click)="importFile = null" class="text-xs font-bold text-slate-400">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<style>
+  .m-students {
+    padding: 12px;
+    padding-bottom: 80px;
+  }
+
+  .m-students-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .m-students-search {
+    position: relative;
+  }
+
+  .m-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+  }
+
+  .m-search-input {
+    width: 100%;
+    padding: 12px 12px 12px 40px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    outline: none;
+    box-shadow: none !important;
+    -webkit-appearance: none;
+  }
+
+  :host-context(.dark) .m-search-input {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    color: white;
+  }
+
+  .m-students-filters {
+    display: flex;
+    gap: 8px;
+  }
+
+  .m-filter-select {
+    flex: 1;
+    padding: 10px 12px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    outline: none;
+    -webkit-appearance: none;
+    box-shadow: none !important;
+  }
+
+  :host-context(.dark) .m-filter-select {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    color: #94a3b8;
+  }
+
+  .m-students-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .m-students-count {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+  }
+
+  .m-add-btn {
+    padding: 8px 16px;
+    background: rgb(var(--color-primary-600));
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .m-add-btn:active {
+    transform: scale(0.96);
+  }
+
+  .m-students-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .m-student-card {
+    background: white;
+    border-radius: 16px;
+    padding: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s;
+  }
+
+  :host-context(.dark) .m-student-card {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .m-student-card:active {
+    transform: scale(0.99);
+  }
+
+  .m-student-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .m-student-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgb(var(--color-primary-100));
+    color: rgb(var(--color-primary-600));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  :host-context(.dark) .m-student-avatar {
+    background: rgba(var(--color-primary-500), 0.15);
+    color: rgb(var(--color-primary-400));
+  }
+
+  .m-student-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .m-student-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .m-student-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :host-context(.dark) .m-student-name {
+    color: white;
+  }
+
+  .m-student-reg {
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    margin: 2px 0 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .m-student-status {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .m-status-active {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+
+  :host-context(.dark) .m-status-active {
+    background: rgba(22, 163, 74, 0.15);
+  }
+
+  .m-status-inactive {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  :host-context(.dark) .m-status-inactive {
+    background: rgba(220, 38, 38, 0.15);
+  }
+
+  .m-student-card-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+  }
+
+  :host-context(.dark) .m-student-card-details {
+    border-top-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .m-student-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .m-detail-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .m-detail-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :host-context(.dark) .m-detail-value {
+    color: #cbd5e1;
+  }
+
+  .m-fee-paid {
+    color: #16a34a !important;
+  }
+
+  .m-fee-pending {
+    color: #f59e0b !important;
+  }
+
+  .m-student-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .m-action-btn {
+    flex: 1;
+    padding: 8px;
+    background: #f8fafc;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :host-context(.dark) .m-action-btn {
+    background: #0f172a;
+    border-color: rgba(255, 255, 255, 0.04);
+    color: #94a3b8;
+  }
+
+  .m-action-btn:active {
+    transform: scale(0.96);
+  }
+
+  .m-empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: #94a3b8;
+  }
+
+  .m-empty span {
+    font-size: 40px;
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  .m-empty p {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .m-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .m-page-btn {
+    padding: 8px 16px;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+  }
+
+  :host-context(.dark) .m-page-btn {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+  }
+
+  .m-page-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .m-page-info {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+  }
+
+  .m-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .m-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .m-form-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .m-form-input {
+    width: 100%;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    outline: none;
+    box-shadow: none !important;
+    -webkit-appearance: none;
+  }
+
+  :host-context(.dark) .m-form-input {
+    background: #0f172a;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    color: white;
+  }
+
+  .m-form-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  .m-btn-secondary {
+    flex: 1;
+    padding: 12px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+  }
+
+  :host-context(.dark) .m-btn-secondary {
+    background: #334155;
+    color: #94a3b8;
+  }
+
+  .m-btn-primary {
+    flex: 1;
+    padding: 12px;
+    background: rgb(var(--color-primary-600));
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+  }
+
+  .m-btn-primary:active,
+  .m-btn-secondary:active {
+    transform: scale(0.98);
+  }
+
+  .m-detail-modal {}
+
+  .m-detail-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .m-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  }
+
+  :host-context(.dark) .m-detail-row {
+    border-bottom-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .m-detail-key {
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8;
+  }
+
+  .m-detail-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    text-align: right;
+  }
+
+  :host-context(.dark) .m-detail-val {
+    color: white;
+  }
+</style>

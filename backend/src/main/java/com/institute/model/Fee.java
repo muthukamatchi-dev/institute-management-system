@@ -50,6 +50,10 @@ public class Fee {
     @Column(name = "is_reminder_enabled")
     private Integer isReminderEnabled = 0;
 
+    /** Links this fee record to a specific course enrollment (multi-course support). Nullable for legacy records. */
+    @Column(name = "course_id")
+    private Long courseId;
+
     @Column(name = "branch_id")
     private Long branchId;
 

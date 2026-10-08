@@ -1,0 +1,77 @@
+<!-- Mobile Super Admin Template -->
+<div class="m-super-admin p-3 pb-24 space-y-4">
+  <!-- Header Action -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">🏢 Super Admin</h2>
+      <p class="text-xs text-slate-500">Manage all institutes</p>
+    </div>
+    <button (click)="showCreateModal = true" class="px-3.5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md">
+      + New Tenant
+    </button>
+  </div>
+
+  <!-- Quick Stats Grid -->
+  <div class="grid grid-cols-2 gap-2">
+    <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+      <span class="text-xs text-slate-400 font-medium">Total Institutes</span>
+      <p class="text-2xl font-black text-slate-800 dark:text-white mt-1">{{ stats?.total_tenants || 0 }}</p>
+    </div>
+    <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+      <span class="text-xs text-emerald-500 font-medium">Active</span>
+      <p class="text-2xl font-black text-emerald-600 mt-1">{{ stats?.active_tenants || 0 }}</p>
+    </div>
+    <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+      <span class="text-xs text-amber-500 font-medium">On Trial</span>
+      <p class="text-2xl font-black text-amber-600 mt-1">{{ stats?.trial_active || 0 }}</p>
+    </div>
+    <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+      <span class="text-xs text-rose-500 font-medium">Expired</span>
+      <p class="text-2xl font-black text-rose-600 mt-1">{{ stats?.trial_expired || 0 }}</p>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="relative">
+    <input type="text" [(ngModel)]="searchQuery" placeholder="Search institutes..." 
+           class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white shadow-sm">
+  </div>
+
+  <!-- Tenant Cards Stack -->
+  <div class="space-y-3">
+    <div *ngFor="let tenant of filteredTenants" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-3">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ tenant.tenantName }}</h3>
+          <p class="text-xs text-slate-500 font-mono">{{ tenant.subdomain }}.classivo.app (Code: {{ tenant.tenantCode }})</p>
+        </div>
+        <span [class.bg-emerald-100]="tenant.status === 'active'" [class.text-emerald-700]="tenant.status === 'active'"
+              [class.bg-rose-100]="tenant.status !== 'active'" [class.text-rose-700]="tenant.status !== 'active'"
+              class="px-2.5 py-1 rounded-full text-xs font-bold capitalize">
+          {{ tenant.status }}
+        </span>
+      </div>
+
+      <div class="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+        <div>Admin: <span class="font-semibold text-slate-800 dark:text-slate-200">{{ tenant.adminEmail }}</span></div>
+        <div>Plan: <span class="font-semibold text-slate-800 dark:text-slate-200 uppercase">{{ tenant.plan }}</span></div>
+        <div>Trial Ends: <span class="font-semibold text-slate-800 dark:text-slate-200">{{ tenant.trialEndDate || '—' }}</span></div>
+      </div>
+
+      <div class="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+        <button (click)="openEditModal(tenant)" class="flex-1 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold text-center">
+          Edit
+        </button>
+        <button (click)="toggleTenant(tenant, tenant.status === 'active' ? 'disable' : 'enable')" 
+                [class.bg-rose-50]="tenant.status === 'active'" [class.text-rose-600]="tenant.status === 'active'" 
+                [class.bg-emerald-50]="tenant.status !== 'active'" [class.text-emerald-600]="tenant.status !== 'active'" 
+                class="flex-1 py-1.5 rounded-lg text-xs font-bold text-center">
+          {{ tenant.status === 'active' ? 'Disable' : 'Enable' }}
+        </button>
+      </div>
+    </div>
+    <div *ngIf="filteredTenants.length === 0" class="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No institutes found.
+    </div>
+  </div>
+</div>

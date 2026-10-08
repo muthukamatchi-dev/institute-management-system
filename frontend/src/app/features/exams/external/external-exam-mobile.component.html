@@ -1,0 +1,31 @@
+<!-- Mobile External Exam Management Template -->
+<div class="m-external-exam p-3 pb-24 space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">External Exams</h2>
+      <p class="text-xs text-slate-500">Board & certification exams</p>
+    </div>
+    <button (click)="isModalOpen = true" class="px-3.5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md">
+      + New Exam
+    </button>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let exam of exams" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ exam.name || exam.title }}</h3>
+          <p class="text-xs text-slate-500">{{ exam.session_name || 'Annual Session' }}</p>
+        </div>
+      </div>
+      <div class="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/50 justify-end">
+        <button (click)="viewResults(exam)" class="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold">
+          Results
+        </button>
+      </div>
+    </div>
+    <div *ngIf="exams.length === 0" class="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No external exams scheduled.
+    </div>
+  </div>
+</div>

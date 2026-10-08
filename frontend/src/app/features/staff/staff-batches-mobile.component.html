@@ -1,0 +1,23 @@
+<!-- Mobile Staff Batches Template -->
+<div class="m-staff-batches p-3 pb-24 space-y-4">
+  <div>
+    <h2 class="text-xl font-bold text-slate-800 dark:text-white">Assigned Batches</h2>
+    <p class="text-xs text-slate-500">Batches assigned to you</p>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let batch of batches" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2">
+      <div class="flex justify-between items-start">
+        <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ batch.name }}</h3>
+        <span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-md">
+          {{ batch.timing || 'Scheduled' }}
+        </span>
+      </div>
+      <p class="text-xs text-slate-500">{{ batch.course_name || 'Course' }}</p>
+      <div class="flex justify-between items-center pt-2 text-xs text-slate-600 dark:text-slate-400">
+        <span>Students: <strong class="text-slate-800 dark:text-white">{{ batch.student_count || 0 }}</strong></span>
+        <span>Room: <strong class="text-slate-800 dark:text-white">{{ batch.room_no || 'TBD' }}</strong></span>
+      </div>
+    </div>
+  </div>
+</div>

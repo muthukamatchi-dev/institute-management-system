@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Filters;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -58,6 +59,21 @@ public class Course {
 
     @Column(name = "course_type", length = 50)
     private String courseType;
+
+    @Column(name = "schedule_type", length = 50)
+    private String scheduleType = "Weekdays";
+
+    @Column(name = "custom_days", length = 255)
+    private String customDays;
+
+    @Column(name = "is_online")
+    private Boolean isOnline = false;
+
+    @Column(name = "valid_from")
+    private LocalDate validFrom;
+
+    @Column(name = "valid_to")
+    private LocalDate validTo;
 
     @Column(name = "subjects", columnDefinition = "TEXT")
     private String subjects;

@@ -15,8 +15,8 @@ import java.time.LocalDateTime;
 @Builder
 @EntityListeners(BranchEntityListener.class)
 @Filters({
-    @Filter(name = "branchFilter", condition = "(branch_id = :branchId OR branch_id IS NULL)"),
-    @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+        @Filter(name = "branchFilter", condition = "(branch_id = :branchId OR branch_id IS NULL)"),
+        @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 })
 public class Student {
     @Id
@@ -92,6 +92,9 @@ public class Student {
 
     @Column(length = 100)
     private String district;
+
+    @Column(columnDefinition = "TEXT")
+    private String address;
 
     @Column(length = 20)
     private String gender;

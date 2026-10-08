@@ -1,0 +1,21 @@
+<div class="p-4 space-y-4 pb-20">
+  <button routerLink="/programs" class="text-xs font-black text-primary-600 uppercase tracking-wider">
+    ← Programs List
+  </button>
+  <h1 class="text-2xl font-black text-slate-800 dark:text-white">{{ program?.name || 'Program Builder' }}</h1>
+
+  <div class="space-y-3">
+    <div *ngFor="let mod of modules; let i = index" 
+      class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+      <div class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-xl bg-primary-600 text-white font-black text-xs flex items-center justify-center">
+          0{{ i + 1 }}
+        </span>
+        <div>
+          <h4 class="text-sm font-black text-slate-800 dark:text-white">{{ mod.moduleName || mod.courseName }}</h4>
+          <p class="text-[11px] text-slate-500">{{ mod.courseName }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

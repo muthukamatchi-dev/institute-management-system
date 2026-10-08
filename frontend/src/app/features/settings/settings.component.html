@@ -18,7 +18,8 @@
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">General</p>
                     </div>
 
-                    <button *ngIf="!isStaffOrStudent(authService.currentUserValue)" (click)="setSection('general', 'overview')"
+                    <button *ngIf="!isStaffOrStudent(authService.currentUserValue)"
+                        (click)="setSection('general', 'overview')"
                         [class.bg-primary-50]="activeSection === 'general' && activePage === 'overview'"
                         [class.dark:bg-primary-900/10]="activeSection === 'general' && activePage === 'overview'"
                         [class.text-primary-700]="activeSection === 'general' && activePage === 'overview'"
@@ -36,7 +37,8 @@
                         <p class="sm:hidden lg:hidden text-xs font-bold">General</p>
                     </button>
 
-                    <button *ngIf="!isStaffOrStudent(authService.currentUserValue)" (click)="setSection('general', 'notifications')"
+                    <button *ngIf="!isStaffOrStudent(authService.currentUserValue)"
+                        (click)="setSection('general', 'notifications')"
                         [class.bg-primary-50]="activeSection === 'general' && activePage === 'notifications'"
                         [class.dark:bg-primary-900/10]="activeSection === 'general' && activePage === 'notifications'"
                         [class.text-primary-700]="activeSection === 'general' && activePage === 'notifications'"
@@ -70,10 +72,31 @@
                                 Themes & layout</p>
                         </div>
                     </button>
+
+                    <button *ngIf="!isStaffOrStudent(authService.currentUserValue)"
+                        (click)="setSection('general', 'smtp')"
+                        [class.bg-primary-50]="activeSection === 'general' && activePage === 'smtp'"
+                        [class.dark:bg-primary-900/10]="activeSection === 'general' && activePage === 'smtp'"
+                        [class.text-primary-700]="activeSection === 'general' && activePage === 'smtp'"
+                        [class.dark:text-primary-400]="activeSection === 'general' && activePage === 'smtp'"
+                        [class.border-primary-500]="activeSection === 'general' && activePage === 'smtp'"
+                        class="whitespace-nowrap flex-shrink-0 lg:w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left border-2 border-transparent">
+                        <span
+                            class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0">📧</span>
+                        <div class="hidden sm:block lg:block">
+                            <div class="flex items-center gap-1.5">
+                                <p class="text-sm font-bold leading-tight">SMTP Settings</p>
+                            </div>
+                            <p
+                                class="hidden lg:block text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-tight mt-0.5">
+                                Email server & triggers</p>
+                        </div>
+                    </button>
                 </div>
 
                 <!-- Automation Section -->
-                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)" class="flex lg:flex-col gap-1 items-center lg:items-stretch">
+                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)"
+                    class="flex lg:flex-col gap-1 items-center lg:items-stretch">
                     <div class="hidden lg:block px-3 py-2 mt-4 mb-1">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">IDs</p>
                     </div>
@@ -131,7 +154,8 @@
                 </div>
 
                 <!-- Info Section -->
-                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)" class="flex lg:flex-col gap-1 items-center lg:items-stretch">
+                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)"
+                    class="flex lg:flex-col gap-1 items-center lg:items-stretch">
                     <div class="hidden lg:block px-3 py-2 mt-4 mb-1">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Profile</p>
                     </div>
@@ -172,10 +196,28 @@
                 </div>
 
                 <!-- Operations Section -->
-                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)" class="flex lg:flex-col gap-1 items-center lg:items-stretch">
+                <div *ngIf="!isStaffOrStudent(authService.currentUserValue)"
+                    class="flex lg:flex-col gap-1 items-center lg:items-stretch">
                     <div class="hidden lg:block px-3 py-2 mt-4 mb-1">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Operations</p>
                     </div>
+
+                    <button (click)="setSection('operations', 'basic')"
+                        [class.bg-primary-50]="activeSection === 'operations' && activePage === 'basic'"
+                        [class.dark:bg-primary-900/10]="activeSection === 'operations' && activePage === 'basic'"
+                        [class.text-primary-700]="activeSection === 'operations' && activePage === 'basic'"
+                        [class.dark:text-primary-400]="activeSection === 'operations' && activePage === 'basic'"
+                        [class.border-primary-500]="activeSection === 'operations' && activePage === 'basic'"
+                        class="whitespace-nowrap flex-shrink-0 lg:w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left border-2 border-transparent">
+                        <span
+                            class="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center flex-shrink-0">🛠️</span>
+                        <div class="hidden sm:block lg:block">
+                            <p class="text-sm font-bold leading-tight">Basic Settings</p>
+                            <p
+                                class="hidden lg:block text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-tight mt-0.5">
+                                Core operational config</p>
+                        </div>
+                    </button>
 
                     <button (click)="setSection('operations', 'custom-fields')"
                         [class.bg-primary-50]="activeSection === 'operations' && activePage === 'custom-fields'"
@@ -283,6 +325,22 @@
                                 preferences</p>
                         </div>
                         <span class="ml-auto text-slate-300 group-hover:text-rose-500 transition-colors">→</span>
+                    </button>
+                    <button (click)="setPage('smtp')"
+                        class="flex items-center gap-4 p-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-900/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5 transition-all group text-left">
+                        <div
+                            class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            📧</div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <p class="font-black text-slate-800 dark:text-slate-200">SMTP Settings</p>
+                                <span
+                                    class="px-1.5 py-0.2 text-[9px] font-black uppercase rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Growth+</span>
+                            </div>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Outbound mail server &
+                                notification triggers</p>
+                        </div>
+                        <span class="ml-auto text-slate-300 group-hover:text-emerald-500 transition-colors">→</span>
                     </button>
                     <button (click)="setSection('info', 'institute-profile')"
                         class="flex items-center gap-4 p-5 rounded-2xl border-2 border-slate-100 dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-900/50 hover:bg-violet-50/30 dark:hover:bg-violet-900/5 transition-all group text-left">
@@ -449,6 +507,298 @@
                             class="px-8 py-3 bg-primary-600 text-white font-black rounded-2xl hover:bg-primary-700 shadow-xl transition-all">Save
                             Changes</button>
                     </div>
+                </div>
+            </div>
+        </ng-container>
+
+        <!-- ── GENERAL: SMTP SETTINGS ── -->
+        <ng-container *ngIf="activeSection === 'general' && activePage === 'smtp'">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-soft overflow-hidden">
+                <!-- Header -->
+                <div
+                    class="p-8 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-emerald-900/10 via-teal-900/5 to-transparent flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <h2 class="text-xl font-black text-slate-800 dark:text-white">SMTP Email Server Settings
+                            </h2>
+                            <span
+                                class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                Growth • Professional • Enterprise
+                            </span>
+                        </div>
+                        <p class="text-slate-400 dark:text-slate-500 text-sm mt-1">Configure your custom SMTP mail
+                            server credentials to automate transactional email notifications for attendance, fee
+                            reminders, payment receipts, and report cards.</p>
+                    </div>
+                </div>
+
+                <div class="p-8 space-y-8">
+
+                    <!-- Plan upgrade warning if basic plan -->
+                    <div *ngIf="!planService.canUse('smtp')"
+                        class="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-start gap-4">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl flex-shrink-0">
+                            🔒
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-black text-amber-900 dark:text-amber-200">Plan Requirement Notice
+                            </h4>
+                            <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">Custom SMTP email server
+                                configuration is available on <strong>Growth</strong>, <strong>Professional</strong>,
+                                and <strong>Enterprise</strong> plans. You are currently previewing the setup form.
+                                Upgrade your plan to activate email automation.</p>
+                        </div>
+                    </div>
+
+                    <!-- Enable SMTP Master Toggle Switch -->
+                    <div
+                        class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
+                        <div class="flex items-center gap-3.5">
+                            <div
+                                class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl flex-shrink-0">
+                                📧
+                            </div>
+                            <div>
+                                <p class="text-sm font-black text-slate-900 dark:text-white">Enable Automated SMTP
+                                    Emails</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Toggle master switch to
+                                    turn custom outbound SMTP email sending on or off.</p>
+                            </div>
+                        </div>
+
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" [(ngModel)]="smtpSettings.enableSmtp" class="sr-only peer">
+                            <div
+                                class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:after:border-slate-600 peer-checked:bg-emerald-600">
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- SMTP Credentials Section -->
+                    <div class="space-y-4">
+                        <h3
+                            class="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                            <span>🌐</span> Mail Server Credentials
+                        </h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <!-- SMTP Host -->
+                            <div>
+                                <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    SMTP Host / Server Domain <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="text" [(ngModel)]="smtpSettings.host"
+                                        placeholder="e.g. smtp.gmail.com or mail.yourinstitute.com"
+                                        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-slate-900 dark:text-white">
+                                    <span
+                                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🌐</span>
+                                </div>
+                            </div>
+
+                            <!-- SMTP Port -->
+                            <div>
+                                <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    SMTP Port Number <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="number" [(ngModel)]="smtpSettings.port" placeholder="587, 465, or 25"
+                                        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-slate-900 dark:text-white">
+                                    <span
+                                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔌</span>
+                                </div>
+                            </div>
+
+                            <!-- Encryption Protocol -->
+                            <div>
+                                <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    Encryption Protocol
+                                </label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button type="button" *ngFor="let enc of ['TLS', 'SSL', 'None']"
+                                        (click)="smtpSettings.encryption = enc"
+                                        [class.bg-emerald-600]="smtpSettings.encryption === enc"
+                                        [class.text-white]="smtpSettings.encryption === enc"
+                                        [class.bg-slate-100]="smtpSettings.encryption !== enc"
+                                        [class.dark:bg-slate-800]="smtpSettings.encryption !== enc"
+                                        [class.text-slate-700]="smtpSettings.encryption !== enc"
+                                        [class.dark:text-slate-300]="smtpSettings.encryption !== enc"
+                                        class="py-2.5 rounded-xl text-xs font-black transition-all border border-transparent cursor-pointer">
+                                        {{ enc }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- SMTP Username -->
+                            <div>
+                                <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    SMTP Username / Account Email <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="text" [(ngModel)]="smtpSettings.username"
+                                        placeholder="e.g. notifications@yourdomain.com"
+                                        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-slate-900 dark:text-white">
+                                    <span
+                                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">👤</span>
+                                </div>
+                            </div>
+
+                            <!-- SMTP Password -->
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    SMTP Password / App Password <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input [type]="showSmtpPassword ? 'text' : 'password'"
+                                        [(ngModel)]="smtpSettings.password"
+                                        placeholder="Enter SMTP account password or Gmail 16-character App Password"
+                                        class="w-full pl-10 pr-16 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-slate-900 dark:text-white">
+                                    <span
+                                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔑</span>
+                                    <button type="button" (click)="showSmtpPassword = !showSmtpPassword"
+                                        class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                                        {{ showSmtpPassword ? 'Hide' : 'Show' }}
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">For Gmail/Google
+                                    Workspace, use an <strong>App Password</strong> generated under Google Account
+                                    Security settings.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sender Identity Section -->
+                    <div class="space-y-4 pt-2">
+                        <h3
+                            class="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                            <span>🏢</span> Outbound Sender Identity
+                        </h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <!-- Sender Name -->
+                            <div>
+                                <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    Sender Display Name ("From Name")
+                                </label>
+                                <div class="relative">
+                                    <input type="text" [(ngModel)]="smtpSettings.fromName"
+                                        placeholder="e.g. Classivo Academy Notifications"
+                                        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-slate-900 dark:text-white">
+                                    <span
+                                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">📛</span>
+                                </div>
+                            </div>
+
+                            <!-- Sender Email -->
+                            <div>
+                                <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    Sender Email Address ("From Email")
+                                </label>
+                                <div class="relative">
+                                    <input type="email" [(ngModel)]="smtpSettings.fromEmail"
+                                        placeholder="e.g. noreply@yourinstitute.com"
+                                        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-slate-900 dark:text-white">
+                                    <span
+                                        class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">✉️</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Email Trigger Preferences -->
+                    <div class="space-y-4 pt-2">
+                        <h3
+                            class="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                            <span>🔔</span> Automated Email Triggers
+                        </h3>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <!-- Attendance Alert -->
+                            <label
+                                class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between cursor-pointer hover:border-emerald-400/50 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xl">📋</span>
+                                    <div>
+                                        <p class="text-xs font-black text-slate-900 dark:text-white">Attendance Absence
+                                            Alerts</p>
+                                        <p class="text-[10px] text-slate-500 dark:text-slate-400">Send email when a
+                                            student is marked absent/late</p>
+                                    </div>
+                                </div>
+                                <input type="checkbox" [(ngModel)]="smtpSettings.sendAttendanceAlerts"
+                                    class="w-4 h-4 text-emerald-600 rounded">
+                            </label>
+
+                            <!-- Fee Reminders -->
+                            <label
+                                class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between cursor-pointer hover:border-emerald-400/50 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xl">🔔</span>
+                                    <div>
+                                        <p class="text-xs font-black text-slate-900 dark:text-white">Fee Due Reminders
+                                        </p>
+                                        <p class="text-[10px] text-slate-500 dark:text-slate-400">Automated fee payment
+                                            due reminders</p>
+                                    </div>
+                                </div>
+                                <input type="checkbox" [(ngModel)]="smtpSettings.sendFeeReminders"
+                                    class="w-4 h-4 text-emerald-600 rounded">
+                            </label>
+
+                            <!-- Fee Receipts -->
+                            <label
+                                class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between cursor-pointer hover:border-emerald-400/50 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xl">🧾</span>
+                                    <div>
+                                        <p class="text-xs font-black text-slate-900 dark:text-white">Fee Payment
+                                            Receipts</p>
+                                        <p class="text-[10px] text-slate-500 dark:text-slate-400">Send digital receipt
+                                            on successful fee collection</p>
+                                    </div>
+                                </div>
+                                <input type="checkbox" [(ngModel)]="smtpSettings.sendFeeReceipts"
+                                    class="w-4 h-4 text-emerald-600 rounded">
+                            </label>
+
+                            <!-- Exam Results -->
+                            <label
+                                class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between cursor-pointer hover:border-emerald-400/50 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xl">📝</span>
+                                    <div>
+                                        <p class="text-xs font-black text-slate-900 dark:text-white">Exam & Report Cards
+                                        </p>
+                                        <p class="text-[10px] text-slate-500 dark:text-slate-400">Email student marks &
+                                            performance cards</p>
+                                    </div>
+                                </div>
+                                <input type="checkbox" [(ngModel)]="smtpSettings.sendExamResults"
+                                    class="w-4 h-4 text-emerald-600 rounded">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons Footer -->
+                    <div
+                        class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4">
+                        <button type="button" (click)="testSmtpConnection()" [disabled]="testingSmtp"
+                            class="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-2 cursor-pointer">
+                            <span *ngIf="testingSmtp"
+                                class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                            <span>⚡ Test Connection</span>
+                        </button>
+
+                        <button type="button" (click)="saveSmtpSettings()" [disabled]="savingSmtp"
+                            class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-lg hover:shadow-xl transition-all flex items-center gap-2 cursor-pointer">
+                            <span *ngIf="savingSmtp"
+                                class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>💾 Save SMTP Configuration</span>
+                        </button>
+                    </div>
+
                 </div>
             </div>
         </ng-container>
@@ -810,7 +1160,9 @@
                                 <div class="flex-1">
                                     <div class="flex items-center gap-2">
                                         <p class="font-black text-white text-sm">Dark Mode</p>
-                                        <span class="px-2 py-0.5 text-[9px] font-extrabold uppercase bg-primary-500/20 text-primary-400 border border-primary-500/30 rounded-full tracking-wider">System Default</span>
+                                        <span
+                                            class="px-2 py-0.5 text-[9px] font-extrabold uppercase bg-primary-500/20 text-primary-400 border border-primary-500/30 rounded-full tracking-wider">System
+                                            Default</span>
                                     </div>
                                     <p class="text-xs text-slate-400 mt-0.5">Soft on eyes, sleek dark theme</p>
                                 </div>
@@ -1121,6 +1473,251 @@
             </div>
         </ng-container>
 
+        <!-- ── OPERATIONS: BASIC SETTINGS ── -->
+        <ng-container *ngIf="activeSection === 'operations' && activePage === 'basic'">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-soft overflow-hidden">
+                <!-- Header Box with Top-Right Save Button -->
+                <div
+                    class="p-8 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center text-2xl">
+                            🛠️
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-slate-800 dark:text-white">Basic Settings</h2>
+                            <p class="text-slate-400 dark:text-slate-500 text-sm mt-0.5">Core operational rules and
+                                scheduling permissions</p>
+                        </div>
+                    </div>
+                    <!-- Top-Right Overall Save Button -->
+                    <div>
+                        <button (click)="saveBasicSettings()" [disabled]="savingBasicSettings"
+                            class="w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-2xl shadow-lg shadow-primary-200 dark:shadow-none transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm uppercase tracking-wider outline-none">
+                            <span *ngIf="savingBasicSettings" class="animate-spin text-sm">⏳</span>
+                            <span *ngIf="!savingBasicSettings">💾</span>
+                            <span>{{ savingBasicSettings ? 'Saving...' : 'Save Settings' }}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-8 space-y-6">
+                    <!-- Section Title (Left aligned) -->
+                    <div class="border-b border-slate-100 dark:border-slate-800 pb-3">
+                        <h3 class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>📅</span> Scheduling Class
+                        </h3>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">
+                            Configure class scheduling permissions, calendar constraints, and date access.
+                        </p>
+                    </div>
+
+                    <!-- Setting 1: Allow scheduling class for Past and Future Dates -->
+                    <div
+                        class="p-3 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <h4 class="text-base font-bold text-slate-800 dark:text-slate-100">
+                                        Allow scheduling class for Past and Future Dates
+                                    </h4>
+                                </div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
+                                    Control whether staff can schedule sessions for past dates or upcoming future
+                                    calendar dates. Current day scheduling is always permitted.
+                                </p>
+                            </div>
+
+                            <!-- Past (toggle) and Future (toggle) -->
+                            <div class="flex flex-wrap sm:flex-nowrap items-center gap-4">
+                                <!-- Past Toggle Card -->
+                                <div (click)="toggleSchedulePastDates()"
+                                    class="cursor-pointer select-none flex items-center justify-between gap-5 px-5 py-3.5 rounded-2xl border transition-all duration-200 min-w-[200px]"
+                                    [class]="basicSettings.allowSchedulePastDates 
+                                        ? 'bg-emerald-500/10 border-emerald-500/50 dark:bg-emerald-950/40 dark:border-emerald-500/60 shadow-sm shadow-emerald-500/10' 
+                                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'">
+                                    <div class="text-left">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-sm">⏪</span>
+                                            <span class="text-sm font-extrabold text-slate-800 dark:text-white">Past
+                                                Dates</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Switch Track & Knob -->
+                                    <div class="w-14 h-8 rounded-full transition-colors duration-200 relative p-1 flex items-center"
+                                        [class]="basicSettings.allowSchedulePastDates ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'">
+                                        <div class="w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 transform"
+                                            [class.translate-x-6]="basicSettings.allowSchedulePastDates"
+                                            [class.translate-x-0]="!basicSettings.allowSchedulePastDates">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Future Toggle Card -->
+                                <div (click)="toggleScheduleFutureDates()"
+                                    class="cursor-pointer select-none flex items-center justify-between gap-5 px-5 py-3.5 rounded-2xl border transition-all duration-200 min-w-[200px]"
+                                    [class]="basicSettings.allowScheduleFutureDates 
+                                        ? 'bg-emerald-500/10 border-emerald-500/50 dark:bg-emerald-950/40 dark:border-emerald-500/60 shadow-sm shadow-emerald-500/10' 
+                                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'">
+                                    <div class="text-left">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-sm">⏩</span>
+                                            <span class="text-sm font-extrabold text-slate-800 dark:text-white">Future
+                                                Dates</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Switch Track & Knob -->
+                                    <div class="w-14 h-8 rounded-full transition-colors duration-200 relative p-1 flex items-center"
+                                        [class]="basicSettings.allowScheduleFutureDates ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'">
+                                        <div class="w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 transform"
+                                            [class.translate-x-6]="basicSettings.allowScheduleFutureDates"
+                                            [class.translate-x-0]="!basicSettings.allowScheduleFutureDates">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Title: Student / Staff Images -->
+                    <div class="border-b border-slate-100 dark:border-slate-800 pb-3 pt-4">
+                        <h3 class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>🖼️</span> Student / Staff Images :
+                        </h3>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">
+                            Choose how student and staff profile images are stored and managed in the system.
+                        </p>
+                    </div>
+
+                    <!-- Storage Type Selection Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Option 1: Upload File -->
+                        <div (click)="basicSettings.studentStaffImageStorageType = 'UPLOAD'"
+                            class="cursor-pointer select-none p-5 rounded-3xl border-2 transition-all duration-200 relative flex flex-col justify-between"
+                            [class]="basicSettings.studentStaffImageStorageType !== 'GDRIVE'
+                                ? 'bg-primary-50/50 dark:bg-primary-950/20 border-primary-500 shadow-sm shadow-primary-500/10'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'">
+                            <div class="flex items-start justify-between gap-4 mb-3">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-xl shrink-0">
+                                    📁
+                                </div>
+                                <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                                    [class]="basicSettings.studentStaffImageStorageType !== 'GDRIVE' ? 'border-primary-500 bg-primary-500' : 'border-slate-300 dark:border-slate-600'">
+                                    <div *ngIf="basicSettings.studentStaffImageStorageType !== 'GDRIVE'"
+                                        class="w-2 h-2 rounded-full bg-white"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-base font-bold text-slate-800 dark:text-white mb-1">
+                                    "Upload File"
+                                </h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                                    (stores directly on your institute server storage)
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Option 2: Google Drive Link -->
+                        <div (click)="basicSettings.studentStaffImageStorageType = 'GDRIVE'"
+                            class="cursor-pointer select-none p-5 rounded-3xl border-2 transition-all duration-200 relative flex flex-col justify-between"
+                            [class]="basicSettings.studentStaffImageStorageType === 'GDRIVE'
+                                ? 'bg-primary-50/50 dark:bg-primary-950/20 border-primary-500 shadow-sm shadow-primary-500/10'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'">
+                            <div class="flex items-start justify-between gap-4 mb-3">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-xl shrink-0">
+                                    ☁️
+                                </div>
+                                <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                                    [class]="basicSettings.studentStaffImageStorageType === 'GDRIVE' ? 'border-primary-500 bg-primary-500' : 'border-slate-300 dark:border-slate-600'">
+                                    <div *ngIf="basicSettings.studentStaffImageStorageType === 'GDRIVE'"
+                                        class="w-2 h-2 rounded-full bg-white"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-base font-bold text-slate-800 dark:text-white mb-1">
+                                    "Google Drive Link"
+                                </h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                                    (paste any Google Drive link, and the app previews it directly inside the software)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Title: Study Material -->
+                    <div class="border-b border-slate-100 dark:border-slate-800 pb-3 pt-4">
+                        <h3 class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                            <span>📚</span> Study Material
+                        </h3>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">
+                            Configure student download permissions and access rules for study materials.
+                        </p>
+                    </div>
+
+                    <!-- Setting: Student can download study materials : yes or no -->
+                    <div
+                        class="p-4 sm:p-5 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                            <div class="space-y-1">
+                                <h4
+                                    class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                    Student can download study materials :
+                                </h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
+                                    Choose whether students can download files directly to their device or only view
+                                    them inside the software preview.
+                                </p>
+                            </div>
+
+                            <!-- Yes / No Options -->
+                            <div class="flex items-center gap-3">
+                                <!-- Option Yes -->
+                                <button type="button" (click)="basicSettings.studentCanDownloadStudyMaterial = true"
+                                    class="cursor-pointer select-none flex items-center gap-3 px-6 py-3.5 rounded-2xl border-2 transition-all duration-200 min-w-[130px] justify-center"
+                                    [class]="basicSettings.studentCanDownloadStudyMaterial 
+                                        ? 'bg-emerald-500/10 border-emerald-500 dark:bg-emerald-950/40 dark:border-emerald-500 shadow-sm shadow-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold' 
+                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-400 font-bold'">
+                                    <span class="w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                                        [class]="basicSettings.studentCanDownloadStudyMaterial ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600'">
+                                        <svg *ngIf="basicSettings.studentCanDownloadStudyMaterial"
+                                            class="w-3 h-3 fill-current" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                clip-rule="evenodd"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="text-sm">Yes</span>
+                                </button>
+
+                                <!-- Option No -->
+                                <button type="button" (click)="basicSettings.studentCanDownloadStudyMaterial = false"
+                                    class="cursor-pointer select-none flex items-center gap-3 px-6 py-3.5 rounded-2xl border-2 transition-all duration-200 min-w-[130px] justify-center"
+                                    [class]="!basicSettings.studentCanDownloadStudyMaterial 
+                                        ? 'bg-rose-500/10 border-rose-500 dark:bg-rose-950/40 dark:border-rose-500 shadow-sm shadow-rose-500/10 text-rose-600 dark:text-rose-400 font-extrabold' 
+                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-400 font-bold'">
+                                    <span class="w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                                        [class]="!basicSettings.studentCanDownloadStudyMaterial ? 'border-rose-500 bg-rose-500 text-white' : 'border-slate-300 dark:border-slate-600'">
+                                        <svg *ngIf="!basicSettings.studentCanDownloadStudyMaterial"
+                                            class="w-3 h-3 fill-current" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                                clip-rule="evenodd"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="text-sm">No</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </ng-container>
+
         <!-- ── OPERATIONS: ADVANCED SETTINGS ── -->
         <ng-container *ngIf="activeSection === 'operations' && activePage === 'advanced'">
             <div
@@ -1137,103 +1734,406 @@
                 </div>
 
                 <div class="p-8 space-y-6">
-                    <div
-                        class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
-                        <div class="flex items-center gap-5">
-                            <div
-                                class="w-14 h-14 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                                👔
+                    <!-- ── Admin as Staff (Professional+) ── -->
+                    <ng-container *ngIf="planService.canUse('adminAsStaff'); else lockedAdminAsStaff">
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    👔
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Admin can also be a
+                                        staff</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                        When enabled, administrators can be assigned as instructors for batches/courses,
+                                        access the teaching dashboard, schedule their own classes, and mark student
+                                        attendance.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Admin can also be a
-                                    staff</p>
-                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
-                                    When enabled, administrators can be assigned as instructors for batches/courses,
-                                    access the teaching dashboard, schedule their own classes, and mark student
-                                    attendance.
-                                </p>
-                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" [(ngModel)]="advancedSettings.adminAsStaff" class="sr-only peer">
+                                <div
+                                    class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                                </div>
+                            </label>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" [(ngModel)]="advancedSettings.adminAsStaff" class="sr-only peer">
-                            <div
-                                class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                    </ng-container>
+                    <ng-template #lockedAdminAsStaff>
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 opacity-70">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                                    👔</div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="font-black text-slate-500 dark:text-slate-400 text-lg">Admin can also
+                                            be a staff</p>
+                                        <span
+                                            class="px-2 py-0.5 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[10px] font-black uppercase tracking-widest rounded-lg">{{
+                                            planService.getRequiredPlanFor('adminAsStaff') }}+</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Upgrade to {{
+                                        planService.getRequiredPlanFor('adminAsStaff') }} plan to unlock this feature.
+                                    </p>
+                                </div>
                             </div>
-                        </label>
-                    </div>
+                            <span class="text-2xl">🔒</span>
+                        </div>
+                    </ng-template>
 
-                    <div
-                        class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
-                        <div class="flex items-center gap-5">
-                            <div
-                                class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                                🎭
+                    <!-- ── Performance Exams (Professional+) ── -->
+                    <ng-container *ngIf="planService.canUse('performanceExams'); else lockedPerfExams">
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    🎭
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Allow Oral /
+                                        Performance Exams</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                        When enabled, administrators and staff can create performance-based exams with
+                                        specific tasks and marks.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Allow Oral /
-                                    Performance Exams</p>
-                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
-                                    When enabled, administrators and staff can create performance-based exams with
-                                    specific tasks and marks.
-                                </p>
-                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" [(ngModel)]="advancedSettings.allowPerformanceExams"
+                                    class="sr-only peer">
+                                <div
+                                    class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                                </div>
+                            </label>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" [(ngModel)]="advancedSettings.allowPerformanceExams"
-                                class="sr-only peer">
-                            <div
-                                class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                    </ng-container>
+                    <ng-template #lockedPerfExams>
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 opacity-70">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                                    🎭</div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="font-black text-slate-500 dark:text-slate-400 text-lg">Allow Oral /
+                                            Performance Exams</p>
+                                        <span
+                                            class="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg">{{
+                                            planService.getRequiredPlanFor('performanceExams') }}+</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Upgrade to {{
+                                        planService.getRequiredPlanFor('performanceExams') }} plan to unlock this
+                                        feature.
+                                    </p>
+                                </div>
                             </div>
-                        </label>
-                    </div>
+                            <span class="text-2xl">🔒</span>
+                        </div>
+                    </ng-template>
 
-                    <div
-                        class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
-                        <div class="flex items-center gap-5">
-                            <div
-                                class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                                🏢
+                    <!-- ── Multiple Branches (Enterprise) ── -->
+                    <ng-container *ngIf="planService.canUse('branches'); else lockedBranches">
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    🏢
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Enable Managing
+                                        Multiple Branches</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                        Manage multiple branch locations with independent staff and data while
+                                        maintaining a central dashboard.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Enable Managing
-                                    Multiple Branches</p>
-                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
-                                    Manage multiple branch locations with independent staff and data while maintaining a
-                                    central dashboard.
-                                </p>
-                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" [(ngModel)]="advancedSettings.enableMultipleBranches"
+                                    class="sr-only peer">
+                                <div
+                                    class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                                </div>
+                            </label>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" [(ngModel)]="advancedSettings.enableMultipleBranches"
-                                class="sr-only peer">
-                            <div
-                                class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                    </ng-container>
+                    <ng-template #lockedBranches>
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 opacity-70">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                                    🏢</div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="font-black text-slate-500 dark:text-slate-400 text-lg">Enable Managing
+                                            Multiple Branches</p>
+                                        <span
+                                            class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg">{{
+                                            planService.getRequiredPlanFor('branches') }}</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Upgrade to {{
+                                        planService.getRequiredPlanFor('branches') }} plan to unlock this feature.</p>
+                                </div>
                             </div>
-                        </label>
-                    </div>
+                            <span class="text-2xl">🔒</span>
+                        </div>
+                    </ng-template>
 
-                    <div
-                        class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
-                        <div class="flex items-center gap-5">
-                            <div
-                                class="w-14 h-14 rounded-2xl bg-cyan-50 dark:bg-cyan-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                                🎓
+                    <!-- ── Standard Courses (Professional+) ── -->
+                    <ng-container *ngIf="planService.canUse('standardCourses'); else lockedStdCourses">
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-cyan-50 dark:bg-cyan-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    🎓
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Standard Courses
+                                    </p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                        When enabled, you can define standard courses (e.g. 1st std, 10 std) with
+                                        subject lists and separate subject fees.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Standard Courses</p>
-                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
-                                    When enabled, you can define standard courses (e.g. 1st std, 10 std) with subject lists and separate subject fees.
-                                </p>
-                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" [(ngModel)]="advancedSettings.enableStandardCourses"
+                                    class="sr-only peer">
+                                <div
+                                    class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                                </div>
+                            </label>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" [(ngModel)]="advancedSettings.enableStandardCourses"
-                                class="sr-only peer">
-                            <div
-                                class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                    </ng-container>
+                    <ng-template #lockedStdCourses>
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 opacity-70">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                                    🎓</div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="font-black text-slate-500 dark:text-slate-400 text-lg">Standard
+                                            Courses</p>
+                                        <span
+                                            class="px-2 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-lg">{{
+                                            planService.getRequiredPlanFor('standardCourses') }}+</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Upgrade to {{
+                                        planService.getRequiredPlanFor('standardCourses') }} plan to unlock this
+                                        feature.</p>
+                                </div>
                             </div>
-                        </label>
-                    </div>
+                            <span class="text-2xl">🔒</span>
+                        </div>
+                    </ng-template>
+
+                    <!-- ── Exams Module (Professional+) ── -->
+                    <ng-container *ngIf="planService.canUse('exams'); else lockedExamsModule">
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    📝
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Exams Module</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                        When enabled, questions, internal exams, external exams &amp; exam entries
+                                        appear in the navigation bar.
+                                    </p>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" [(ngModel)]="advancedSettings.enableExams" class="sr-only peer">
+                                <div
+                                    class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                                </div>
+                            </label>
+                        </div>
+                    </ng-container>
+                    <ng-template #lockedExamsModule>
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 opacity-70">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                                    📝</div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="font-black text-slate-500 dark:text-slate-400 text-lg">Exams Module
+                                        </p>
+                                        <span
+                                            class="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg">{{
+                                            planService.getRequiredPlanFor('exams') }}+</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Upgrade to {{
+                                        planService.getRequiredPlanFor('exams') }} plan to unlock this feature.</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl">🔒</span>
+                        </div>
+                    </ng-template>
+
+                    <!-- ── Expenses Module (Growth+) ── -->
+                    <ng-container *ngIf="planService.canUse('expenses'); else lockedExpensesModule">
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    💸
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Expenses Module</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                        When enabled, track and manage all institute expenditures from the navigation
+                                        bar.
+                                    </p>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" [(ngModel)]="advancedSettings.enableExpenses"
+                                    class="sr-only peer">
+                                <div
+                                    class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                                </div>
+                            </label>
+                        </div>
+                    </ng-container>
+                    <ng-template #lockedExpensesModule>
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 opacity-70">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                                    💸</div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="font-black text-slate-500 dark:text-slate-400 text-lg">Expenses Module
+                                        </p>
+                                        <span
+                                            class="px-2 py-0.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg">{{
+                                            planService.getRequiredPlanFor('expenses') }}+</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Upgrade to {{
+                                        planService.getRequiredPlanFor('expenses') }} plan to unlock this feature.</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl">🔒</span>
+                        </div>
+                    </ng-template>
+
+                    <!-- ── Study Material Module (Enterprise) ── -->
+                    <ng-container *ngIf="planService.canUse('studyMaterial'); else lockedStudyMaterialModule">
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    📁
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Study Material
+                                        Module</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                        When enabled, upload and manage learning resources for students from the
+                                        navigation bar.
+                                    </p>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" [(ngModel)]="advancedSettings.enableStudyMaterial"
+                                    class="sr-only peer">
+                                <div
+                                    class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                                </div>
+                            </label>
+                        </div>
+                    </ng-container>
+                    <ng-template #lockedStudyMaterialModule>
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 opacity-70">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                                    📁</div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="font-black text-slate-500 dark:text-slate-400 text-lg">Study Material
+                                            Module</p>
+                                        <span
+                                            class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg">{{
+                                            planService.getRequiredPlanFor('studyMaterial') }}</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Upgrade to {{
+                                        planService.getRequiredPlanFor('studyMaterial') }} plan to unlock this feature.
+                                    </p>
+                                </div>
+                            </div>
+                            <span class="text-2xl">🔒</span>
+                        </div>
+                    </ng-template>
+
+                    <!-- ── Programs Module (Growth+) ── -->
+                    <ng-container *ngIf="planService.canUse('programs'); else lockedProgramsModule">
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    🎓
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 dark:text-slate-200 text-lg">Programs Module</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+                                        When enabled, structured course pathways &amp; career learning tracks appear in
+                                        the navigation bar.
+                                    </p>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" [(ngModel)]="advancedSettings.enablePrograms"
+                                    class="sr-only peer">
+                                <div
+                                    class="w-14 h-7 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600 shadow-inner">
+                                </div>
+                            </label>
+                        </div>
+                    </ng-container>
+                    <ng-template #lockedProgramsModule>
+                        <div
+                            class="flex items-center justify-between p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 opacity-70">
+                            <div class="flex items-center gap-5">
+                                <div
+                                    class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                                    🎓</div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <p class="font-black text-slate-500 dark:text-slate-400 text-lg">Programs Module
+                                        </p>
+                                        <span
+                                            class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg">{{
+                                            planService.getRequiredPlanFor('programs') }}+</span>
+                                    </div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Upgrade to {{
+                                        planService.getRequiredPlanFor('programs') }} plan to unlock this feature.</p>
+                                </div>
+                            </div>
+                            <span class="text-2xl">🔒</span>
+                        </div>
+                    </ng-template>
 
                     <div class="pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                         <div>
@@ -1252,6 +2152,7 @@
                 </div>
             </div>
         </ng-container>
+
 
         <!-- ── OPERATIONS: BRANCH MANAGEMENT ── -->
         <ng-container
@@ -1368,7 +2269,7 @@
                 </div>
 
                 <div class="p-8 space-y-12">
-                    <div *ngFor="let loc of locations" class="space-y-4">
+                    <div *ngFor="let loc of visibleLocations" class="space-y-4">
                         <h3
                             class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
                             {{ loc.name }}
@@ -1424,7 +2325,7 @@
                         Location</label>
                     <select [(ngModel)]="newField.location"
                         class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-bold text-sm">
-                        <option *ngFor="let loc of locations" [value]="loc.id">{{ loc.name }}</option>
+                        <option *ngFor="let loc of visibleLocations" [value]="loc.id">{{ loc.name }}</option>
                     </select>
                 </div>
 
@@ -1522,17 +2423,21 @@
                 <!-- City, State, Pincode -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">City</label>
+                        <label
+                            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">City</label>
                         <input type="text" [(ngModel)]="newBranch.city" placeholder="e.g. New York"
                             class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 transition-all font-bold text-sm">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">State</label>
+                        <label
+                            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">State</label>
                         <input type="text" [(ngModel)]="newBranch.state" placeholder="e.g. NY"
                             class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 transition-all font-bold text-sm">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pincode / Zip</label>
+                        <label
+                            class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pincode /
+                            Zip</label>
                         <input type="text" [(ngModel)]="newBranch.pincode" placeholder="e.g. 10001"
                             class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 transition-all font-bold text-sm">
                     </div>

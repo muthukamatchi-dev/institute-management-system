@@ -38,11 +38,12 @@ export class PublicExamPortalComponent implements OnInit {
     settings: any;
     reviewData: any = null;
     isReviewMode = false;
+    logoError: boolean = false;
 
     constructor(
-        private route: ActivatedRoute, 
-        private router: Router, 
-        private dataService: DataService, 
+        private route: ActivatedRoute,
+        private router: Router,
+        private dataService: DataService,
         private authService: AuthService,
         private toastService: ToastService
     ) { }
@@ -170,10 +171,11 @@ export class PublicExamPortalComponent implements OnInit {
                     this.examType = 'external';
                     if (this.exam.status === 'stopped') this.view = 'stopped';
 
-                    // Public external exams must always require candidate login.
-                    // App login state (admin/staff/student) should not auto-enter this portal.
-                    this.participant = null;
-                    this.view = 'login';
+                    // Public external exams must require candidate login unless already logged in.
+                    if (!this.participant) {
+                        this.participant = null;
+                        this.view = 'login';
+                    }
                 }
             },
             error: (err) => {
@@ -194,10 +196,22 @@ export class PublicExamPortalComponent implements OnInit {
                 this.participant = { ...participant, is_internal: false };
                 this.toastService.success(`Welcome, ${this.participant.name}`);
 
+                if (!this.exam) {
+                    this.dataService.getExternalExam(this.examId!).subscribe({
+                        next: (res: any) => {
+                            if (res) {
+                                this.exam = res;
+                                this.examType = 'external';
+                                if (this.exam.status === 'stopped') this.view = 'stopped';
+                            }
+                        }
+                    });
+                }
+
                 if (this.participant.has_submitted) {
                     if (this.participant.results_published && this.participant.submission_id) {
                         this.dataService.getExternalSubmissionDetails(this.participant.submission_id).subscribe((subRes: any) => {
-                            this.submissionResult = subRes.data;
+                            this.submissionResult = subRes.data || subRes;
                             this.view = 'result';
                         });
                     } else {
@@ -324,25 +338,202 @@ export class PublicExamPortalComponent implements OnInit {
     }
 
     startExam() {
+        if (!this.exam) {
+            this.toastService.error('Exam details are not loaded yet. Retrying...');
+            this.tryLoadExternal();
+            return;
+        }
+
+        if (this.exam.status === 'stopped') {
+            this.toastService.error('This assessment has been stopped or ended by the institute.');
+            this.view = 'stopped';
+            return;
+        }
+
+        if (!this.exam.questions || this.exam.questions.length === 0) {
+            this.toastService.error('This assessment currently has no questions assigned.');
+            return;
+        }
+
         this.startTime = new Date().toISOString();
         // Initialize answers array
         this.answers = this.exam.questions.map((q: any) => ({
             question_id: q.id,
             selected_option_id: null,
-            answer_text: ''
+            answer_text: '',
+            either_or_selected: 'A',
+            either_a_text: '',
+            either_b_text: ''
         }));
+        this.currentQuestionIndex = 0;
         this.view = 'ongoing';
         this.toastService.info('Exam started. All the best!');
+    }
+
+    selectEitherOrChoice(choice: 'A' | 'B') {
+        if (!this.answers[this.currentQuestionIndex]) return;
+        this.answers[this.currentQuestionIndex].either_or_selected = choice;
+        this.updateEitherOrAnswer(choice);
+    }
+
+    updateEitherOrAnswer(choice: 'A' | 'B') {
+        const ans = this.answers[this.currentQuestionIndex];
+        if (!ans) return;
+        ans.either_or_selected = choice;
+        const text = choice === 'A' ? (ans.either_a_text || '') : (ans.either_b_text || '');
+        if (text.trim()) {
+            ans.answer_text = `[Answered Option ${choice}]:\n${text.trim()}`;
+        } else {
+            ans.answer_text = '';
+        }
+    }
+
+    getEitherOrA(q: any): string {
+        if (!q) return '';
+        if (q.question_a) return q.question_a;
+        if (q.options && q.options.length > 0 && q.options[0]?.option_text) return q.options[0].option_text;
+        if (q.question_text) {
+            const parts = q.question_text.split(/\n?\(or\)\n?/i);
+            return parts[0].replace(/^[Aa][\.\)]\s*/, '').trim();
+        }
+        return '';
+    }
+
+    getEitherOrB(q: any): string {
+        if (!q) return '';
+        if (q.question_b) return q.question_b;
+        if (q.options && q.options.length > 1 && q.options[1]?.option_text) return q.options[1].option_text;
+        if (q.question_text) {
+            const parts = q.question_text.split(/\n?\(or\)\n?/i);
+            if (parts.length > 1) return parts[1].replace(/^[Bb][\.\)]\s*/, '').trim();
+        }
+        return '';
     }
 
     get currentQuestion() {
         return this.exam.questions[this.currentQuestionIndex];
     }
 
+    isSectionItem(q: any): boolean {
+        if (!q) return false;
+        if (q.is_section_title === true || q.is_section_title === 1 || q.is_section_title === '1') return true;
+        if (q.is_section_break === true || q.is_section_break === 1 || q.is_section_break === '1') return true;
+        const type = (q.question_type || '').toLowerCase().trim();
+        if (type === 'section_header' || type === 'section_break' || type === 'section' || type === 'section_title') return true;
+        const text = (q.question_text || '').trim();
+        const marks = Number(q.marks || q.question_marks || 0);
+        if (marks === 0 && (
+            /^section\b/i.test(text) || 
+            /^part\b/i.test(text) || 
+            /^[ivxlcdm]+\.\s*(answer|choose|fill|match)/i.test(text)
+        )) {
+            return true;
+        }
+        return false;
+    }
+
+    getQuestionNumber(targetIndex: number): number {
+        if (!this.exam?.questions) return targetIndex + 1;
+        let count = 0;
+        for (let i = 0; i <= targetIndex; i++) {
+            const q = this.exam.questions[i];
+            if (q && !this.isSectionItem(q)) {
+                count++;
+            }
+        }
+        return count || 1;
+    }
+
+    getTotalQuestionsCount(): number {
+        if (!this.exam?.questions) return 0;
+        return this.exam.questions.filter((q: any) => !this.isSectionItem(q)).length;
+    }
+
+    getQuestionNumberForList(questions: any[] | undefined, targetIndex: number): number {
+        if (!questions) return targetIndex + 1;
+        let count = 0;
+        for (let i = 0; i <= targetIndex; i++) {
+            const q = questions[i];
+            if (q && !this.isSectionItem(q)) {
+                count++;
+            }
+        }
+        return count || 1;
+    }
+
+    getInstituteInitials(): string {
+        const name = this.settings?.institute_name || this.settings?.name || this.instituteName || 'Institute';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    }
+
     prev() { if (this.currentQuestionIndex > 0) this.currentQuestionIndex--; }
     next() { if (this.currentQuestionIndex < this.exam.questions.length - 1) this.currentQuestionIndex++; }
 
+    showSubmitConfirmModal = false;
+    unansweredQuestions: { index: number; questionNumber: number }[] = [];
+
+    isQuestionAnswered(index: number): boolean {
+        const q = this.exam?.questions?.[index];
+        if (!q || this.isSectionItem(q)) return true;
+        const ans = this.answers?.[index];
+        if (!ans) return false;
+
+        const type = (q.question_type || '').toLowerCase();
+        if (type === 'mcq') {
+            return ans.selected_option_id != null;
+        }
+        if (type === 'either_or') {
+            const choice = ans.either_or_selected || 'A';
+            const txt = choice === 'A' ? (ans.either_a_text || '') : (ans.either_b_text || '');
+            return txt.trim().length > 0 || (ans.answer_text != null && ans.answer_text.trim().length > 0);
+        }
+        return ans.answer_text != null && ans.answer_text.trim().length > 0;
+    }
+
+    getUnansweredQuestions(): { index: number; questionNumber: number }[] {
+        if (!this.exam?.questions) return [];
+        const missed: { index: number; questionNumber: number }[] = [];
+        this.exam.questions.forEach((q: any, idx: number) => {
+            if (!this.isSectionItem(q) && !this.isQuestionAnswered(idx)) {
+                missed.push({
+                    index: idx,
+                    questionNumber: this.getQuestionNumber(idx)
+                });
+            }
+        });
+        return missed;
+    }
+
     submit() {
+        this.unansweredQuestions = this.getUnansweredQuestions();
+        this.showSubmitConfirmModal = true;
+    }
+
+    closeSubmitConfirmation() {
+        this.showSubmitConfirmModal = false;
+    }
+
+    goToQuestionFromModal(index: number) {
+        this.currentQuestionIndex = index;
+        this.showSubmitConfirmModal = false;
+    }
+
+    confirmAndFinalizeSubmit() {
+        this.showSubmitConfirmModal = false;
+        this.executeSubmission();
+    }
+
+    handleTimeUp() {
+        this.showSubmitConfirmModal = false;
+        this.toastService.warning('Time is up! Submitting automatically...');
+        this.executeSubmission();
+    }
+
+    executeSubmission() {
         if (!this.startTime) this.startTime = new Date().toISOString();
 
         const payload: any = {
@@ -392,11 +583,6 @@ export class PublicExamPortalComponent implements OnInit {
                 this.toastService.error('Submission Error: ' + msg);
             }
         });
-    }
-
-    handleTimeUp() {
-        this.toastService.warning('Time is up! Submitting automatically...');
-        this.submit();
     }
 
     getImageUrl(imagePath: string | undefined): string {

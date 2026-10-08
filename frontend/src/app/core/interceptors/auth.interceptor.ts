@@ -52,6 +52,7 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
             const isAuthRequest = req.url.includes('/login') || req.url.includes('/logout');
             const isFindInstitute = req.url.includes('/find-institute') || req.url.includes('/tenant-info');
 
+            // If HTTP 401 (Unauthorized) or 403 (Forbidden), auto-logout to login page
             if ((error.status === 401 || error.status === 403) && !isAuthRequest && !isPublicRoute && !isFindInstitute) {
                 authService.logout();
             }

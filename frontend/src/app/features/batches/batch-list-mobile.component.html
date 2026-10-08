@@ -1,0 +1,464 @@
+<!-- Mobile Batch List Template -->
+<div class="m-batches p-3 pb-24 space-y-4">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">Batches</h2>
+      <p class="text-xs text-slate-500">Manage course schedules & allocations</p>
+    </div>
+    <button *ngIf="viewMode === 'batch'" (click)="openCreateModal()" class="px-3.5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md">
+      + New Batch
+    </button>
+  </div>
+
+  <!-- Mode Switcher (Batch Mode vs One:One Mode) -->
+  <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner">
+    <button (click)="switchMode('batch')"
+            class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center"
+            [class.bg-white]="viewMode === 'batch'" [class.dark:bg-slate-700]="viewMode === 'batch'"
+            [class.text-indigo-600]="viewMode === 'batch'" [class.dark:text-indigo-400]="viewMode === 'batch'"
+            [class.shadow-sm]="viewMode === 'batch'" [class.text-slate-500]="viewMode !== 'batch'">
+      Batch Mode
+    </button>
+    <button (click)="switchMode('one-to-one')"
+            class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center"
+            [class.bg-white]="viewMode === 'one-to-one'" [class.dark:bg-slate-700]="viewMode === 'one-to-one'"
+            [class.text-indigo-600]="viewMode === 'one-to-one'" [class.dark:text-indigo-400]="viewMode === 'one-to-one'"
+            [class.shadow-sm]="viewMode === 'one-to-one'" [class.text-slate-500]="viewMode !== 'one-to-one'">
+      One:One Mode
+    </button>
+  </div>
+
+  <!-- ── BATCH MODE VIEW ── -->
+  <div *ngIf="viewMode === 'batch'" class="space-y-4">
+    <!-- Filters Bar for Batch Mode -->
+    <div class="space-y-2.5">
+      <!-- Search -->
+      <div class="relative">
+        <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onFilterChange()" placeholder="Search batch name..." 
+               class="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white shadow-sm outline-none">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+      </div>
+
+      <!-- Dropdowns: Course, Subject (if standard), Status -->
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <app-searchable-select [options]="courseOptionsForFilter" placeholder="All Courses"
+              searchPlaceholder="Search courses..." labelKey="name" valueKey="id" [modelValue]="courseFilter"
+              (modelValueChange)="courseFilter = $event; onCourseFilterChange(); onFilterChange()">
+          </app-searchable-select>
+        </div>
+
+        <div *ngIf="isFilterCourseStandard()">
+          <select [(ngModel)]="subjectFilter" (ngModelChange)="onSubjectFilterChange(); onFilterChange()"
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer">
+            <option value="all">All Subjects</option>
+            <option *ngFor="let s of getSubjectsForFilterCourse()" [value]="s.name">{{ s.name }}</option>
+          </select>
+        </div>
+
+        <div>
+          <select [(ngModel)]="statusFilter" (change)="onFilterChange()"
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer">
+            <option value="all">All Status</option>
+            <option value="uncompleted">Uncompleted</option>
+            <option value="ongoing">Ongoing</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Cards Stack -->
+    <div class="space-y-3">
+      <div *ngFor="let b of filteredBatches()" (click)="viewDetails(b)" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2.5 active:scale-[0.99] transition-transform cursor-pointer">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ b.batchName }}</h3>
+            <p class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">
+              {{ b.courseName }} <span *ngIf="b.subject">({{ b.subject }})</span>
+            </p>
+          </div>
+          <app-badge [label]="b.status" [type]="getStatusType(b.status)"></app-badge>
+        </div>
+
+        <div class="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700/50 text-xs text-slate-600 dark:text-slate-400">
+          <div>
+            <span>⏰ {{ formatTiming(b.timing) || 'Scheduled' }}</span>
+            <span class="ml-2">👥 <strong>{{ b.studentCount || 0 }}</strong></span>
+          </div>
+          <div class="flex items-center gap-1.5" (click)="$event.stopPropagation()">
+            <button (click)="editBatch(b)" class="px-2.5 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg font-bold text-xs">
+              ✏️ Edit
+            </button>
+            <button *ngIf="b.status !== 'completed'" (click)="markBatchAsCompleted(b)" class="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg font-bold text-xs" title="Mark Completed">
+              🎓
+            </button>
+            <button (click)="deleteBatch(b)" class="px-2 py-1 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg font-bold text-xs" title="Delete Batch">
+              🗑️
+            </button>
+          </div>
+        </div>
+      </div>
+      <div *ngIf="filteredBatches().length === 0" class="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+        No batches found.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ONE:ONE MODE VIEW ── -->
+  <div *ngIf="viewMode === 'one-to-one'" class="space-y-4">
+    <!-- Filters Bar for One:One Mode -->
+    <div class="space-y-2.5">
+      <!-- Search -->
+      <div class="relative">
+        <input type="text" [(ngModel)]="oneToOneSearchTerm" (ngModelChange)="onFilterChange()" placeholder="Search members..." 
+               class="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white shadow-sm outline-none">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+      </div>
+
+      <!-- Dropdowns & Timing: Course, Subject (if standard), Timing, Status -->
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <app-searchable-select [options]="courseOptionsForFilter" placeholder="All Courses"
+              searchPlaceholder="Search courses..." labelKey="name" valueKey="id" [modelValue]="courseFilter"
+              (modelValueChange)="courseFilter = $event; onCourseFilterChange(); onFilterChange()">
+          </app-searchable-select>
+        </div>
+
+        <div *ngIf="isFilterCourseStandard()">
+          <select [(ngModel)]="subjectFilter" (ngModelChange)="onSubjectFilterChange(); onFilterChange()"
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer">
+            <option value="all">All Subjects</option>
+            <option *ngFor="let s of getSubjectsForFilterCourse()" [value]="s.name">{{ s.name }}</option>
+          </select>
+        </div>
+
+        <div class="relative">
+          <input type="text" [(ngModel)]="oneToOneTimingFilter" (ngModelChange)="onFilterChange()" placeholder="Timing..." 
+                 class="w-full pl-7 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none">
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">⏱️</span>
+        </div>
+
+        <div>
+          <select [(ngModel)]="oneToOneStatusFilter" (change)="onFilterChange()"
+                  class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div *ngFor="let group of oneToOneGroups" class="space-y-3">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-black uppercase text-indigo-600 dark:text-indigo-400">🎓 {{ group.course }}</span>
+      </div>
+
+      <div *ngFor="let s of group.students" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold flex items-center justify-center text-sm">
+            {{ s.name.charAt(0) }}
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-800 dark:text-white text-sm">{{ s.name }}</h4>
+            <p class="text-[10px] text-slate-400 font-bold uppercase" *ngIf="s.regNumber">{{ s.regNumber }}</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Staff</label>
+            <select [(ngModel)]="s.instructor" class="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
+              <option value="">Assign Staff</option>
+              <option *ngFor="let staff of staffList" [value]="staff.id">{{ staff.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Status</label>
+            <select [(ngModel)]="s.status" class="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Timing</label>
+            <div class="flex items-center gap-1">
+              <input type="time" [(ngModel)]="s.timingFrom" class="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
+              <span class="text-slate-400 font-bold">-</span>
+              <input type="time" [(ngModel)]="s.timingTo" class="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
+            </div>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Start Date</label>
+            <app-date-picker [(ngModel)]="s.startDate"></app-date-picker>
+          </div>
+        </div>
+
+        <button (click)="saveAllocation(s)" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-sm">
+          Update Allocation
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="oneToOneGroups.length === 0" class="text-center py-8 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No 1-to-1 allocations found matching your filters.
+    </div>
+
+    <!-- Pagination for One:One -->
+    <div *ngIf="oneToOneTotalGroupsCount > 0" class="flex items-center justify-between pt-2">
+      <button (click)="oneToOnePrevPage()" [disabled]="oneToOneCurrentPage === 1" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold disabled:opacity-50">
+        Prev
+      </button>
+      <span class="text-xs text-slate-500 font-bold">{{ oneToOneCurrentPage }} / {{ oneToOneTotalPages() }}</span>
+      <button (click)="oneToOneNextPage()" [disabled]="oneToOneCurrentPage === oneToOneTotalPages()" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold disabled:opacity-50">
+        Next
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit Batch Modal -->
+<app-modal [isOpen]="isModalOpen" [title]="editingBatch ? 'Update Batch' : 'Create New Batch'"
+    (onClose)="isModalOpen = false" (onSubmit)="saveBatch()" [size]="'large'">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Step 1: Basic Info -->
+        <div class="space-y-4">
+            <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">01. Batch Essentials</h4>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Batch Name</label>
+                        <input type="text" [(ngModel)]="newBatch.batchName"
+                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs">
+                    </div>
+                    <div *ngIf="isStandardCoursesEnabled()">
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Separate By</label>
+                        <select [(ngModel)]="separateBy" (change)="onSeparateByChange()"
+                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs cursor-pointer">
+                            <option value="both">By Both Course &amp; Subject</option>
+                            <option value="course">By Course</option>
+                            <option value="subject">By Subject</option>
+                        </select>
+                    </div>
+                    <div *ngIf="!isStandardCoursesEnabled() || separateBy === 'course' || separateBy === 'both'">
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Select Course</label>
+                        <select [(ngModel)]="newBatch.courseId" (change)="onCourseChangeInModal()"
+                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs cursor-pointer">
+                            <option value="">Choose Course</option>
+                            <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+                        </select>
+                    </div>
+                    <div *ngIf="isStandardCoursesEnabled() && separateBy === 'subject'">
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Select Subject</label>
+                        <select [(ngModel)]="newBatch.subject" (change)="selectedStudentIds = []"
+                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs cursor-pointer">
+                            <option value="">Choose Subject</option>
+                            <option *ngFor="let s of getAllUniqueSubjects()" [value]="s.name">{{ s.name }}</option>
+                        </select>
+                    </div>
+                    <div *ngIf="shouldShowSubjectDropdownInModal()">
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Select Subject</label>
+                        <select [(ngModel)]="newBatch.subject" (change)="selectedStudentIds = []"
+                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs cursor-pointer">
+                            <option value="">Choose Subject</option>
+                            <option *ngFor="let s of getSubjectsForCurrentCourse()" [value]="s.name">{{ s.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Instructor</label>
+                        <select [(ngModel)]="newBatch.instructor"
+                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs cursor-pointer">
+                            <option value="">Assign Staff</option>
+                            <option *ngFor="let s of staffList" [value]="s.id">{{ s.name }} ({{ s.designation }})</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">02. Schedule & Privacy</h4>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Timing (From)</label>
+                        <input type="time" [(ngModel)]="newBatch.timingFrom"
+                            class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Timing (To)</label>
+                        <input type="time" [(ngModel)]="newBatch.timingTo"
+                            class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Start Date</label>
+                        <app-date-picker [(ngModel)]="newBatch.startDate"></app-date-picker>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Current Status</label>
+                        <select [(ngModel)]="newBatch.status"
+                            class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500/10 dark:text-white outline-none font-bold text-xs cursor-pointer">
+                            <option value="upcoming">Upcoming</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Student Assignment -->
+        <div class="flex flex-col h-full bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">03. Select Students ({{ selectedStudentIds.length }})</h4>
+            <div class="relative w-full mb-3">
+                <input type="text" [(ngModel)]="studentSearchTerm" placeholder="Search / filter candidates..."
+                    class="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white outline-none shadow-sm focus:ring-2 focus:ring-primary-500/20">
+                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔍</span>
+            </div>
+
+            <!-- Select All Option Bar -->
+            <div *ngIf="getFilteredStudents().length > 0"
+                (click)="toggleSelectAllStudents()"
+                class="p-2.5 bg-white dark:bg-slate-900 rounded-xl border transition-all cursor-pointer flex items-center justify-between"
+                [class.border-primary-500]="areAllStudentsSelected()"
+                [class.bg-primary-500/5]="areAllStudentsSelected()"
+                [class.border-slate-100]="!areAllStudentsSelected()"
+                [class.dark:border-slate-700]="!areAllStudentsSelected()">
+                <div class="flex items-center gap-2.5">
+                    <input type="checkbox" 
+                        [checked]="areAllStudentsSelected()" 
+                        (click)="$event.stopPropagation(); toggleSelectAllStudents()"
+                        class="w-3.5 h-3.5 rounded text-primary-600 accent-primary-600">
+                    <div>
+                        <p class="text-xs font-black text-slate-800 dark:text-white leading-tight">Select All Students</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase">Total {{ getFilteredStudents().length }} candidate(s)</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                    {{ selectedStudentIds.length }}/{{ getFilteredStudents().length }}
+                </span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-1">
+                <div *ngFor="let s of getFilteredStudents()" (click)="toggleStudentSelection(s.id)"
+                    class="p-2.5 bg-white dark:bg-slate-900 rounded-xl border transition-all cursor-pointer flex items-center justify-between"
+                    [class.border-primary-500]="isStudentSelected(s.id)"
+                    [class.border-slate-100]="!isStudentSelected(s.id)"
+                    [class.dark:border-slate-700]="!isStudentSelected(s.id)">
+
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center font-black text-[10px]"
+                            [class.bg-primary-600]="isStudentSelected(s.id)"
+                            [class.text-white]="isStudentSelected(s.id)"
+                            [class.bg-slate-50]="!isStudentSelected(s.id)"
+                            [class.dark:bg-slate-800]="!isStudentSelected(s.id)"
+                            [class.text-slate-400]="!isStudentSelected(s.id)">
+                            {{ isStudentSelected(s.id) ? '✓' : s.name.charAt(0) }}
+                        </div>
+                        <div>
+                            <p class="text-xs font-black text-slate-800 dark:text-white leading-tight"
+                                [class.text-primary-600]="isStudentSelected(s.id)">{{ s.name }}</p>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">{{ s.regNumber }}</p>
+                        </div>
+                    </div>
+
+                    <div *ngIf="getStudentTimingConflictInfo(s)"
+                        class="px-2 py-0.5 bg-rose-50 dark:bg-rose-900/20 text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase rounded-lg border border-rose-100">
+                        ⚠️ Conflict
+                    </div>
+                </div>
+
+                <div *ngIf="getFilteredStudents().length === 0"
+                    class="flex flex-col items-center justify-center py-8 space-y-1">
+                    <span class="text-2xl opacity-30">🔍</span>
+                    <p class="text-[10px] font-black text-slate-400 uppercase">
+                        {{ isCurrentCourseStandard() && !newBatch.subject ? 'Choose a subject to filter candidates' : 'No eligible students found' }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <app-custom-fields-renderer location="batch" [entityId]="newBatch.id"></app-custom-fields-renderer>
+</app-modal>
+
+<!-- Batch Details Modal -->
+<app-modal [isOpen]="isDetailsModalOpen" title="Batch Information" (onClose)="isDetailsModalOpen = false"
+    [size]="'large'">
+    <div *ngIf="selectedBatch" class="space-y-6">
+        <!-- Top Info Header -->
+        <div class="bg-primary-50 dark:bg-primary-900/10 p-5 rounded-2xl border border-primary-100/30 dark:border-primary-900/30 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-2xl shadow-sm">
+                    🗓️
+                </div>
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 dark:text-white">
+                        {{ selectedBatch.batchName }}
+                        <span *ngIf="selectedBatch.subject" class="text-xs font-semibold text-slate-500"> ({{ selectedBatch.subject }})</span>
+                    </h2>
+                    <p class="text-primary-600 dark:text-primary-400 font-black text-xs uppercase tracking-wider mt-0.5">
+                        {{ selectedBatch.courseName }}
+                    </p>
+                </div>
+            </div>
+            <button (click)="viewBatchAttendance(selectedBatch)"
+                class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 text-xs font-bold shadow-md">
+                📊 Attendance
+            </button>
+        </div>
+
+        <!-- Quick Stats Grid -->
+        <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">Instructor</p>
+                <p class="font-bold text-slate-800 dark:text-slate-200 truncate">{{ (selectedBatch.instructorName || selectedBatch.instructor) || 'Not Assigned' }}</p>
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">Timings</p>
+                <p class="font-bold text-indigo-600 dark:text-indigo-400 truncate">⏰ {{ formatTiming(selectedBatch.timing) }}</p>
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">Start Date</p>
+                <p class="font-bold text-slate-800 dark:text-slate-200">{{ selectedBatch.startDate || 'N/A' }}</p>
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">Status</p>
+                <app-badge [label]="selectedBatch.status" [type]="getStatusType(selectedBatch.status)"></app-badge>
+            </div>
+        </div>
+
+        <!-- Students List Section -->
+        <div class="bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Enrolled Students</h3>
+                    <p class="text-[10px] text-slate-500 font-bold">Total {{ selectedBatchStudents.length }} candidates listed in this batch.</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 font-black text-xs text-primary-600 dark:text-primary-400">
+                    {{ selectedBatchStudents.length }}
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                <div *ngFor="let s of selectedBatchStudents"
+                    class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center text-xs font-black">
+                        {{ s.name.charAt(0) }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-black text-slate-800 dark:text-white truncate">{{ s.name }}</p>
+                        <p class="text-[9px] font-bold text-slate-400 mt-0.5">{{ s.regNumber }}</p>
+                    </div>
+                    <div class="w-2 h-2 rounded-full" [class.bg-emerald-500]="s.status === 'active'"
+                        [class.bg-slate-300]="s.status !== 'active'"></div>
+                </div>
+
+                <div *ngIf="selectedBatchStudents.length === 0" class="col-span-full py-8 text-center text-xs text-slate-400">
+                    No students found in this batch.
+                </div>
+            </div>
+        </div>
+    </div>
+</app-modal>
+

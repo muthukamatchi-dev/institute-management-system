@@ -17,14 +17,24 @@ export interface Course {
     category?: string;
     duration: string; // e.g., "3 Months"
     fees: number;
-    status: 'active' | 'inactive';
+    status: 'active' | 'inactive' | 'upcoming' | string;
     syllabusPath?: string;
     imagePath?: string;
-    courseType?: 'self' | 'standard';
-    course_type?: 'self' | 'standard';
+    courseType?: string;
+    course_type?: string;
     subjects?: any;
     feePeriod?: 'course' | 'day' | 'week' | 'month' | 'year';
     fee_period?: 'course' | 'day' | 'week' | 'month' | 'year';
+    scheduleType?: 'Weekdays' | 'Weekends' | 'Weekdays + Weekends' | 'Custom Days' | string;
+    schedule_type?: string;
+    customDays?: string[] | string;
+    custom_days?: string;
+    isOnline?: boolean;
+    is_online?: boolean;
+    validFrom?: string;
+    valid_from?: string;
+    validTo?: string;
+    valid_to?: string;
 }
 
 export interface Batch {
@@ -50,6 +60,7 @@ export interface Student {
     mobile: string;
     parentMobile?: string;
     dob?: string;
+    gender?: string;
     qualification?: string;
     email: string;
     courseId: string;
@@ -61,6 +72,7 @@ export interface Student {
     status: 'active' | 'inactive' | 'completed' | 'suspended' | 'discontinued';
     referredBy?: string;
     referralProfession?: string;
+    address?: string;
     instructor?: string;
     instructorName?: string;
     timing?: string;
@@ -71,6 +83,7 @@ export interface Student {
     subjectAllocations?: string;
     batchIds?: number[];
     batchSubjects?: string[];
+    enrolledCourseNames?: string[];
 }
 
 export interface FeeRecord {
@@ -158,8 +171,10 @@ export interface Exam {
 export interface ExamQuestion {
     id?: string;
     examId?: string;
-    question_type: 'mcq' | 'text';
+    question_type: 'mcq' | 'text' | 'fillups' | 'match' | 'true_false' | 'descriptive' | 'either_or' | 'section_header' | 'section_break' | string;
     question_text: string;
+    question_a?: string;
+    question_b?: string;
     marks: number;
     options?: {
         id?: string;
@@ -167,6 +182,10 @@ export interface ExamQuestion {
         is_correct: number | boolean;
     }[];
     correctAnswer?: string;
+    correct_answer?: string;
+    match_pairs?: { left: string; right: string }[];
+    is_section_title?: boolean;
+    is_section_break?: boolean;
 }
 
 
@@ -188,7 +207,7 @@ export interface QuestionBankItem {
     courseName?: string;
     subject?: string;
     title: string; // e.g., "Sample Test", "Slip Test", "Model Exam"
-    questions: ExamQuestion[];
+    questions: any[];
     createdAt?: string;
 }
 
@@ -241,3 +260,67 @@ export interface Branch {
     createdAt?: string;
     updatedAt?: string;
 }
+
+export interface Program {
+    id: string;
+    programCode?: string;
+    name: string;
+    description: string;
+    category?: string;
+    totalDuration?: string;
+    totalFee: number;
+    feeMode: 'lump_sum' | 'per_module' | string;
+    status: 'active' | 'inactive' | string;
+    imagePath?: string;
+    moduleCount?: number;
+    modules?: ProgramModule[];
+    createdAt?: string;
+}
+
+export interface ProgramModule {
+    id: string;
+    programId: string;
+    courseId: string;
+    courseName?: string;
+    courseDuration?: string;
+    courseFees?: number;
+    courseType?: string;
+    moduleOrder: number;
+    moduleName?: string;
+    isMandatory: boolean;
+    prerequisiteType: 'NONE' | 'PREVIOUS_MODULE' | 'SPECIFIC_COURSE' | string;
+    prerequisiteCourseId?: string;
+    prerequisiteCourseName?: string;
+    prerequisiteModuleId?: string;
+    minAttendancePct?: number;
+    minExamScorePct?: number;
+}
+
+export interface StudentProgramEnrollment {
+    id: string;
+    studentId: string;
+    programId: string;
+    enrollmentDate: string;
+    completionDate?: string;
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'SUSPENDED' | 'DISCONTINUED' | string;
+    currentModuleOrder: number;
+}
+
+export interface StudentModuleProgress {
+    progressId?: string;
+    moduleId: string;
+    courseId: string;
+    courseName?: string;
+    courseDuration?: string;
+    courseFees?: number;
+    moduleOrder: number;
+    moduleName: string;
+    isMandatory: boolean;
+    prerequisiteType: string;
+    status: 'LOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED' | 'FAILED' | string;
+    unlockedAt?: string;
+    startedAt?: string;
+    completedAt?: string;
+    batchId?: string;
+}
+

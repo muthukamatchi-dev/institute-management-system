@@ -24,6 +24,9 @@ public class OperationsController {
 
     private final OperationsService service;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.institute.service.storage.DelegatingStorageService storageService;
+
     @Value("${app.upload.dir:./uploads}")
     private String uploadDir;
 
@@ -140,16 +143,26 @@ public class OperationsController {
     @PostMapping("/upload_study_material")
     public ResponseEntity<ApiResponse> uploadStudyMaterial(@RequestParam("material") MultipartFile file) {
         try {
-            String dir = uploadDir + "/study_materials";
-            Files.createDirectories(Paths.get(dir));
-            String filename = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            Path targetPath = Paths.get(dir, filename);
-            file.transferTo(targetPath.toFile());
-            return ResponseEntity.ok(ApiResponse.success(Map.of(
-                "path", "uploads/study_materials/" + filename,
-                "file_name", file.getOriginalFilename(),
-                "file_type", file.getContentType()
-            )));
+            com.institute.service.storage.StorageResult result = storageService.uploadFile("STUDY_MATERIALS", file, "STUDY_MATERIAL", null);
+            if (!result.isSuccess()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.getErrorMessage()));
+            }
+            // For Google Drive uploads, use webViewLink as the stored path (viewable URL).
+            // For local uploads, use the relative path.
+            String storedPath = result.getRelativePathOrUrl();
+            if ("GOOGLE_DRIVE".equals(result.getProvider()) && result.getWebViewLink() != null) {
+                storedPath = result.getWebViewLink();
+            }
+
+            Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("path", storedPath);
+            data.put("file_name", file.getOriginalFilename());
+            data.put("file_type", file.getContentType());
+            data.put("provider", result.getProvider());
+            if (result.getProviderFileId() != null) {
+                data.put("provider_file_id", result.getProviderFileId());
+            }
+            return ResponseEntity.ok(ApiResponse.success(data));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Upload failed: " + e.getMessage()));
         }

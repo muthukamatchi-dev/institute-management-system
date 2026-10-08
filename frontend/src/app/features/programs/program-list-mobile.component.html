@@ -1,0 +1,36 @@
+<div class="p-4 space-y-4 pb-20">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-black text-slate-800 dark:text-white">Programs</h1>
+      <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Career Pathways</p>
+    </div>
+  </div>
+
+  <div class="relative">
+    <input type="text" [(ngModel)]="searchTerm" placeholder="Search programs..." 
+      class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-medium">
+    <span class="absolute left-3 top-3 text-slate-400 text-sm">🔍</span>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let program of filteredPrograms()" 
+      class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-soft">
+      <div class="flex items-center justify-between mb-2">
+        <span class="px-2.5 py-0.5 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[9px] font-black uppercase rounded-lg">
+          {{ program.category || 'Program' }}
+        </span>
+        <span class="text-xs font-black text-emerald-600 dark:text-emerald-400">₹{{ program.totalFee | number }}</span>
+      </div>
+
+      <h3 class="text-lg font-black text-slate-800 dark:text-white leading-tight">{{ program.name }}</h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{{ program.description }}</p>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+        <span class="text-[10px] font-bold text-slate-400 uppercase">{{ program.moduleCount || 0 }} Modules • {{ program.totalDuration }}</span>
+        <button (click)="openBuilder(program.id)" class="px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase rounded-xl">
+          Builder →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

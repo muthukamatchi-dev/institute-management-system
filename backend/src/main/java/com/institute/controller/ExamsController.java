@@ -32,7 +32,31 @@ public class ExamsController {
 
     @GetMapping("/external")
     public ResponseEntity<ApiResponse> getExternalExams(@RequestParam Map<String, String> filters, Authentication auth) {
-        Long examId = (filters.containsKey("id") && filters.get("id") != null && !filters.get("id").isBlank()) ? Long.valueOf(filters.get("id")) : null;
+        Long examId = null;
+        String idParam = filters != null ? filters.get("id") : null;
+        if (idParam != null && !idParam.isBlank()) {
+            try {
+                examId = Long.valueOf(idParam);
+            } catch (NumberFormatException ignored) {}
+        }
+        Map<String, Object> details = auth != null ? (Map<String, Object>) auth.getPrincipal() : null;
+
+        // If unauthenticated, require an exam id or slug so public users cannot list all exams
+        if (auth == null && examId == null && (idParam == null || idParam.isBlank())) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Authentication required to list exams"));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(examsService.getExternalExams(examId, filters, details)));
+    }
+
+    @GetMapping("/external_exam_for_portal/{id}")
+    public ResponseEntity<ApiResponse> getExternalExamForPortal(@PathVariable String id, Authentication auth) {
+        Map<String, String> filters = new HashMap<>();
+        filters.put("id", id);
+        Long examId = null;
+        try {
+            examId = Long.valueOf(id);
+        } catch (NumberFormatException ignored) {}
         Map<String, Object> details = auth != null ? (Map<String, Object>) auth.getPrincipal() : null;
         return ResponseEntity.ok(ApiResponse.success(examsService.getExternalExams(examId, filters, details)));
     }
@@ -160,6 +184,7 @@ public class ExamsController {
 
     @PostMapping("/save_performance")
     public ResponseEntity<ApiResponse> savePerformance(@RequestBody Map<String, Object> body) {
+        examsService.savePerformance(body);
         return ResponseEntity.ok(ApiResponse.success(null, "Saved"));
     }
 
@@ -297,5 +322,29 @@ public class ExamsController {
         Long id = Long.valueOf(body.get("id").toString());
         examsService.deleteExamEntry(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Exam entry deleted"));
+    }
+
+    @PostMapping("/parse_doc")
+    public ResponseEntity<ApiResponse> parseQuestionDoc(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("File is empty"));
+        }
+        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            if (fileName.endsWith(".docx")) {
+                try (org.apache.poi.xwpf.usermodel.XWPFDocument doc = new org.apache.poi.xwpf.usermodel.XWPFDocument(file.getInputStream())) {
+                    for (org.apache.poi.xwpf.usermodel.XWPFParagraph p : doc.getParagraphs()) {
+                        sb.append(p.getText()).append("\n");
+                    }
+                }
+            } else {
+                sb.append(new String(file.getBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return ResponseEntity.ok(ApiResponse.success(Map.of("text", sb.toString()), "Document parsed successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to parse document: " + e.getMessage()));
+        }
     }
 }

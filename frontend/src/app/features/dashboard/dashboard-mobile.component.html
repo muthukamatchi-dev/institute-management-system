@@ -1,0 +1,218 @@
+<!-- Mobile Dashboard Template -->
+<div class="m-dash">
+  <!-- Greeting -->
+  <div class="m-dash-greeting">
+    <p class="m-dash-hello">Hello, {{ currentUser?.name || 'Admin' }} 👋</p>
+    <p class="m-dash-date">{{ today }}</p>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="m-dash-stats-grid">
+    <div class="m-dash-stat-card m-dash-stat-blue">
+      <span class="m-dash-stat-icon">🎓</span>
+      <div>
+        <p class="m-dash-stat-value">{{ stats?.activeStudents || 0 }}</p>
+        <p class="m-dash-stat-label">Active Students</p>
+      </div>
+    </div>
+    <div class="m-dash-stat-card m-dash-stat-green">
+      <span class="m-dash-stat-icon">📚</span>
+      <div>
+        <p class="m-dash-stat-value">{{ stats?.totalCourses || 0 }}</p>
+        <p class="m-dash-stat-label">Courses</p>
+      </div>
+    </div>
+    <div class="m-dash-stat-card m-dash-stat-purple">
+      <span class="m-dash-stat-icon">📦</span>
+      <div>
+        <p class="m-dash-stat-value">{{ stats?.totalBatches || 0 }}</p>
+        <p class="m-dash-stat-label">Batches</p>
+      </div>
+    </div>
+    <div class="m-dash-stat-card m-dash-stat-amber">
+      <span class="m-dash-stat-icon">💰</span>
+      <div>
+        <p class="m-dash-stat-value">₹{{ (stats?.totalFeesCollected || 0) | number:'1.0-0' }}</p>
+        <p class="m-dash-stat-label">Collected</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fee Overdue Alert -->
+  <div *ngIf="stats?.feeOverdue" class="m-dash-alert">
+    <span>⚠️</span>
+    <div>
+      <p class="m-dash-alert-title">Fee Overdue</p>
+      <p class="m-dash-alert-value">₹{{ stats!.feeOverdue | number:'1.0-0' }} pending collection</p>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="m-dash-section">
+    <h3 class="m-dash-section-title">Quick Actions</h3>
+    <div class="m-dash-quick-actions">
+      <a routerLink="/students" class="m-dash-action-btn">
+        <span>🎓</span>
+        <span>Students</span>
+      </a>
+      <a routerLink="/fees" class="m-dash-action-btn">
+        <span>💰</span>
+        <span>Fees</span>
+      </a>
+      <a routerLink="/attendance" class="m-dash-action-btn">
+        <span>✅</span>
+        <span>Attendance</span>
+      </a>
+      <a routerLink="/courses" class="m-dash-action-btn">
+        <span>📚</span>
+        <span>Courses</span>
+      </a>
+      <a routerLink="/batches" class="m-dash-action-btn">
+        <span>📦</span>
+        <span>Batches</span>
+      </a>
+      <a routerLink="/staff" class="m-dash-action-btn">
+        <span>👨‍🏫</span>
+        <span>Staff</span>
+      </a>
+      <a routerLink="/reports" class="m-dash-action-btn">
+        <span>📊</span>
+        <span>Reports</span>
+      </a>
+      <a routerLink="/expenses" class="m-dash-action-btn">
+        <span>💸</span>
+        <span>Expenses</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Due Reminders -->
+  <div *ngIf="dueReminders.length > 0" class="m-dash-section">
+    <h3 class="m-dash-section-title">Due Reminders</h3>
+    <div class="m-dash-reminder-list">
+      <div *ngFor="let r of dueReminders.slice(0, 5)" class="m-dash-reminder-card">
+        <div class="m-dash-reminder-info">
+          <p class="m-dash-reminder-name">{{ r.studentName || r.student_name }}</p>
+          <p class="m-dash-reminder-detail">Balance: ₹{{ r.balance_amount || r.balanceAmount | number:'1.0-0' }}</p>
+        </div>
+        <span class="m-dash-reminder-badge">Due</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activities -->
+  <div class="m-dash-section">
+    <h3 class="m-dash-section-title">Recent Activity</h3>
+    <div *ngIf="activitiesLoading" class="m-dash-loading">Loading...</div>
+    <div *ngIf="!activitiesLoading && activities.length === 0" class="m-dash-empty">No recent activity</div>
+    <div class="m-dash-activity-list">
+      <div *ngFor="let a of activities.slice(0, 15)" class="m-dash-activity-item">
+        <span class="m-dash-activity-icon">{{ getActivityIcon(a.type) }}</span>
+        <div class="m-dash-activity-info">
+          <p class="m-dash-activity-text">{{ a.description }}</p>
+          <p class="m-dash-activity-time">{{ a.timestamp | date:'short' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming Deadlines -->
+  <div class="m-dash-section">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="m-dash-section-title mb-0">Upcoming Deadlines</h3>
+      <span *ngIf="deadlines.length > 0" class="text-xs font-bold text-slate-500 dark:text-slate-400">
+        Total: {{ deadlines.length }}
+      </span>
+    </div>
+    <div *ngIf="deadlinesLoading" class="m-dash-loading">Loading deadlines...</div>
+    <div *ngIf="!deadlinesLoading && deadlines.length === 0" class="m-dash-empty">🎉 All clear! No pending items.</div>
+    <div *ngIf="!deadlinesLoading && deadlines.length > 0" class="space-y-3">
+      <div class="m-dash-deadline-list">
+        <div *ngFor="let d of paginatedDeadlines" class="m-dash-deadline-item">
+          <span class="m-dash-deadline-icon">{{ getDeadlineIcon(d.type) }}</span>
+          <div class="m-dash-deadline-info">
+            <p class="m-dash-deadline-title">{{ d.label }}</p>
+            <p class="m-dash-deadline-detail">
+              {{ d.period_label || 'Pending Balance' }}: ₹{{ d.current_period_due | number:'1.2-2' }}
+            </p>
+            <p *ngIf="d.overdue > 0" class="m-dash-deadline-detail" style="color: #f43f5e; font-weight: 600;">
+              Previous Pending Due: ₹{{ d.overdue | number:'1.2-2' }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination Controls for Mobile (10 records per page) -->
+      <div *ngIf="totalDeadlinePages > 1" class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+        <button type="button" (click)="prevDeadlinePage()" [disabled]="deadlinesCurrentPage <= 1"
+                class="px-3.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+          ← Prev
+        </button>
+        <span class="text-xs font-bold text-slate-600 dark:text-slate-400">
+          Page {{ deadlinesCurrentPage }} of {{ totalDeadlinePages }}
+        </span>
+        <button type="button" (click)="nextDeadlinePage()" [disabled]="deadlinesCurrentPage >= totalDeadlinePages"
+                class="px-3.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+          Next →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .m-dash { padding: 16px; padding-bottom: 80px; }
+  .m-dash-greeting { margin-bottom: 20px; }
+  .m-dash-hello { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.02em; }
+  :host-context(.dark) .m-dash-hello { color: white; }
+  .m-dash-date { font-size: 12px; font-weight: 600; color: #64748b; margin: 4px 0 0; }
+  .m-dash-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .m-dash-stat-card { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 16px; background: white; border: 1px solid rgba(0,0,0,0.04); }
+  :host-context(.dark) .m-dash-stat-card { background: #1e293b; border-color: rgba(255,255,255,0.04); }
+  .m-dash-stat-blue { border-left: 3px solid rgb(var(--color-primary-500)); }
+  .m-dash-stat-green { border-left: 3px solid #10b981; }
+  .m-dash-stat-purple { border-left: 3px solid #8b5cf6; }
+  .m-dash-stat-amber { border-left: 3px solid #f59e0b; }
+  .m-dash-stat-icon { font-size: 24px; }
+  .m-dash-stat-value { font-size: 18px; font-weight: 900; color: #0f172a; margin: 0; }
+  :host-context(.dark) .m-dash-stat-value { color: white; }
+  .m-dash-stat-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+  .m-dash-alert { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 14px; margin-bottom: 16px; }
+  :host-context(.dark) .m-dash-alert { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); }
+  .m-dash-alert-title { font-size: 13px; font-weight: 800; color: #92400e; margin: 0; }
+  :host-context(.dark) .m-dash-alert-title { color: #fcd34d; }
+  .m-dash-alert-value { font-size: 11px; font-weight: 600; color: #a16207; margin: 2px 0 0; }
+  :host-context(.dark) .m-dash-alert-value { color: #fbbf24; }
+  .m-dash-section { margin-bottom: 20px; }
+  .m-dash-section-title { font-size: 14px; font-weight: 900; color: #0f172a; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  :host-context(.dark) .m-dash-section-title { color: white; }
+  .m-dash-quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .m-dash-action-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px; background: white; border-radius: 14px; border: 1px solid rgba(0,0,0,0.04); text-decoration: none; color: #475569; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; -webkit-tap-highlight-color: transparent; transition: all 0.15s; }
+  :host-context(.dark) .m-dash-action-btn { background: #1e293b; border-color: rgba(255,255,255,0.04); color: #94a3b8; }
+  .m-dash-action-btn:active { transform: scale(0.95); }
+  .m-dash-action-btn span:first-child { font-size: 22px; }
+  .m-dash-reminder-list { display: flex; flex-direction: column; gap: 8px; }
+  .m-dash-reminder-card { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: white; border-radius: 12px; border: 1px solid rgba(0,0,0,0.04); }
+  :host-context(.dark) .m-dash-reminder-card { background: #1e293b; border-color: rgba(255,255,255,0.04); }
+  .m-dash-reminder-name { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0; }
+  :host-context(.dark) .m-dash-reminder-name { color: white; }
+  .m-dash-reminder-detail { font-size: 11px; font-weight: 600; color: #94a3b8; margin: 2px 0 0; }
+  .m-dash-reminder-badge { font-size: 10px; font-weight: 800; color: #ef4444; background: #fef2f2; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; }
+  :host-context(.dark) .m-dash-reminder-badge { background: rgba(239,68,68,0.1); }
+  .m-dash-loading, .m-dash-empty { padding: 24px; text-align: center; color: #94a3b8; font-size: 13px; font-weight: 600; }
+  .m-dash-activity-list { display: flex; flex-direction: column; gap: 2px; }
+  .m-dash-activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: white; border-radius: 10px; }
+  :host-context(.dark) .m-dash-activity-item { background: #1e293b; }
+  .m-dash-activity-icon { font-size: 16px; margin-top: 2px; }
+  .m-dash-activity-text { font-size: 12px; font-weight: 600; color: #334155; margin: 0; line-height: 1.4; }
+  :host-context(.dark) .m-dash-activity-text { color: #cbd5e1; }
+  .m-dash-activity-time { font-size: 10px; font-weight: 600; color: #94a3b8; margin: 2px 0 0; }
+  .m-dash-deadline-list { display: flex; flex-direction: column; gap: 8px; }
+  .m-dash-deadline-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: white; border-radius: 10px; }
+  :host-context(.dark) .m-dash-deadline-item { background: #1e293b; }
+  .m-dash-deadline-icon { font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .m-dash-deadline-info { flex: 1; min-width: 0; }
+  .m-dash-deadline-title { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0; }
+  :host-context(.dark) .m-dash-deadline-title { color: white; }
+  .m-dash-deadline-detail, .m-dash-deadline-date { font-size: 11px; font-weight: 600; color: #94a3b8; margin: 2px 0 0; }
+</style>

@@ -4,6 +4,8 @@ import com.institute.dto.ApiResponse;
 import com.institute.model.*;
 import com.institute.service.InstituteService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +28,9 @@ public class InstituteController {
 
     private final InstituteService service;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.institute.service.storage.DelegatingStorageService storageService;
+
     @Value("${app.upload.dir:./uploads}")
     private String uploadDir;
 
@@ -39,10 +44,21 @@ public class InstituteController {
         return ResponseEntity.ok(ApiResponse.success(service.getAllCourses()));
     }
 
+    private Long parseNullableLong(Object val) {
+        if (val == null) return null;
+        String str = val.toString().trim();
+        if (str.isEmpty() || "null".equalsIgnoreCase(str) || "undefined".equalsIgnoreCase(str)) return null;
+        try {
+            return Long.valueOf(str);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     // POST /api/institute/save_course
     @PostMapping("/save_course")
     public ResponseEntity<ApiResponse> saveCourse(@RequestBody Map<String, Object> body) {
-        Long id = body.containsKey("id") && body.get("id") != null ? Long.valueOf(body.get("id").toString()) : null;
+        Long id = parseNullableLong(body.get("id"));
         Long savedId = service.saveCourse(body, id);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", savedId);
@@ -52,8 +68,8 @@ public class InstituteController {
     // POST /api/institute/delete_course
     @PostMapping("/delete_course")
     public ResponseEntity<ApiResponse> deleteCourse(@RequestBody Map<String, Object> body) {
-        Long id = Long.valueOf(body.get("id").toString());
-        if (service.deleteCourse(id)) {
+        Long id = parseNullableLong(body.get("id"));
+        if (id != null && service.deleteCourse(id)) {
             return ResponseEntity.ok(ApiResponse.success(null, "Course deleted"));
         }
         return ResponseEntity.badRequest().body(ApiResponse.error("Course not found"));
@@ -68,18 +84,26 @@ public class InstituteController {
     // POST /api/institute/save_batch
     @PostMapping("/save_batch")
     public ResponseEntity<ApiResponse> saveBatch(@RequestBody Map<String, Object> body) {
-        Long id = body.containsKey("id") && body.get("id") != null ? Long.valueOf(body.get("id").toString()) : null;
-        Long savedId = service.saveBatch(body, id);
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("id", savedId);
-        return ResponseEntity.ok(ApiResponse.success(data, id != null ? "Batch updated" : "Batch created"));
+        try {
+            Long id = parseNullableLong(body.get("id"));
+            Long savedId = service.saveBatch(body, id);
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("id", savedId);
+            return ResponseEntity.ok(ApiResponse.success(data, id != null ? "Batch updated" : "Batch created"));
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            if (e.getCause() != null && e.getCause().getMessage() != null) {
+                msg = e.getCause().getMessage();
+            }
+            return ResponseEntity.badRequest().body(ApiResponse.error(msg != null ? msg : "Failed to save batch"));
+        }
     }
 
     // POST /api/institute/delete_batch
     @PostMapping("/delete_batch")
     public ResponseEntity<ApiResponse> deleteBatch(@RequestBody Map<String, Object> body) {
-        Long id = Long.valueOf(body.get("id").toString());
-        if (service.deleteBatch(id)) {
+        Long id = parseNullableLong(body.get("id"));
+        if (id != null && service.deleteBatch(id)) {
             return ResponseEntity.ok(ApiResponse.success(null, "Batch deleted"));
         }
         return ResponseEntity.badRequest().body(ApiResponse.error("Batch not found"));
@@ -106,7 +130,7 @@ public class InstituteController {
     @PostMapping("/save_student")
     public ResponseEntity<ApiResponse> saveStudent(@RequestBody Map<String, Object> body) {
         try {
-            Long id = body.containsKey("id") && body.get("id") != null ? Long.valueOf(body.get("id").toString()) : null;
+            Long id = parseNullableLong(body.get("id"));
             Long savedId = service.saveStudent(body, id);
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("id", savedId);
@@ -119,7 +143,10 @@ public class InstituteController {
     // POST /api/institute/delete_student
     @PostMapping("/delete_student")
     public ResponseEntity<ApiResponse> deleteStudent(@RequestBody Map<String, Object> body) {
-        Long id = Long.valueOf(body.get("id").toString());
+        Long id = parseNullableLong(body.get("id"));
+        if (id == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid student ID"));
+        }
         String result = service.deleteStudent(id);
         if (result.equals("success")) {
             return ResponseEntity.ok(ApiResponse.success(null, "Student deleted"));
@@ -136,7 +163,7 @@ public class InstituteController {
     // POST /api/institute/save_staff
     @PostMapping("/save_staff")
     public ResponseEntity<ApiResponse> saveStaff(@RequestBody Map<String, Object> body) {
-        Long id = body.containsKey("id") && body.get("id") != null ? Long.valueOf(body.get("id").toString()) : null;
+        Long id = parseNullableLong(body.get("id"));
         Long savedId = service.saveStaff(body, id);
         return ResponseEntity.ok(ApiResponse.success(Map.of("id", savedId), id != null ? "Staff updated" : "Staff added"));
     }
@@ -144,8 +171,8 @@ public class InstituteController {
     // POST /api/institute/delete_staff
     @PostMapping("/delete_staff")
     public ResponseEntity<ApiResponse> deleteStaff(@RequestBody Map<String, Object> body) {
-        Long id = Long.valueOf(body.get("id").toString());
-        if (service.deleteStaff(id)) {
+        Long id = parseNullableLong(body.get("id"));
+        if (id != null && service.deleteStaff(id)) {
             return ResponseEntity.ok(ApiResponse.success(null, "Staff deleted"));
         }
         return ResponseEntity.badRequest().body(ApiResponse.error("Staff not found"));
@@ -162,6 +189,33 @@ public class InstituteController {
     public ResponseEntity<ApiResponse> saveSettings(@RequestBody Map<String, Object> body) {
         service.updateSettings(body);
         return ResponseEntity.ok(ApiResponse.success(null, "Settings saved"));
+    }
+
+    // GET /api/institute/about
+    @GetMapping("/about")
+    public ResponseEntity<ApiResponse> getAboutDetails() {
+        return ResponseEntity.ok(ApiResponse.success(service.getAboutDetails()));
+    }
+
+    // POST /api/institute/save_backup_settings
+    @PostMapping("/save_backup_settings")
+    public ResponseEntity<ApiResponse> saveBackupSettings(@RequestBody Map<String, Object> body) {
+        service.updateSettings(body);
+        return ResponseEntity.ok(ApiResponse.success(null, "Backup schedule settings updated successfully"));
+    }
+
+    // GET /api/institute/backup/download
+    @GetMapping("/backup/download")
+    public ResponseEntity<byte[]> downloadBackup() {
+        String sql = service.exportDatabaseSqlDump();
+        byte[] bytes = sql.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String filename = "institute_db_backup_" + System.currentTimeMillis() + ".sql";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(bytes.length)
+                .body(bytes);
     }
 
     // GET /api/institute/next_reg_number
@@ -226,6 +280,103 @@ public class InstituteController {
         return ResponseEntity.badRequest().body(ApiResponse.error("Student not found"));
     }
 
+    // GET /api/institute/student_courses?student_id={id}
+    @GetMapping("/student_courses")
+    public ResponseEntity<ApiResponse> getStudentCourses(@RequestParam(name = "student_id") Long studentId) {
+        return ResponseEntity.ok(ApiResponse.success(service.getStudentCourses(studentId)));
+    }
+
+    // POST /api/institute/enroll_additional_course
+    @PostMapping("/enroll_additional_course")
+    public ResponseEntity<ApiResponse> enrollAdditionalCourse(@RequestBody Map<String, Object> body) {
+        try {
+            Long studentId = Long.valueOf(body.get("student_id").toString());
+            Map<String, Object> result = service.enrollAdditionalCourse(studentId, body);
+            if (result.containsKey("error")) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.get("error").toString()));
+            }
+            return ResponseEntity.ok(ApiResponse.success(result, "Student enrolled in additional course"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // POST /api/institute/unenroll_course
+    @PostMapping("/unenroll_course")
+    public ResponseEntity<ApiResponse> unenrollFromCourse(@RequestBody Map<String, Object> body) {
+        try {
+            Long studentId = Long.valueOf(body.get("student_id").toString());
+            Long courseId = Long.valueOf(body.get("course_id").toString());
+            Map<String, Object> result = service.unenrollFromCourse(studentId, courseId);
+            if (result.containsKey("error")) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.get("error").toString()));
+            }
+            return ResponseEntity.ok(ApiResponse.success(null, "Student unenrolled from course"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // POST /api/institute/update_student_course
+    @PostMapping("/update_student_course")
+    public ResponseEntity<ApiResponse> updateStudentCourse(@RequestBody Map<String, Object> body) {
+        try {
+            Long studentId = Long.valueOf(body.get("student_id").toString());
+            Map<String, Object> result = service.updateStudentCourse(studentId, body);
+            if (result.containsKey("error")) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.get("error").toString()));
+            }
+            return ResponseEntity.ok(ApiResponse.success(result, "Course enrollment updated"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // GET /api/institute/enquiries
+    @GetMapping("/enquiries")
+    public ResponseEntity<ApiResponse> getEnquiries() {
+        return ResponseEntity.ok(ApiResponse.success(service.getEnquiries()));
+    }
+
+    // POST /api/institute/enquiries
+    @PostMapping("/enquiries")
+    public ResponseEntity<ApiResponse> createEnquiry(@RequestBody Map<String, Object> body) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(service.createEnquiry(body), "Enquiry logged successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // PUT /api/institute/enquiries/{id}
+    @PutMapping("/enquiries/{id}")
+    public ResponseEntity<ApiResponse> updateEnquiry(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(service.updateEnquiry(id, body), "Enquiry updated successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // DELETE /api/institute/enquiries/{id}
+    @DeleteMapping("/enquiries/{id}")
+    public ResponseEntity<ApiResponse> deleteEnquiry(@PathVariable Long id) {
+        if (service.deleteEnquiry(id)) {
+            return ResponseEntity.ok(ApiResponse.success(null, "Enquiry deleted successfully"));
+        }
+        return ResponseEntity.badRequest().body(ApiResponse.error("Enquiry not found"));
+    }
+
+    // PATCH /api/institute/enquiries/{id}/status
+    @PatchMapping("/enquiries/{id}/status")
+    public ResponseEntity<ApiResponse> updateEnquiryStatus(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(service.updateEnquiry(id, body), "Status updated"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     // POST /api/institute/schedule_class
     @PostMapping("/schedule_class")
     public ResponseEntity<ApiResponse> scheduleClass(@RequestBody Map<String, Object> body, Authentication auth) {
@@ -254,6 +405,46 @@ public class InstituteController {
         return ResponseEntity.ok(ApiResponse.success(service.getStaffSchedule(userId, staffId, schedDate)));
     }
 
+    // POST /api/institute/upload_student_image
+    @PostMapping("/upload_student_image")
+    public ResponseEntity<ApiResponse> uploadStudentImage(@RequestParam(name = "image", required = false) MultipartFile image,
+                                                          @RequestParam(name = "file", required = false) MultipartFile file,
+                                                          @RequestParam(name = "student_id", required = false) Long studentId) {
+        try {
+            MultipartFile upload = resolveUploadFile(image, file);
+            if (upload == null || upload.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Please select a student profile image."));
+            }
+            com.institute.service.storage.StorageResult result = storageService.uploadFile("STUDENT_IMAGES", upload, "STUDENT", studentId);
+            if (!result.isSuccess()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.getErrorMessage()));
+            }
+            return ResponseEntity.ok(ApiResponse.success(buildUploadResponseMap(result)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Student photo upload failed: " + e.getMessage()));
+        }
+    }
+
+    // POST /api/institute/upload_staff_image
+    @PostMapping("/upload_staff_image")
+    public ResponseEntity<ApiResponse> uploadStaffImage(@RequestParam(name = "image", required = false) MultipartFile image,
+                                                        @RequestParam(name = "file", required = false) MultipartFile file,
+                                                        @RequestParam(name = "staff_id", required = false) Long staffId) {
+        try {
+            MultipartFile upload = resolveUploadFile(image, file);
+            if (upload == null || upload.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Please select a staff profile image."));
+            }
+            com.institute.service.storage.StorageResult result = storageService.uploadFile("STAFF_IMAGES", upload, "STAFF", staffId);
+            if (!result.isSuccess()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.getErrorMessage()));
+            }
+            return ResponseEntity.ok(ApiResponse.success(buildUploadResponseMap(result)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Staff photo upload failed: " + e.getMessage()));
+        }
+    }
+
     // POST /api/institute/upload_syllabus
     @PostMapping("/upload_syllabus")
     public ResponseEntity<ApiResponse> uploadSyllabus(@RequestParam(name = "syllabus", required = false) MultipartFile syllabus,
@@ -266,11 +457,11 @@ public class InstituteController {
             if (upload.getOriginalFilename() == null || !upload.getOriginalFilename().toLowerCase().endsWith(".pdf")) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Only PDF syllabus files are allowed."));
             }
-            Path dir = resolveUploadDirectory("syllabi");
-            String filename = System.currentTimeMillis() + "_" + sanitizeFilename(upload.getOriginalFilename());
-            Path targetPath = dir.resolve(filename);
-            Files.copy(upload.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-            return ResponseEntity.ok(ApiResponse.success(Map.of("path", "uploads/syllabi/" + filename)));
+            com.institute.service.storage.StorageResult result = storageService.uploadFile("COURSE_IMAGES", upload, "SYLLABUS", null);
+            if (!result.isSuccess()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.getErrorMessage()));
+            }
+            return ResponseEntity.ok(ApiResponse.success(buildUploadResponseMap(result)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Upload failed: " + e.getMessage()));
         }
@@ -288,11 +479,11 @@ public class InstituteController {
             if (upload.getContentType() == null || !upload.getContentType().startsWith("image/")) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Only image uploads are allowed for course artwork."));
             }
-            Path dir = resolveUploadDirectory("course_images");
-            String filename = System.currentTimeMillis() + "_" + sanitizeFilename(upload.getOriginalFilename());
-            Path targetPath = dir.resolve(filename);
-            Files.copy(upload.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-            return ResponseEntity.ok(ApiResponse.success(Map.of("path", "uploads/course_images/" + filename)));
+            com.institute.service.storage.StorageResult result = storageService.uploadFile("COURSE_IMAGES", upload, "COURSE", null);
+            if (!result.isSuccess()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.getErrorMessage()));
+            }
+            return ResponseEntity.ok(ApiResponse.success(buildUploadResponseMap(result)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Upload failed: " + e.getMessage()));
         }
@@ -310,11 +501,11 @@ public class InstituteController {
             if (upload.getContentType() == null || !upload.getContentType().startsWith("image/")) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Only image uploads are allowed for the institute logo."));
             }
-            Path dir = resolveUploadDirectory("logos");
-            String filename = "logo_" + System.currentTimeMillis() + "_" + sanitizeFilename(upload.getOriginalFilename());
-            Path targetPath = dir.resolve(filename);
-            Files.copy(upload.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-            return ResponseEntity.ok(ApiResponse.success(Map.of("path", "uploads/logos/" + filename)));
+            com.institute.service.storage.StorageResult result = storageService.uploadFile("OTHER_DOCUMENTS", upload, "LOGO", null);
+            if (!result.isSuccess()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(result.getErrorMessage()));
+            }
+            return ResponseEntity.ok(ApiResponse.success(buildUploadResponseMap(result)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Upload failed: " + e.getMessage()));
         }
@@ -391,5 +582,34 @@ public class InstituteController {
         Path directory = basePath.resolve(subdirectory).normalize();
         Files.createDirectories(directory);
         return directory;
+    }
+
+    /**
+     * Build a consistent upload response map.
+     * For Google Drive uploads, returns a proper viewable URL.
+     * For images: uses lh3.googleusercontent.com/d/FILE_ID for direct image rendering.
+     * For other files: uses webViewLink (drive.google.com/file/d/FILE_ID/view).
+     */
+    private Map<String, Object> buildUploadResponseMap(com.institute.service.storage.StorageResult result) {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        String storedPath = result.getRelativePathOrUrl();
+
+        if ("GOOGLE_DRIVE".equals(result.getProvider()) && result.getProviderFileId() != null) {
+            String mimeType = result.getMimeType() != null ? result.getMimeType() : "";
+            if (mimeType.startsWith("image/")) {
+                // For images, use lh3.googleusercontent.com for direct image rendering
+                storedPath = "https://lh3.googleusercontent.com/d/" + result.getProviderFileId();
+            } else if (result.getWebViewLink() != null) {
+                // For documents/PDFs, use Drive viewer link
+                storedPath = result.getWebViewLink();
+            }
+        }
+
+        data.put("path", storedPath);
+        data.put("provider", result.getProvider());
+        if (result.getProviderFileId() != null) {
+            data.put("provider_file_id", result.getProviderFileId());
+        }
+        return data;
     }
 }

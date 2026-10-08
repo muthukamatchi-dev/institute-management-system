@@ -14,11 +14,12 @@ import autoTable from 'jspdf-autotable';
 import { CustomFieldsRendererComponent } from '../../shared/ui/custom-fields-renderer.component';
 import { ViewChild } from '@angular/core';
 import { ExportHelper } from '../../shared/utils/export-helper';
+import { DatePickerComponent } from '../../shared/ui/date-picker.component';
 
 @Component({
   selector: 'app-fee-list',
   standalone: true,
-  imports: [CommonModule, BadgeComponent, ModalComponent, FormsModule, CustomFieldsRendererComponent],
+  imports: [CommonModule, BadgeComponent, ModalComponent, FormsModule, CustomFieldsRendererComponent, DatePickerComponent],
   templateUrl: './fee-list.component.html',
 })
 export class FeeListComponent implements OnInit {
@@ -175,7 +176,7 @@ export class FeeListComponent implements OnInit {
     if (fee.studentId) {
       this.loadFeeHistory(fee.studentId);
     }
-    
+
     // Load existing reminder
     this.reminderData = {
       date: (fee as any).reminder_date || '',
@@ -191,7 +192,7 @@ export class FeeListComponent implements OnInit {
 
   saveReminder() {
     if (!this.selectedFeeInfo) return;
-    
+
     const payload = {
       student_id: this.selectedFeeInfo.studentId,
       reminder_date: this.reminderData.date || null,
@@ -219,7 +220,7 @@ export class FeeListComponent implements OnInit {
     if (!confirm(`Are you sure you want to delete payment receipt ${receipt.receiptNo} of ₹${receipt.amount}?`)) {
       return;
     }
-    
+
     this.dataService.deleteReceipt(receipt.id).subscribe({
       next: (res: any) => {
         if (res?.status === 'error') {
@@ -227,10 +228,10 @@ export class FeeListComponent implements OnInit {
           return;
         }
         this.toastService.success('Payment deleted successfully!');
-        
+
         // Reload fees list
         this.loadFees();
-        
+
         // Reload history for details modal
         if (this.selectedFeeInfo && this.selectedFeeInfo.studentId) {
           this.loadFeeHistory(this.selectedFeeInfo.studentId);

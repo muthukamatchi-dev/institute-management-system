@@ -12,7 +12,7 @@ export class ExportHelper {
 
     let currentY = 15;
     const startX = 14;
-    const contentStartX = logoUrl ? 45 : 14; 
+    const contentStartX = logoUrl ? 45 : 14;
 
     // Logo (if exists) - Left Side
     if (logoUrl) {
@@ -29,19 +29,19 @@ export class ExportHelper {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(59, 130, 246); // Primary Color
     doc.text(instituteName, contentStartX, currentY + 10);
-    
+
     // Details - Right Side of Logo
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139); // slate-400
-    
+
     if (address) {
-        doc.text(address, contentStartX, currentY + 16);
+      doc.text(address, contentStartX, currentY + 16);
     }
-    
+
     const contactInfo = [email, phone].filter(Boolean).join('  |  ');
     if (contactInfo) {
-        doc.text(contactInfo, contentStartX, currentY + 22);
+      doc.text(contactInfo, contentStartX, currentY + 22);
     }
 
     currentY += 32;
@@ -58,8 +58,8 @@ export class ExportHelper {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59); // slate-800
     doc.text(title.toUpperCase(), 14, currentY);
-    
-    return currentY + 10; 
+
+    return currentY + 10;
   }
 
   private static getBase64Image(url: string): Promise<string> {

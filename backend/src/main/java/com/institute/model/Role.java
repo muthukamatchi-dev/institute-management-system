@@ -18,7 +18,7 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "role_name", nullable = false, unique = true, length = 50)
+    @Column(name = "role_name", nullable = false, length = 50)
     private String roleName;
 
     @Column(name = "created_at")
@@ -27,4 +27,11 @@ public class Role {
     @Builder.Default
     @Column(name = "tenant_id", length = 100)
     private String tenantId = "default";
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 }

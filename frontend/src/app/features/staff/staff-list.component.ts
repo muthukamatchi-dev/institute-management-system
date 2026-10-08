@@ -5,6 +5,7 @@ import { DataService } from '../../services/data.service';
 import { Staff } from '../../models';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ModalComponent } from '../../shared/ui/modal.component';
+import { HttpClient } from '@angular/common/http';
 import { Observable, firstValueFrom } from 'rxjs';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -14,11 +15,13 @@ import { ToastService } from '../../services/toast.service';
 import { CustomFieldsRendererComponent } from '../../shared/ui/custom-fields-renderer.component';
 import { ViewChild } from '@angular/core';
 import { ExportHelper } from '../../shared/utils/export-helper';
+import { GDriveImagePipe } from '../../shared/pipes/gdrive.pipe';
+import { DatePickerComponent } from '../../shared/ui/date-picker.component';
 
 @Component({
   selector: 'app-staff-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, ModalComponent, CustomFieldsRendererComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, ModalComponent, CustomFieldsRendererComponent, GDriveImagePipe, DatePickerComponent],
   templateUrl: 'staff-list.component.html'
 })
 export class StaffListComponent implements OnInit {
@@ -38,9 +41,25 @@ export class StaffListComponent implements OnInit {
   customFields: any[] = [];
   settings: any;
 
+  get isGdriveImageMode(): boolean {
+    return this.settings?.studentStaffImageStorageType === 'GDRIVE';
+  }
+
+  // Pagination
+  currentPage: number = 1;
+  itemsPerPage: number = 10;
+
+  // Sorting
+  sortColumn: string = 'staff_id';
+  sortDirection: 'asc' | 'desc' = 'asc';
+
   newStaff: Partial<Staff> = this.getInitialStaff();
 
-  constructor(private dataService: DataService, private toastService: ToastService) { }
+  constructor(
+    private dataService: DataService,
+    private toastService: ToastService,
+    private http: HttpClient
+  ) { }
 
   ngOnInit() {
     this.loadStaff();
@@ -82,6 +101,80 @@ export class StaffListComponent implements OnInit {
       const matchesStatus = this.filterStatus ? s.status === this.filterStatus : true;
       return matchesSearch && matchesStatus;
     });
+  }
+
+  sort(column: string): void {
+    if (this.sortColumn === column) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortColumn = column;
+      this.sortDirection = 'asc';
+    }
+  }
+
+  sortedStaff(): Staff[] {
+    const list = this.filteredStaff();
+    if (!this.sortColumn) return list;
+
+    return [...list].sort((a: any, b: any) => {
+      let valA = a[this.sortColumn] ?? '';
+      let valB = b[this.sortColumn] ?? '';
+
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return this.sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+
+      if (this.sortColumn === 'joiningDate' || this.sortColumn === 'joining_date') {
+        const timeA = valA ? new Date(valA).getTime() : 0;
+        const timeB = valB ? new Date(valB).getTime() : 0;
+        if (!isNaN(timeA) && !isNaN(timeB)) {
+          return this.sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+        }
+      }
+
+      return this.sortDirection === 'asc'
+        ? String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' })
+        : String(valB).localeCompare(String(valA), undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }
+
+  paginatedStaff(): Staff[] {
+    const sorted = this.sortedStaff();
+    const total = Math.ceil(sorted.length / this.itemsPerPage) || 1;
+    if (this.currentPage > total) {
+      this.currentPage = total;
+    }
+    const start = (this.currentPage - 1) * this.itemsPerPage;
+    return sorted.slice(start, start + this.itemsPerPage);
+  }
+
+  totalPages(): number {
+    return Math.ceil(this.filteredStaff().length / this.itemsPerPage) || 1;
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages()) {
+      this.currentPage++;
+    }
+  }
+
+  prevPage(): void {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
+
+  getStartCount(): number {
+    if (this.filteredStaff().length === 0) return 0;
+    return (this.currentPage - 1) * this.itemsPerPage + 1;
+  }
+
+  getEndCount(): number {
+    return Math.min(this.currentPage * this.itemsPerPage, this.filteredStaff().length);
+  }
+
+  onFilterChange(): void {
+    this.currentPage = 1;
   }
 
   openAddModal() {
@@ -262,6 +355,51 @@ export class StaffListComponent implements OnInit {
     this.isGuidanceOpen = !this.isGuidanceOpen;
   }
 
+  downloadSampleTemplate() {
+    const sampleData: any[] = [
+      {
+        'Staff ID': 'STF-101',
+        'Name': 'Dr. Anitha Ramesh',
+        'Mobile': '9876543210',
+        'Designation': 'Senior Math Lecturer',
+        'Email': 'anitha.r@example.com',
+        'Qualification': 'M.Sc., Ph.D.',
+        'Experience': '8 Years',
+        'Salary': 45000,
+        'Joining Date': '2024-01-15',
+        'Status': 'active'
+      },
+      {
+        'Staff ID': 'STF-102',
+        'Name': 'Rajesh Kumar',
+        'Mobile': '9876543211',
+        'Designation': 'Physics Lecturer',
+        'Email': 'rajesh.k@example.com',
+        'Qualification': 'M.Sc. Physics',
+        'Experience': '5 Years',
+        'Salary': 38000,
+        'Joining Date': '2024-02-01',
+        'Status': 'active'
+      }
+    ];
+
+    if (this.customFields && this.customFields.length > 0) {
+      this.customFields.forEach(cf => {
+        const label = cf.label || cf.field_label;
+        if (label) {
+          sampleData[0][label] = cf.field_type === 'number' ? 100 : 'Sample Value';
+          sampleData[1][label] = cf.field_type === 'number' ? 200 : 'Sample Value';
+        }
+      });
+    }
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Staff_Sample');
+    XLSX.writeFile(wb, 'Staff_Import_Sample_Template.xlsx');
+    this.toastService.success('Sample staff import template downloaded!');
+  }
+
   onPhotoChange(event: any) {
     const file = event.target.files[0];
     if (file) {
@@ -273,6 +411,22 @@ export class StaffListComponent implements OnInit {
           this.toastService.error('Error processing photo');
           console.error(err);
         });
+
+      const formData = new FormData();
+      formData.append('image', file);
+      if (this.newStaff.id) {
+        formData.append('staff_id', this.newStaff.id.toString());
+      }
+      this.http.post<any>('/api/institute/upload_staff_image', formData).subscribe({
+        next: (res: any) => {
+          if (res && res.data && res.data.path) {
+            this.newStaff.photo = res.data.path;
+          }
+        },
+        error: (err: any) => {
+          console.warn('Staff photo upload server note:', err);
+        }
+      });
     }
   }
 

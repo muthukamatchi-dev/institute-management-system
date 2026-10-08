@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
@@ -46,6 +47,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"status\":\"error\",\"message\":\"Unauthorized or session expired\",\"code\":401}");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints (no auth required)
                         .requestMatchers("/api/auth/login").permitAll()
@@ -58,6 +66,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/exams/submit_external").permitAll()
                         .requestMatchers("/api/exams/external_results/**").permitAll()
                         .requestMatchers("/api/exams/institute_name").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/exams/external").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/exams/external_submission_details").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/institute/settings").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/exams/external_exam_for_portal/**").permitAll()
                         .requestMatchers("/error").permitAll()

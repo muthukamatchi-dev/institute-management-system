@@ -1,0 +1,170 @@
+<div class="p-6 space-y-6">
+  <!-- Header -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Professional Programs</h1>
+      <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
+        Structured Course Pathways & Career Learning Tracks
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button (click)="openCreateModal()" 
+        class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2">
+        <span>+</span> Create Program
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters & Search -->
+  <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-4 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+    <div class="w-full sm:w-80 relative">
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Search programs or category..." 
+        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500">
+      <span class="absolute left-3.5 top-3 text-slate-400 text-sm">🔍</span>
+    </div>
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      <select [(ngModel)]="statusFilter" class="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <option value="all">All Statuses</option>
+        <option value="active">Active Only</option>
+        <option value="inactive">Inactive Only</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Program Cards Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div *ngFor="let program of filteredPrograms()" 
+      class="group bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200/80 dark:border-slate-800/80 shadow-soft hover:shadow-premium hover:border-primary-500/30 transition-all duration-300 flex flex-col justify-between relative">
+      
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <span class="px-3 py-1 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] font-black uppercase rounded-xl border border-primary-100 dark:border-primary-800/50">
+            {{ program.category || 'Program' }}
+          </span>
+          <span class="px-2.5 py-1 text-[10px] font-black uppercase rounded-lg border"
+            [class]="program.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700'">
+            {{ program.status }}
+          </span>
+        </div>
+
+        <h3 class="text-xl font-black text-slate-800 dark:text-white leading-tight group-hover:text-primary-600 transition-colors">
+          {{ program.name }}
+        </h3>
+        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2 line-clamp-2">
+          {{ program.description || 'No description provided.' }}
+        </p>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-3 gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-center">
+          <div class="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-2xl">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Modules</p>
+            <p class="text-sm font-black text-slate-800 dark:text-white mt-0.5">{{ program.moduleCount || 0 }}</p>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-2xl">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Duration</p>
+            <p class="text-xs font-black text-slate-800 dark:text-white mt-0.5 truncate">{{ program.totalDuration || '6 Months' }}</p>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-2xl">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Total Fee</p>
+            <p class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5">₹{{ program.totalFee | number }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-6 flex items-center justify-between gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+        <button (click)="openBuilder(program.id)" 
+          class="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5">
+          <span>⚙️</span> Module Builder
+        </button>
+        <button (click)="openEditModal(program)" 
+          class="p-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all">
+          ✏️
+        </button>
+        <button (click)="deleteProgram(program)" 
+          class="p-2.5 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl transition-all">
+          🗑️
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="filteredPrograms().length === 0" class="col-span-full py-16 text-center bg-white/40 dark:bg-slate-900/40 rounded-[2.5rem] border border-dashed border-slate-300 dark:border-slate-800">
+      <div class="text-4xl mb-3">🎓</div>
+      <p class="text-lg font-black text-slate-700 dark:text-slate-300">No Professional Programs found.</p>
+      <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">Create your first Program (e.g. DCA, DTP, Full Stack) to get started.</p>
+      <button (click)="openCreateModal()" class="mt-4 px-5 py-2.5 bg-primary-600 text-white text-xs font-black uppercase rounded-2xl">
+        + Create Program
+      </button>
+    </div>
+  </div>
+
+  <!-- Create/Edit Program Modal -->
+  <app-modal [isOpen]="isModalOpen" (closeModal)="closeModal()" [showFooter]="false" [title]="editingProgram ? 'Edit Program' : 'Create New Program'">
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Program Name *</label>
+        <input type="text" [(ngModel)]="newProgram.name" placeholder="e.g. DCA – Diploma in Computer Applications" 
+          class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Program Code</label>
+          <input type="text" [(ngModel)]="newProgram.programCode" placeholder="e.g. PROG-DCA" 
+            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div>
+          <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Category</label>
+          <input type="text" [(ngModel)]="newProgram.category" placeholder="e.g. Software & IT" 
+            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Total Duration</label>
+          <input type="text" [(ngModel)]="newProgram.totalDuration" placeholder="e.g. 6 Months" 
+            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div>
+          <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Total Program Fee (₹)</label>
+          <input type="number" [(ngModel)]="newProgram.totalFee" placeholder="15000" 
+            class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Fee Mode</label>
+          <select [(ngModel)]="newProgram.feeMode" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="lump_sum">Lump Sum (Full Program Fee)</option>
+            <option value="per_module">Per Module Fee</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Status</label>
+          <select [(ngModel)]="newProgram.status" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Description</label>
+        <textarea [(ngModel)]="newProgram.description" rows="3" placeholder="Provide details about what students will learn in this program..." 
+          class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <button (click)="closeModal()" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold uppercase rounded-xl">
+          Cancel
+        </button>
+        <button (click)="saveProgram()" [disabled]="isSaving" class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase rounded-xl shadow-lg shadow-primary-500/20">
+          {{ isSaving ? 'Saving...' : (editingProgram ? 'Update Program' : 'Create Program') }}
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>

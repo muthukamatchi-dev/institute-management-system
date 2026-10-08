@@ -120,8 +120,34 @@ public class AuthController {
 
             Map<String, Object> user = authService.login(username, password);
             if (user != null) {
+                String plan = tenant.getPlan() != null ? tenant.getPlan().trim().toLowerCase() : "basic";
+                String role = (String) user.get("role_name");
+                if (role == null) role = (String) user.get("role");
+                if (role != null) role = role.trim().toLowerCase();
+
+                if (tenant.isTrialExpired()) {
+                    boolean isAdmin = "admin".equals(role) || "super admin".equals(role) || "super_admin".equals(role);
+                    if (!isAdmin) {
+                        log.warn("Trial expired login blocked for non-admin user: {} (role: {}) in tenant: {}", username, role, tenantId);
+                        return ResponseEntity.status(403).body(ApiResponse.error("Institute trial period has expired. Only the Admin can log in to view data. Please contact your administrator."));
+                    }
+                    user.put("is_read_only", true);
+                }
+
+                if ("basic".equals(plan)) {
+                    if ("staff".equals(role)) {
+                        log.warn("Staff login blocked on Basic plan for user: {} in tenant: {}", username, tenantId);
+                        return ResponseEntity.status(403).body(ApiResponse.error("Staff login is not available on the Basic plan. Please upgrade your institute plan to unlock Staff access."));
+                    }
+                    if ("student".equals(role)) {
+                        log.warn("Student login blocked on Basic plan for user: {} in tenant: {}", username, tenantId);
+                        return ResponseEntity.status(403).body(ApiResponse.error("Student login is not available on the Basic plan. Please upgrade your institute plan to unlock Student portal."));
+                    }
+                }
+
                 user.put("tenant_code", tenantId);
                 user.put("subdomain", tenant.getSubdomain());
+                user.put("plan", plan);
                 log.info("Institute login successful: {} for tenant: {}", username, tenantId);
                 return ResponseEntity.ok(ApiResponse.builder()
                     .status("success")
@@ -163,8 +189,31 @@ public class AuthController {
 
             Map<String, Object> user = authService.login(username, password);
             if (user != null) {
+                String plan = tenant.getPlan() != null ? tenant.getPlan().trim().toLowerCase() : "basic";
+                String role = (String) user.get("role_name");
+                if (role == null) role = (String) user.get("role");
+                if (role != null) role = role.trim().toLowerCase();
+
+                if (tenant.isTrialExpired()) {
+                    boolean isAdmin = "admin".equals(role) || "super admin".equals(role) || "super_admin".equals(role);
+                    if (!isAdmin) {
+                        return ResponseEntity.status(403).body(ApiResponse.error("Institute trial period has expired. Only the Admin can log in to view data. Please contact your administrator."));
+                    }
+                    user.put("is_read_only", true);
+                }
+
+                if ("basic".equals(plan)) {
+                    if ("staff".equals(role)) {
+                        return ResponseEntity.status(403).body(ApiResponse.error("Staff login is not available on the Basic plan. Please upgrade your institute plan to unlock Staff access."));
+                    }
+                    if ("student".equals(role)) {
+                        return ResponseEntity.status(403).body(ApiResponse.error("Student login is not available on the Basic plan. Please upgrade your institute plan to unlock Student portal."));
+                    }
+                }
+
                 user.put("tenant_code", tenantCode);
                 user.put("subdomain", tenant.getSubdomain());
+                user.put("plan", plan);
                 return ResponseEntity.ok(ApiResponse.builder()
                     .status("success")
                     .data(user)
@@ -242,6 +291,7 @@ public class AuthController {
             info.put("status", tenant.getStatus());
             info.put("is_trial_active", tenant.getIsTrialActive());
             info.put("trial_end_date", tenant.getTrialEndDate() != null ? tenant.getTrialEndDate().toString() : null);
+            info.put("plan", tenant.getPlan() != null ? tenant.getPlan() : "basic");
 
             return ResponseEntity.ok(ApiResponse.success(info, "Tenant info loaded"));
         } finally {

@@ -53,7 +53,8 @@ public class BranchService {
                 List<Branch> all = branchRepository.findAll();
                 if (all.isEmpty()) {
                     String tenantId = com.institute.tenant.TenantContext.getTenantId();
-                    if (tenantId == null || tenantId.isEmpty()) tenantId = "default";
+                    if (tenantId == null || tenantId.isEmpty())
+                        tenantId = "default";
                     Branch main = Branch.builder()
                             .name("Main Branch")
                             .code("MAIN")
@@ -78,15 +79,16 @@ public class BranchService {
                 String tenantId = com.institute.tenant.TenantContext.getTenantId();
                 if (tenantId != null && !tenantId.isEmpty()) {
                     String[] tables = {
-                        "students", "courses", "batches", "fees", "expenses", "staff", "attendance",
-                        "scheduled_classes", "study_materials", "exams", "exam_entries",
-                        "exam_entry_student_results", "external_exams", "receipts",
-                        "staff_attendance", "activity_logs", "notifications", "users"
+                            "students", "courses", "batches", "fees", "expenses", "staff", "attendance",
+                            "scheduled_classes", "study_materials", "exams", "exam_entries",
+                            "exam_entry_student_results", "external_exams", "receipts",
+                            "staff_attendance", "activity_logs", "notifications", "users"
                     };
 
                     for (String table : tables) {
                         try {
-                            entityManager.createNativeQuery("UPDATE " + table + " SET branch_id = :bId WHERE (branch_id IS NULL OR branch_id = 0) AND UPPER(tenant_id) = UPPER(:tId)")
+                            entityManager.createNativeQuery("UPDATE " + table
+                                    + " SET branch_id = :bId WHERE (branch_id IS NULL OR branch_id = 0) AND UPPER(tenant_id) = UPPER(:tId)")
                                     .setParameter("bId", mainBranchId)
                                     .setParameter("tId", tenantId)
                                     .executeUpdate();

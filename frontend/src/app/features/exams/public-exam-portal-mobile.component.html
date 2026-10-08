@@ -1,0 +1,372 @@
+<!-- Mobile Public Exam Portal Template -->
+<div class="m-public-exam min-h-screen flex flex-col bg-slate-900 text-white overflow-hidden p-4">
+
+  <!-- LOGIN VIEW -->
+  <div *ngIf="view === 'login'" class="flex-1 flex flex-col items-center justify-center p-2">
+    <div class="w-full max-w-sm bg-slate-800/90 rounded-3xl p-6 border border-slate-700 shadow-2xl space-y-6">
+      <div class="text-center space-y-1">
+        <div class="w-12 h-12 mx-auto rounded-2xl bg-primary-600/20 text-primary-400 flex items-center justify-center text-2xl">
+          🏛️
+        </div>
+        <h2 class="text-lg font-black text-white uppercase tracking-tight">{{ settings?.institute_name || instituteName }}</h2>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-primary-400">Candidate Examination Portal</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Identity (Email/ID)</label>
+          <input type="email" [(ngModel)]="loginData.email"
+            class="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-primary-500"
+            placeholder="candidate@example.com">
+        </div>
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Security Key (Password)</label>
+          <input type="password" [(ngModel)]="loginData.password"
+            class="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-primary-500"
+            placeholder="••••••••">
+        </div>
+      </div>
+
+      <button (click)="login()"
+        class="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg hover:bg-primary-700 active:scale-95 transition-all">
+        Authorize & Enter
+      </button>
+    </div>
+  </div>
+
+  <!-- INSTRUCTIONS VIEW -->
+  <div *ngIf="view === 'instructions'" class="flex-1 flex flex-col justify-between py-4 space-y-6">
+    <div class="text-center space-y-3">
+      <div class="inline-block px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+        Login Successful
+      </div>
+      <p class="text-[10px] font-black uppercase tracking-[0.2em] text-primary-400">Assessment Ready</p>
+      <h2 class="text-2xl font-black text-white tracking-tight">{{ exam?.title || 'Online Assessment' }}</h2>
+      
+      <div class="flex justify-center gap-4 text-[10px] font-black uppercase tracking-wider text-slate-400 py-2">
+        <span><b class="text-primary-400">{{ exam?.questions?.length || 0 }}</b> Questions</span>
+        <span>|</span>
+        <span><b class="text-primary-400">{{ exam?.duration_minutes || 60 }}</b> Min</span>
+        <span>|</span>
+        <span><b class="text-primary-400">{{ exam?.total_marks || 0 }}</b> Marks</span>
+      </div>
+    </div>
+
+    <div class="space-y-3 bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60 text-xs">
+      <div class="flex items-center gap-3">
+        <span class="text-lg">⏳</span>
+        <div>
+          <p class="font-bold text-slate-200">Strict Timing</p>
+          <p class="text-[10px] text-slate-400">Auto-submits when time expires.</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-lg">🚧</span>
+        <div>
+          <p class="font-bold text-slate-200">Secure Environment</p>
+          <p class="text-[10px] text-slate-400">Do not refresh or exit while attending.</p>
+        </div>
+      </div>
+    </div>
+
+    <button (click)="startExam()"
+      class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2">
+      Commence Assessment <span>→</span>
+    </button>
+  </div>
+
+  <!-- ONGOING EXAM VIEW -->
+  <div *ngIf="view === 'ongoing'" class="flex-1 flex flex-col overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between py-2 border-b border-slate-800 mb-3">
+      <div>
+        <h2 class="text-sm font-bold truncate max-w-[180px]">{{ exam?.title || 'Online Test' }}</h2>
+        <p class="text-[10px] text-slate-400">
+          <ng-container *ngIf="!isSectionItem(currentQuestion)">Question {{ getQuestionNumber(currentQuestionIndex) }} of {{ getTotalQuestionsCount() }}</ng-container>
+          <ng-container *ngIf="isSectionItem(currentQuestion)">Section Break</ng-container>
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <app-exam-timer [durationMinutes]="exam?.duration_minutes || 60" (onTimeUp)="handleTimeUp()"></app-exam-timer>
+        <button (click)="submit()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider">
+          Finish
+        </button>
+      </div>
+    </div>
+
+    <!-- Question View -->
+    <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+      <!-- Section Header Display -->
+      <div *ngIf="isSectionItem(currentQuestion)" class="p-6 bg-slate-800/90 rounded-2xl border-2 border-amber-500/50 text-center space-y-3">
+        <span class="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-[10px] font-black uppercase tracking-wider">📑 Section Break</span>
+        <h3 class="text-base font-black text-white leading-snug">{{ currentQuestion?.question_text }}</h3>
+        <p class="text-[11px] text-slate-400">Section introductory break. Tap below to begin questions.</p>
+        <button type="button" (click)="next()" class="px-5 py-2.5 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs active:scale-95 transition-all">
+          Proceed to Questions →
+        </button>
+      </div>
+
+      <!-- Standard Question Display -->
+      <div *ngIf="!isSectionItem(currentQuestion)" class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-3">
+        <div class="flex items-center justify-between text-xs font-bold">
+          <span class="text-primary-400 uppercase tracking-wider">Question {{ getQuestionNumber(currentQuestionIndex) }} of {{ getTotalQuestionsCount() }}</span>
+          <span class="text-slate-400">{{ currentQuestion?.marks || 1 }} Marks</span>
+        </div>
+
+        <p *ngIf="currentQuestion?.question_type !== 'either_or'" class="text-sm font-medium text-slate-100 leading-relaxed">
+          {{ currentQuestion?.question_text }}
+        </p>
+
+        <!-- Question Image (if attached) -->
+        <div *ngIf="currentQuestion?.image_path" class="text-center pt-1">
+          <img [src]="getImageUrl(currentQuestion?.image_path)" alt="Question Image"
+            class="max-h-48 rounded-xl mx-auto border border-slate-700 object-contain shadow-lg">
+        </div>
+
+        <!-- MCQ Interface -->
+        <div *ngIf="currentQuestion?.question_type === 'mcq'" class="space-y-2 pt-2">
+          <div *ngFor="let opt of currentQuestion?.options"
+            (click)="answers[currentQuestionIndex].selected_option_id = opt.id"
+            [class.border-primary-500]="answers[currentQuestionIndex]?.selected_option_id === opt.id"
+            [class.bg-primary-900/30]="answers[currentQuestionIndex]?.selected_option_id === opt.id"
+            class="p-3 bg-slate-900/60 border border-slate-700 rounded-xl flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-all">
+            <div class="w-5 h-5 rounded-full border border-slate-500 flex items-center justify-center shrink-0"
+              [class.bg-primary-500]="answers[currentQuestionIndex]?.selected_option_id === opt.id"
+              [class.border-primary-500]="answers[currentQuestionIndex]?.selected_option_id === opt.id">
+              <div *ngIf="answers[currentQuestionIndex]?.selected_option_id === opt.id" class="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+            <span class="text-xs text-slate-200 leading-snug">{{ opt.option_text }}</span>
+          </div>
+        </div>
+
+        <!-- Fill in blanks Interface -->
+        <div *ngIf="currentQuestion?.question_type === 'fillups' || currentQuestion?.question_type === 'fill_in_the_blanks' || currentQuestion?.question_type === 'fill'" class="pt-2 space-y-1.5">
+          <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">✍️ Your Answer for the blank:</span>
+          <input type="text" [(ngModel)]="answers[currentQuestionIndex].answer_text"
+            class="w-full p-3 bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-xl text-xs text-white outline-none"
+            placeholder="Type your answer here...">
+        </div>
+
+        <!-- Descriptive / Text Interface -->
+        <div *ngIf="currentQuestion?.question_type === 'text' || currentQuestion?.question_type === 'descriptive' || currentQuestion?.question_type === 'subjective' || currentQuestion?.question_type === 'task'" class="pt-2 space-y-1.5">
+          <span class="text-[10px] font-bold text-primary-400 uppercase tracking-wider block">📝 Your Detailed Response:</span>
+          <textarea [(ngModel)]="answers[currentQuestionIndex].answer_text" rows="4"
+            class="w-full p-3 bg-slate-900 border border-slate-700 focus:border-primary-500 rounded-xl text-xs text-white outline-none"
+            placeholder="Type your detailed response here..."></textarea>
+        </div>
+
+        <!-- True / False Interface -->
+        <div *ngIf="currentQuestion?.question_type === 'true_false'" class="grid grid-cols-2 gap-3 pt-2">
+          <button type="button" (click)="answers[currentQuestionIndex].answer_text = 'True'"
+            [class.bg-emerald-600]="answers[currentQuestionIndex]?.answer_text === 'True'"
+            [class.border-emerald-400]="answers[currentQuestionIndex]?.answer_text === 'True'"
+            class="py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white transition-all">
+            ✓ True
+          </button>
+          <button type="button" (click)="answers[currentQuestionIndex].answer_text = 'False'"
+            [class.bg-rose-600]="answers[currentQuestionIndex]?.answer_text === 'False'"
+            [class.border-rose-400]="answers[currentQuestionIndex]?.answer_text === 'False'"
+            class="py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white transition-all">
+            ✕ False
+          </button>
+        </div>
+
+        <!-- Either Or Interface (Mobile) -->
+        <div *ngIf="currentQuestion?.question_type === 'either_or'" class="space-y-3 pt-2">
+          <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+            <p class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Either / Or Choice</p>
+            <div class="flex gap-2 mt-2">
+              <button type="button" (click)="selectEitherOrChoice('A')"
+                [class.bg-primary-600]="answers[currentQuestionIndex]?.either_or_selected === 'A'"
+                [class.bg-slate-700]="answers[currentQuestionIndex]?.either_or_selected !== 'A'"
+                class="flex-1 py-1.5 rounded-lg text-xs font-bold text-white">
+                Choice A
+              </button>
+              <button type="button" (click)="selectEitherOrChoice('B')"
+                [class.bg-indigo-600]="answers[currentQuestionIndex]?.either_or_selected === 'B'"
+                [class.bg-slate-700]="answers[currentQuestionIndex]?.either_or_selected !== 'B'"
+                class="flex-1 py-1.5 rounded-lg text-xs font-bold text-white">
+                Choice B
+              </button>
+            </div>
+          </div>
+
+          <!-- Choice A -->
+          <div class="p-3 rounded-xl border"
+            [class.border-primary-500]="answers[currentQuestionIndex]?.either_or_selected === 'A'"
+            [class.border-slate-700]="answers[currentQuestionIndex]?.either_or_selected !== 'A'">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-primary-400">A. Question 1</span>
+              <span *ngIf="answers[currentQuestionIndex]?.either_or_selected === 'B'" class="text-[10px] text-slate-400 uppercase">Skipped</span>
+            </div>
+            <p class="text-xs text-slate-200 mb-2">{{ getEitherOrA(currentQuestion) }}</p>
+            <textarea *ngIf="answers[currentQuestionIndex]?.either_or_selected === 'A'"
+              [(ngModel)]="answers[currentQuestionIndex].either_a_text"
+              (input)="updateEitherOrAnswer('A')" rows="3"
+              class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white"
+              placeholder="Answer Question A..."></textarea>
+          </div>
+
+          <div class="text-center text-[10px] font-bold text-amber-400 uppercase tracking-widest">(or)</div>
+
+          <!-- Choice B -->
+          <div class="p-3 rounded-xl border"
+            [class.border-indigo-500]="answers[currentQuestionIndex]?.either_or_selected === 'B'"
+            [class.border-slate-700]="answers[currentQuestionIndex]?.either_or_selected !== 'B'">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-indigo-400">B. Question 2</span>
+              <span *ngIf="answers[currentQuestionIndex]?.either_or_selected === 'A'" class="text-[10px] text-slate-400 uppercase">Skipped</span>
+            </div>
+            <p class="text-xs text-slate-200 mb-2">{{ getEitherOrB(currentQuestion) }}</p>
+            <textarea *ngIf="answers[currentQuestionIndex]?.either_or_selected === 'B'"
+              [(ngModel)]="answers[currentQuestionIndex].either_b_text"
+              (input)="updateEitherOrAnswer('B')" rows="3"
+              class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white"
+              placeholder="Answer Question B..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Indicator Dots (Mobile) -->
+    <div class="flex flex-wrap justify-center items-center gap-1.5 py-2 px-1">
+      <button *ngFor="let q of exam?.questions; let i = index"
+        type="button"
+        (click)="currentQuestionIndex = i"
+        [class.ring-1]="i === currentQuestionIndex"
+        [class.ring-white]="i === currentQuestionIndex"
+        [class.scale-125]="i === currentQuestionIndex"
+        [class.bg-amber-500]="isSectionItem(q)"
+        [class.bg-primary-500]="!isSectionItem(q) && i === currentQuestionIndex"
+        [class.bg-slate-700]="!isSectionItem(q) && i !== currentQuestionIndex && !isQuestionAnswered(i)"
+        [class.bg-emerald-500]="!isSectionItem(q) && i !== currentQuestionIndex && isQuestionAnswered(i)"
+        class="transition-all"
+        [ngClass]="isSectionItem(q) ? 'w-4 h-1.5 rounded-sm' : 'w-2 h-1.5 rounded-full'">
+      </button>
+    </div>
+
+    <!-- Bottom Navigation Buttons -->
+    <div class="flex gap-2 pt-2 border-t border-slate-800 mt-auto">
+      <button (click)="prev()" [disabled]="currentQuestionIndex === 0" class="flex-1 py-2.5 bg-slate-800 disabled:opacity-40 text-slate-300 rounded-xl text-xs font-bold">
+        ← Previous
+      </button>
+      <button *ngIf="currentQuestionIndex < (exam?.questions?.length || 0) - 1" (click)="next()" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold">
+        Next →
+      </button>
+      <button *ngIf="currentQuestionIndex === (exam?.questions?.length || 0) - 1" (click)="submit()" class="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">
+        Submit Test
+      </button>
+    </div>
+  </div>
+
+  <!-- RESULT VIEW -->
+  <div *ngIf="view === 'result'" class="flex-1 flex flex-col items-center justify-center p-4 space-y-6 text-center">
+    <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl">
+      🏆
+    </div>
+    <div class="space-y-1">
+      <h2 class="text-xl font-black text-white uppercase tracking-tight">Assessment Completed</h2>
+      <p class="text-xs text-slate-400">Your responses have been recorded.</p>
+    </div>
+
+    <div *ngIf="submissionResult?.score !== undefined" class="p-4 bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-xs space-y-1">
+      <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recorded Score</p>
+      <p class="text-2xl font-black text-emerald-400">{{ submissionResult?.score }} / {{ exam?.total_marks || 0 }}</p>
+    </div>
+
+    <button (click)="goToDashboard()" class="w-full max-w-xs py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl">
+      Return to Portal
+    </button>
+  </div>
+
+  <!-- STOPPED VIEW -->
+  <div *ngIf="view === 'stopped'" class="flex-1 flex flex-col items-center justify-center p-4 space-y-4 text-center">
+    <div class="text-4xl">🛑</div>
+    <h2 class="text-xl font-bold text-white">Assessment Closed</h2>
+    <p class="text-xs text-slate-400">This examination is currently not active.</p>
+  </div>
+
+  <!-- SUBMISSION CONFIRMATION / UNANSWERED QUESTIONS MODAL (MOBILE) -->
+  <div *ngIf="showSubmitConfirmModal"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+    <div class="w-full max-w-sm bg-slate-900 border-2 rounded-3xl p-5 shadow-2xl space-y-4 relative"
+      [class.border-amber-500/50]="unansweredQuestions.length > 0"
+      [class.border-emerald-500/50]="unansweredQuestions.length === 0">
+
+      <button (click)="closeSubmitConfirmation()"
+        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-sm">
+        ✕
+      </button>
+
+      <!-- Unanswered Questions -->
+      <div *ngIf="unansweredQuestions.length > 0" class="space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+            ⚠️
+          </div>
+          <div>
+            <span class="px-2.5 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-[9px] font-black uppercase tracking-wider">
+              Incomplete Test
+            </span>
+            <h3 class="text-base font-black text-white mt-0.5">Missed Questions</h3>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-300">
+          You have <span class="text-amber-400 font-bold">{{ unansweredQuestions.length }} unanswered question(s)</span> remaining. Tap any question to answer:
+        </p>
+
+        <!-- List of missed questions -->
+        <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1.5">
+          <span class="text-[9px] font-bold uppercase text-slate-400 block">Tap to jump & answer:</span>
+          <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+            <button *ngFor="let item of unansweredQuestions"
+              type="button"
+              (click)="goToQuestionFromModal(item.index)"
+              class="px-2.5 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded-lg text-[11px] font-bold active:scale-95">
+              Q{{ item.questionNumber }}
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <button type="button" (click)="goToQuestionFromModal(unansweredQuestions[0].index)"
+            class="w-full py-3 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider active:scale-98">
+            Answer Question {{ unansweredQuestions[0].questionNumber }}
+          </button>
+          <button type="button" (click)="confirmAndFinalizeSubmit()"
+            class="w-full py-2.5 bg-slate-800 text-slate-300 border border-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider">
+            Submit Anyway
+          </button>
+        </div>
+      </div>
+
+      <!-- All Answered -->
+      <div *ngIf="unansweredQuestions.length === 0" class="space-y-4 text-center">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center text-2xl">
+          ✓
+        </div>
+        <div>
+          <span class="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-wider">
+            Complete
+          </span>
+          <h3 class="text-base font-black text-white mt-1">Ready to Submit?</h3>
+        </div>
+        <p class="text-xs text-slate-300">
+          All {{ getTotalQuestionsCount() }} questions have been answered. Responses cannot be modified after final submission.
+        </p>
+        <div class="space-y-2 pt-1">
+          <button type="button" (click)="confirmAndFinalizeSubmit()"
+            class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider active:scale-98">
+            Confirm & Submit
+          </button>
+          <button type="button" (click)="closeSubmitConfirmation()"
+            class="w-full py-2.5 bg-slate-800 text-slate-300 rounded-xl font-bold text-xs">
+            Review Answers
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

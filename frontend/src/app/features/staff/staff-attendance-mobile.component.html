@@ -1,0 +1,20 @@
+<!-- Mobile Staff Attendance Template -->
+<div class="m-staff-attendance p-3 pb-24 space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">Staff Attendance</h2>
+      <p class="text-xs text-slate-500">Record & verify student presence</p>
+    </div>
+  </div>
+
+  <!-- Date Navigation -->
+  <div class="flex items-center justify-between bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+    <button (click)="changeDate(-1)" class="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-xs font-bold">◀</button>
+    <input type="date" [(ngModel)]="selectedDate" (change)="loadTodaySchedule()" class="bg-transparent text-xs font-bold text-slate-800 dark:text-white border-none text-center">
+    <button (click)="changeDate(1)" class="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-xs font-bold">▶</button>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 text-center">
+    <p class="text-xs text-slate-500 font-medium">Use group & 1-to-1 tabs to mark attendance.</p>
+  </div>
+</div>

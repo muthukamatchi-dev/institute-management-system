@@ -5,6 +5,7 @@ import { DataService } from '../../services/data.service';
 import { Student, Course } from '../../models';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { ModalComponent } from '../../shared/ui/modal.component';
+import { HttpClient } from '@angular/common/http';
 import { Observable, firstValueFrom } from 'rxjs';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -14,11 +15,14 @@ import { ToastService } from '../../services/toast.service';
 import { CustomFieldsRendererComponent } from '../../shared/ui/custom-fields-renderer.component';
 import { ViewChild } from '@angular/core';
 import { ExportHelper } from '../../shared/utils/export-helper';
+import { GDriveImagePipe } from '../../shared/pipes/gdrive.pipe';
+import { DatePickerComponent } from '../../shared/ui/date-picker.component';
+import { SearchableSelectComponent } from '../../shared/ui/searchable-select.component';
 
 @Component({
   selector: 'app-student-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, ModalComponent, CustomFieldsRendererComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, ModalComponent, CustomFieldsRendererComponent, GDriveImagePipe, DatePickerComponent, SearchableSelectComponent],
   templateUrl: './student-list.component.html',
 })
 export class StudentListComponent implements OnInit {
@@ -26,6 +30,15 @@ export class StudentListComponent implements OnInit {
   students: Student[] = [];
   courses$: Observable<Course[]> | undefined;
   courses: Course[] = [];
+
+  courseOptionsForFilter: { id: string | number; name: string }[] = [{ id: '', name: 'All Courses' }];
+
+  updateCourseOptionsForFilter() {
+    this.courseOptionsForFilter = [
+      { id: '', name: 'All Courses' },
+      ...(this.courses || []).map(c => ({ id: c.id, name: c.name }))
+    ];
+  }
   batches$: Observable<any[]> | undefined;
   searchTerm: string = '';
   filterCourse: string = '';
@@ -38,6 +51,10 @@ export class StudentListComponent implements OnInit {
   importFile: File | null = null;
   customFields: any[] = [];
   regSettings: any = null;
+
+  get isGdriveImageMode(): boolean {
+    return this.regSettings?.studentStaffImageStorageType === 'GDRIVE';
+  }
   nextRegNumber = '';
   showExportMenu = false;
   activeActionStudentId: string | null = null;
@@ -51,11 +68,27 @@ export class StudentListComponent implements OnInit {
   newStudent: Partial<Student> = this.getInitialStudent();
   showSuccess = false;
   successStudentName = '';
+  saving = false;
 
   selectedStudentDetails: any = null;
   isDetailsModalOpen = false;
 
-  constructor(private dataService: DataService, private toastService: ToastService) { }
+  // Multi-course enrollment
+  isAddCourseModalOpen = false;
+  studentCourses: any[] = [];
+  newCourseEnrollment: any = {
+    courseId: '',
+    batchId: '0',
+    joiningDate: new Date().toISOString().split('T')[0],
+    status: 'active',
+    selectedSubjects: []
+  };
+
+  constructor(
+    private dataService: DataService,
+    private toastService: ToastService,
+    private http: HttpClient
+  ) { }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
@@ -76,7 +109,10 @@ export class StudentListComponent implements OnInit {
   ngOnInit() {
     this.loadStudents();
     this.courses$ = this.dataService.getCourses();
-    this.courses$.subscribe(data => this.courses = data);
+    this.courses$.subscribe(data => {
+      this.courses = data;
+      this.updateCourseOptionsForFilter();
+    });
     this.batches$ = this.dataService.getBatches();
     // Load register number settings
     this.dataService.getSettings().subscribe(s => this.regSettings = s);
@@ -93,6 +129,7 @@ export class StudentListComponent implements OnInit {
       mobile: '',
       parentMobile: '',
       dob: '',
+      gender: '',
       qualification: '',
       email: '',
       courseId: '',
@@ -102,6 +139,7 @@ export class StudentListComponent implements OnInit {
       status: 'active',
       referredBy: '',
       referralProfession: '',
+      address: '',
       selectedSubjects: [],
       photo: ''
     };
@@ -159,6 +197,22 @@ export class StudentListComponent implements OnInit {
           this.toastService.error('Error processing photo');
           console.error(err);
         });
+
+      const formData = new FormData();
+      formData.append('image', file);
+      if (this.newStudent.id) {
+        formData.append('student_id', this.newStudent.id.toString());
+      }
+      this.http.post<any>('/api/institute/upload_student_image', formData).subscribe({
+        next: (res: any) => {
+          if (res && res.data && res.data.path) {
+            this.newStudent.photo = res.data.path;
+          }
+        },
+        error: (err: any) => {
+          console.warn('Student photo upload server note:', err);
+        }
+      });
     }
   }
 
@@ -169,11 +223,232 @@ export class StudentListComponent implements OnInit {
   viewStudentDetails(student: any) {
     this.selectedStudentDetails = student;
     this.isDetailsModalOpen = true;
+    // Load all course enrollments for this student
+    if (student?.id) {
+      this.dataService.getStudentCourses(student.id).subscribe({
+        next: (courses) => { this.studentCourses = courses; },
+        error: () => { this.studentCourses = []; }
+      });
+    }
   }
 
   closeDetailsModal() {
     this.selectedStudentDetails = null;
     this.isDetailsModalOpen = false;
+    this.studentCourses = [];
+  }
+
+  openAdditionalCourseModal() {
+    this.selectedStudentDetails = this.createdStudent || this.selectedStudentDetails;
+    this.newCourseEnrollment = {
+      courseId: '',
+      batchId: '0',
+      joiningDate: new Date().toISOString().split('T')[0],
+      status: 'active',
+      selectedSubjects: []
+    };
+    this.isAddCourseModalOpen = true;
+  }
+
+  closeAdditionalCourseModal() {
+    this.isAddCourseModalOpen = false;
+  }
+
+  onAdditionalCourseChange() {
+    this.newCourseEnrollment.batchId = '0';
+    this.newCourseEnrollment.selectedSubjects = [];
+  }
+
+  getAdditionalCourseFilteredBatches(batches: any[] | null): any[] {
+    if (!batches) return [];
+    return batches.filter(b => String(b.courseId) === String(this.newCourseEnrollment.courseId));
+  }
+
+  getAdditionalSelectedCourse(): any {
+    return this.courses.find(c => String(c.id) === String(this.newCourseEnrollment.courseId));
+  }
+
+  isAdditionalCourseStandard(): boolean {
+    const c = this.getAdditionalSelectedCourse();
+    return !!(c && (c.courseType === 'standard' || c.course_type === 'standard'));
+  }
+
+  getSubjectsForAdditionalCourse(): any[] {
+    const c = this.getAdditionalSelectedCourse();
+    if (!c || !c.subjects) return [];
+    if (Array.isArray(c.subjects)) return c.subjects;
+    try {
+      const parsed = JSON.parse(c.subjects);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  isAdditionalSubjectSelected(name: string): boolean {
+    return (this.newCourseEnrollment.selectedSubjects || []).includes(name);
+  }
+
+  toggleAdditionalSubject(name: string) {
+    if (!this.newCourseEnrollment.selectedSubjects) this.newCourseEnrollment.selectedSubjects = [];
+    const idx = this.newCourseEnrollment.selectedSubjects.indexOf(name);
+    if (idx > -1) {
+      this.newCourseEnrollment.selectedSubjects.splice(idx, 1);
+    } else {
+      this.newCourseEnrollment.selectedSubjects.push(name);
+    }
+  }
+
+  // Edit course enrollment
+  isEditCourseModalOpen = false;
+  editingCourseEnrollment: any = {
+    courseId: '',
+    courseName: '',
+    batchId: '0',
+    joiningDate: '',
+    status: 'active',
+    selectedSubjects: []
+  };
+
+  enrollAdditionalCourse() {
+    if (!this.newCourseEnrollment.courseId) {
+      this.toastService.warning('Please select a course.');
+      return;
+    }
+    const studentId = this.selectedStudentDetails?.id || this.createdStudent?.id || this.newStudent?.id;
+    if (!studentId) return;
+
+    const payload = {
+      ...this.newCourseEnrollment,
+      selectedSubjects: JSON.stringify(this.newCourseEnrollment.selectedSubjects || [])
+    };
+
+    this.dataService.enrollAdditionalCourse(studentId, payload).subscribe({
+      next: () => {
+        this.toastService.success('Student enrolled in additional course successfully!');
+        this.isAddCourseModalOpen = false;
+        // Reload student courses list
+        this.dataService.getStudentCourses(studentId).subscribe(courses => this.studentCourses = courses);
+        this.loadStudents();
+      },
+      error: (err) => this.toastService.error(err.error?.message || 'Failed to enroll in additional course.')
+    });
+  }
+
+  editCourseEnrollment(sc: any) {
+    let parsedSubjects: string[] = [];
+    if (sc.selected_subjects) {
+      if (typeof sc.selected_subjects === 'string') {
+        try {
+          parsedSubjects = JSON.parse(sc.selected_subjects);
+        } catch {
+          parsedSubjects = [];
+        }
+      } else if (Array.isArray(sc.selected_subjects)) {
+        parsedSubjects = sc.selected_subjects;
+      }
+    }
+    this.editingCourseEnrollment = {
+      courseId: sc.course_id,
+      courseName: sc.course_name,
+      batchId: sc.batch_id ? String(sc.batch_id) : '0',
+      joiningDate: sc.joining_date || new Date().toISOString().split('T')[0],
+      status: sc.status || 'active',
+      selectedSubjects: parsedSubjects
+    };
+    this.isEditCourseModalOpen = true;
+  }
+
+  closeEditCourseModal() {
+    this.isEditCourseModalOpen = false;
+  }
+
+  saveEditedCourseEnrollment() {
+    const studentId = this.selectedStudentDetails?.id || this.createdStudent?.id || this.newStudent?.id;
+    if (!studentId) {
+      this.toastService.error('Student ID not found.');
+      return;
+    }
+    const payload = {
+      ...this.editingCourseEnrollment,
+      selectedSubjects: JSON.stringify(this.editingCourseEnrollment.selectedSubjects || [])
+    };
+    this.dataService.updateStudentCourse(studentId, payload).subscribe({
+      next: () => {
+        this.toastService.success('Course enrollment updated successfully!');
+        this.isEditCourseModalOpen = false;
+        this.dataService.getStudentCourses(studentId).subscribe(courses => this.studentCourses = courses);
+        this.loadStudents();
+      },
+      error: (err) => this.toastService.error(err.error?.message || 'Failed to update course enrollment.')
+    });
+  }
+
+  getEditCourseFilteredBatches(batches: any[] | null): any[] {
+    if (!batches) return [];
+    return batches.filter(b => String(b.courseId) === String(this.editingCourseEnrollment.courseId));
+  }
+
+  getEditSelectedCourse(): any {
+    return this.courses.find(c => String(c.id) === String(this.editingCourseEnrollment.courseId));
+  }
+
+  isEditCourseStandard(): boolean {
+    const c = this.getEditSelectedCourse();
+    return !!(c && (c.courseType === 'standard' || c.course_type === 'standard'));
+  }
+
+  getSubjectsForEditCourse(): any[] {
+    const c = this.getEditSelectedCourse();
+    if (!c || !c.subjects) return [];
+    if (Array.isArray(c.subjects)) return c.subjects;
+    try {
+      const parsed = JSON.parse(c.subjects);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  isEditSubjectSelected(name: string): boolean {
+    return (this.editingCourseEnrollment.selectedSubjects || []).includes(name);
+  }
+
+  toggleEditSubject(name: string) {
+    if (!this.editingCourseEnrollment.selectedSubjects) this.editingCourseEnrollment.selectedSubjects = [];
+    const idx = this.editingCourseEnrollment.selectedSubjects.indexOf(name);
+    if (idx > -1) {
+      this.editingCourseEnrollment.selectedSubjects.splice(idx, 1);
+    } else {
+      this.editingCourseEnrollment.selectedSubjects.push(name);
+    }
+  }
+
+  unenrollFromCourse(courseId: string | number) {
+    const studentId = this.selectedStudentDetails?.id || this.createdStudent?.id || this.newStudent?.id;
+    const courseName = this.studentCourses.find(sc => String(sc.course_id) === String(courseId))?.course_name || 'this course';
+    if (!confirm(`Remove student from "${courseName}"? This will delete the unpaid fee record.`)) return;
+    this.dataService.unenrollFromCourse(studentId, courseId).subscribe({
+      next: () => {
+        this.toastService.success('Student unenrolled from course.');
+        this.dataService.getStudentCourses(studentId).subscribe(courses => this.studentCourses = courses);
+        this.loadStudents();
+      },
+      error: (err) => this.toastService.error(err.error?.message || 'Could not unenroll student.')
+    });
+  }
+
+  getCourseStatusType(status: string): string {
+    switch (status) {
+      case 'active': return 'success';
+      case 'completed': return 'neutral';
+      case 'inactive': return 'danger';
+      default: return 'neutral';
+    }
+  }
+
+  isCourseAlreadyEnrolled(courseId: string | number): boolean {
+    return this.studentCourses.some(sc => String(sc.course_id) === String(courseId));
   }
 
   getImageUrl(imagePath: string | undefined): string {
@@ -345,9 +620,15 @@ export class StudentListComponent implements OnInit {
     }
   }
 
+  currentStep: 1 | 2 = 1;
+  createdStudent: any = null;
+
   openAddModal() {
     this.newStudent = this.getInitialStudent();
     this.enrollmentType = 'batch';
+    this.currentStep = 1;
+    this.createdStudent = null;
+    this.studentCourses = [];
     // Load next reg number if mode is auto
     if (!this.regSettings || this.regSettings.reg_mode === 'auto' || !this.regSettings.reg_mode) {
       this.dataService.getNextRegNumber().subscribe(res => {
@@ -363,6 +644,69 @@ export class StudentListComponent implements OnInit {
 
   closeModal() {
     this.isModalOpen = false;
+    this.currentStep = 1;
+  }
+
+  goToStep2() {
+    if (this.saving) return;
+    if (!this.newStudent.name || !this.newStudent.name.trim()) {
+      this.toastService.warning('Please enter Student Name.');
+      return;
+    }
+    if (!this.newStudent.mobile || !this.newStudent.mobile.trim()) {
+      this.toastService.warning('Please enter Personal Mobile.');
+      return;
+    }
+    if (this.customFieldsRenderer && !this.customFieldsRenderer.isValid()) {
+      this.toastService.warning('Please fill all required custom fields.');
+      return;
+    }
+
+    if (this.customFieldsRenderer) {
+      (this.newStudent as any).custom_fields = this.customFieldsRenderer.getValues();
+    }
+
+    const payload = { ...this.newStudent };
+    payload.selectedSubjects = JSON.stringify(payload.selectedSubjects || []);
+    if (!payload.id) delete payload.id;
+    if (!payload.courseId || payload.courseId === '') delete payload.courseId;
+    if (!payload.batchId || payload.batchId === '' || payload.batchId === '0') delete payload.batchId;
+
+    this.saving = true;
+    this.dataService.addStudent(payload).subscribe({
+      next: (res: any) => {
+        this.saving = false;
+        const studentObj = res.data || res.student || { ...payload, id: res.id || payload.id };
+        this.createdStudent = studentObj;
+        this.selectedStudentDetails = studentObj;
+        this.loadStudentCourses(studentObj.id);
+        this.loadStudents();
+        this.currentStep = 2;
+        this.toastService.success('Student profile saved! You can now add course(s).');
+      },
+      error: (err: any) => {
+        this.saving = false;
+        this.toastService.error(err.error?.message || 'Error saving student profile.');
+      }
+    });
+  }
+
+  loadStudentCourses(studentId: any) {
+    if (!studentId) return;
+    this.dataService.getStudentCourses(studentId).subscribe({
+      next: (courses) => { this.studentCourses = courses; },
+      error: () => { this.studentCourses = []; }
+    });
+  }
+
+  finishWizard() {
+    const name = this.createdStudent?.name || this.newStudent.name || 'New Student';
+    this.closeModal();
+    this.showSuccess = true;
+    this.successStudentName = name;
+    setTimeout(() => {
+      this.showSuccess = false;
+    }, 3500);
   }
 
   onEnrollmentTypeChange() {
@@ -389,8 +733,11 @@ export class StudentListComponent implements OnInit {
       ...student,
       selectedSubjects: this.parseStudentSubjects(student.selectedSubjects)
     };
-    // If it has a batch, show batchwise, otherwise if it's strictly course-only (0 or null batch) show one-to-one
+    this.createdStudent = student;
+    this.selectedStudentDetails = student;
+    this.loadStudentCourses(student.id);
     this.enrollmentType = student.batchId && student.batchId != '0' ? 'batch' : 'one-to-one';
+    this.currentStep = 1;
     this.isModalOpen = true;
   }
 
@@ -407,6 +754,7 @@ export class StudentListComponent implements OnInit {
   }
 
   saveStudent() {
+    if (this.saving) return; // Prevent duplicate submissions
     if (this.customFieldsRenderer && !this.customFieldsRenderer.isValid()) {
       this.toastService.warning('Please fill all required custom fields.');
       return;
@@ -441,8 +789,10 @@ export class StudentListComponent implements OnInit {
   }
 
   private executeSave(payload: any) {
+    this.saving = true;
     this.dataService.addStudent(payload).subscribe({
       next: () => {
+        this.saving = false;
         this.toastService.success(payload.id ? 'Student record updated' : 'New student enrolled successfully');
         this.loadStudents();
         this.closeModal();
@@ -455,6 +805,7 @@ export class StudentListComponent implements OnInit {
         }, 3500);
       },
       error: (err) => {
+        this.saving = false;
         this.toastService.error(err.error?.message || 'Error saving student. Please try again.');
       }
     });
@@ -610,7 +961,7 @@ export class StudentListComponent implements OnInit {
         return;
       }
 
-      if (confirm(`Detected ${data.length} students. Proceed with sequential import?`)) {
+      if (confirm(`Detected ${data.length} student records. Proceed with import?`)) {
         let imported = 0;
         const skippedRows: string[] = [];
         const courses = await firstValueFrom(this.courses$ || new Observable<Course[]>());
@@ -624,88 +975,100 @@ export class StudentListComponent implements OnInit {
         );
 
         for (const [index, row] of data.entries()) {
+          const studentName = this.readImportValue(row, ['Name', 'name', 'Student Name', 'student_name']) || 'Unknown';
+          const mobile = this.readImportValue(row, ['Mobile', 'mobile', 'Personal Mobile', 'phone', 'Phone Number']);
           const courseName = this.readImportValue(row, ['Course', 'course', 'Course Name', 'course_name']);
           const batchName = this.readImportValue(row, ['Batch', 'batch', 'Batch Name', 'batch_name']);
-          const studentName = this.readImportValue(row, ['Name', 'name']) || 'Unknown';
           const rowLabel = `Row ${index + 2} (${studentName})`;
 
-          if (!courseName) {
-            skippedRows.push(`${rowLabel}: missing Course.`);
+          if (!studentName || studentName === 'Unknown' || !mobile) {
+            skippedRows.push(`${rowLabel}: missing required Student Name or Mobile.`);
             continue;
           }
 
-          const course = courseMap.get(this.normalizeImportValue(courseName));
-          if (!course) {
-            skippedRows.push(`${rowLabel}: course "${courseName}" does not exist.`);
-            continue;
-          }
-
-          let batchId: string | null = null;
-          if (batchName) {
-            const batch = batchMap.get(this.normalizeImportValue(batchName));
-            if (!batch) {
-              skippedRows.push(`${rowLabel}: batch "${batchName}" does not exist.`);
-              continue;
-            }
-            if (String(batch.courseId) !== String(course.id)) {
-              skippedRows.push(`${rowLabel}: batch "${batchName}" does not belong to course "${courseName}".`);
-              continue;
-            }
-            batchId = batch.id;
-          }
-
-          // Parse course subjects if standard course
-          let courseSubjects: any[] = [];
-          if (course.subjects) {
-            if (Array.isArray(course.subjects)) {
-              courseSubjects = course.subjects;
-            } else {
-              try {
-                const parsed = JSON.parse(course.subjects);
-                if (Array.isArray(parsed)) courseSubjects = parsed;
-              } catch {}
-            }
-          }
-
-          const subjectsVal = this.readImportValue(row, ['Subjects', 'subjects', 'Selected Subjects', 'selected_subjects', 'Subject', 'subject']);
+          let courseId: any = null;
+          let batchId: any = null;
           let selectedSubjects: string[] = [];
-          if (course.courseType === 'standard' || course.course_type === 'standard') {
-            if (subjectsVal) {
-              if (subjectsVal.trim().toLowerCase() === 'all') {
-                selectedSubjects = courseSubjects.map((s: any) => s.name);
-              } else {
-                const importSubjectNames = subjectsVal.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
-                selectedSubjects = courseSubjects
-                  .filter((s: any) => importSubjectNames.includes(s.name.trim().toLowerCase()))
-                  .map((s: any) => s.name);
+
+          if (courseName) {
+            const course = courseMap.get(this.normalizeImportValue(courseName));
+            if (course) {
+              courseId = course.id;
+              if (batchName) {
+                const batch = batchMap.get(this.normalizeImportValue(batchName));
+                if (batch) {
+                  if (String(batch.courseId) === String(course.id)) {
+                    batchId = batch.id;
+                  } else {
+                    skippedRows.push(`${rowLabel}: batch "${batchName}" does not belong to course "${courseName}".`);
+                  }
+                } else {
+                  skippedRows.push(`${rowLabel}: batch "${batchName}" not found.`);
+                }
+              }
+
+              // Parse course subjects if standard course
+              let courseSubjects: any[] = [];
+              if (course.subjects) {
+                if (Array.isArray(course.subjects)) {
+                  courseSubjects = course.subjects;
+                } else {
+                  try {
+                    const parsed = JSON.parse(course.subjects);
+                    if (Array.isArray(parsed)) courseSubjects = parsed;
+                  } catch { }
+                }
+              }
+
+              const subjectsVal = this.readImportValue(row, ['Subjects', 'subjects', 'Selected Subjects', 'selected_subjects', 'Subject', 'subject']);
+              if (course.courseType === 'standard' || course.course_type === 'standard') {
+                if (subjectsVal) {
+                  if (subjectsVal.trim().toLowerCase() === 'all') {
+                    selectedSubjects = courseSubjects.map((s: any) => s.name);
+                  } else {
+                    const importSubjectNames = subjectsVal.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+                    selectedSubjects = courseSubjects
+                      .filter((s: any) => importSubjectNames.includes(s.name.trim().toLowerCase()))
+                      .map((s: any) => s.name);
+                  }
+                } else {
+                  selectedSubjects = courseSubjects.map((s: any) => s.name);
+                }
               }
             } else {
-              // Default to all subjects of the course if none specified
-              selectedSubjects = courseSubjects.map((s: any) => s.name);
+              skippedRows.push(`${rowLabel}: course "${courseName}" not found (enrolled without course).`);
             }
           }
 
           const student: any = {
-            regNumber: row['Reg Number'] || row['regNumber'] || row['reg_number'] || row['REG #'] || '',
+            regNumber: this.readImportValue(row, ['Reg Number', 'regNumber', 'reg_number', 'REG #', 'Registration Number']),
             name: studentName,
-            mobile: String(row['Mobile'] || row['mobile'] || ''),
-            email: row['Email'] || row['email'] || '',
-            fatherName: row['Father Name'] || row['father_name'] || '',
-            dob: this.normalizeImportDate(row['Date of Birth'] || row['dob'] || row['Birth Date'] || ''),
-            qualification: row['Qualification'] || '',
-            courseId: course.id,
+            mobile: mobile,
+            email: this.readImportValue(row, ['Email', 'email']),
+            fatherName: this.readImportValue(row, ['Father Name', 'father_name', 'Parent Name']),
+            parentMobile: this.readImportValue(row, ['Parent Mobile', 'parent_mobile', 'Parent Phone']),
+            gender: (this.readImportValue(row, ['Gender', 'gender']) || 'male').toLowerCase(),
+            dob: this.normalizeImportDate(row['Date of Birth'] || row['dob'] || row['Birth Date'] || row['DOB'] || ''),
+            qualification: this.readImportValue(row, ['Qualification', 'qualification']),
+            district: this.readImportValue(row, ['District', 'district', 'City', 'city']),
+            address: this.readImportValue(row, ['Address', 'address', 'Student Address']),
+            referredBy: this.readImportValue(row, ['Referred By', 'referred_by', 'ReferredBy']),
+            referralProfession: this.readImportValue(row, ['Referral Profession', 'referral_profession']),
+            instructor: this.readImportValue(row, ['Instructor', 'instructor']),
+            timing: this.readImportValue(row, ['Preferred Timing', 'timing', 'Timing']),
+            courseId: courseId,
             batchId: batchId ?? '0',
-            status: (row['Status'] || row['status'] || 'active').toLowerCase(),
-            joiningDate: this.normalizeImportDate(row['Joining Date'] || row['joining_date'] || '')
-              || new Date().toISOString().split('T')[0],
+            status: (this.readImportValue(row, ['Status', 'status']) || 'active').toLowerCase(),
+            joiningDate: this.normalizeImportDate(row['Joining Date'] || row['joining_date'] || '') || new Date().toISOString().split('T')[0],
             selectedSubjects: JSON.stringify(selectedSubjects)
           };
 
           // Map Custom Fields
           const customValues: any = {};
           this.customFields.forEach(cf => {
-            if (row[cf.field_label] !== undefined) {
-              customValues[cf.id] = row[cf.field_label];
+            const val = row[cf.field_label] ?? row[cf.field_name];
+            if (val !== undefined && val !== null) {
+              customValues[cf.id] = val;
             }
           });
           if (Object.keys(customValues).length > 0) {
@@ -722,7 +1085,7 @@ export class StudentListComponent implements OnInit {
         }
 
         if (skippedRows.length > 0) {
-          this.toastService.error(`Some student records were skipped. Check console for details.`);
+          this.toastService.warning(`${skippedRows.length} warning(s) during import. Check browser console.`);
         }
 
         if (imported > 0) {
@@ -731,17 +1094,66 @@ export class StudentListComponent implements OnInit {
           this.isImportModalOpen = false;
           this.toastService.success(`${imported} students imported successfully.`);
 
-          // Show success celebration
           this.showSuccess = true;
           setTimeout(() => {
             this.showSuccess = false;
           }, 3500);
         } else {
-          this.toastService.error('No students were imported.');
+          this.toastService.error('No students were imported. Please check required fields (Name, Mobile).');
         }
       }
     };
     reader.readAsBinaryString(this.importFile);
+  }
+
+  downloadSampleXls() {
+    const sampleData: any[] = [
+      {
+        'Reg Number': 'STU-2026-001',
+        'Name': 'John Doe',
+        'Mobile': '9876543210',
+        'Email': 'john.doe@example.com',
+        'Father Name': 'Robert Doe',
+        'Parent Mobile': '9876543211',
+        'Gender': 'male',
+        'Date of Birth': '2002-05-15',
+        'Qualification': 'B.Tech',
+        'Address': '12, Anna Nagar, Chennai - 600040',
+        'Joining Date': '2026-01-10',
+        'Course Name': 'Full Stack Web Development',
+        'Subjects': '',
+        'Status': 'active'
+      },
+      {
+        'Reg Number': 'STU-2026-002',
+        'Name': 'Jane Smith',
+        'Mobile': '9123456780',
+        'Email': 'jane.smith@example.com',
+        'Father Name': 'David Smith',
+        'Parent Mobile': '9123456781',
+        'Gender': 'female',
+        'Date of Birth': '2001-09-20',
+        'Qualification': 'B.Sc',
+        'Address': '45, MG Road, Bangalore - 560001',
+        'Joining Date': '2026-01-15',
+        'Course Name': 'UI/UX Design Masterclass',
+        'Subjects': 'HTML, CSS, Figma',
+        'Status': 'active'
+      }
+    ];
+
+    if (this.customFields && this.customFields.length > 0) {
+      this.customFields.forEach(cf => {
+        sampleData[0][cf.field_label] = cf.field_type === 'number' ? 100 : 'Sample Value';
+        sampleData[1][cf.field_label] = cf.field_type === 'number' ? 200 : 'Sample Value';
+      });
+    }
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Students');
+    XLSX.writeFile(wb, 'Student_Import_Sample_Template.xlsx');
+    this.toastService.success('Sample student import template downloaded!');
   }
 
   private readImportValue(row: any, keys: string[]): string {

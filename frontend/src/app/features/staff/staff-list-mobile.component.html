@@ -1,0 +1,346 @@
+<!-- Mobile Staff List Template -->
+<div class="m-staff p-3 pb-24 space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">Staff Members</h2>
+      <p class="text-xs text-slate-500">Teachers & administrative staff</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button (click)="triggerImport()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs shadow-sm">
+        📥 Import
+      </button>
+      <button (click)="openAddModal()" class="px-3.5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md">
+        + New Staff
+      </button>
+    </div>
+  </div>
+
+  <div class="flex gap-2">
+    <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onFilterChange()" placeholder="Search staff name, email, or designation..." 
+           class="flex-1 px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white shadow-sm">
+    <select [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()" class="px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-bold shadow-sm outline-none">
+      <option value="">All</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let s of paginatedStaff()" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-3">
+      <div class="flex justify-between items-start cursor-pointer" (click)="viewStaffDetails(s)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-bold flex items-center justify-center overflow-hidden shrink-0 border border-slate-100 dark:border-slate-700">
+            <img *ngIf="s.photo" [src]="s.photo | gdriveImage" class="w-full h-full object-cover">
+            <span *ngIf="!s.photo">{{ s.name.charAt(0) }}</span>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ s.name }}</h3>
+            <p class="text-xs text-slate-500">{{ s.designation || 'Faculty Member' }}</p>
+            <p *ngIf="s.staff_id" class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold">{{ s.staff_id }}</p>
+          </div>
+        </div>
+        <span [class.bg-emerald-100]="s.status === 'active'" [class.text-emerald-700]="s.status === 'active'" [class.bg-slate-100]="s.status !== 'active'" [class.text-slate-600]="s.status !== 'active'" class="px-2.5 py-1 rounded-full text-xs font-bold">
+          {{ s.status || 'active' }}
+        </span>
+      </div>
+
+      <div class="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap gap-x-4 gap-y-1 pt-1 border-t border-slate-100 dark:border-slate-700/30">
+        <span *ngIf="s.qualification">🎓 {{ s.qualification }}</span>
+        <span *ngIf="s.experience">💼 {{ s.experience }} yrs exp</span>
+        <span *ngIf="s.mobile">📱 {{ s.mobile }}</span>
+      </div>
+
+      <div class="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/50 justify-end items-center">
+        <button (click)="viewStaffDetails(s)" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold">
+          👁️ Profile
+        </button>
+        <button (click)="editStaff(s)" class="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold">
+          ✏️ Edit
+        </button>
+        <button (click)="deleteStaff(s.id)" class="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-bold">
+          🗑️
+        </button>
+        <a [href]="'tel:' + s.mobile" class="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold">
+          📞 Call
+        </a>
+      </div>
+    </div>
+
+    <div *ngIf="paginatedStaff().length === 0" class="flex flex-col items-center justify-center gap-2 py-12 text-center bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 my-4 shadow-sm">
+      <span class="text-4xl mb-1">👨‍🏫</span>
+      <p class="text-sm font-bold text-slate-700 dark:text-slate-200">No staff members found</p>
+      <p class="text-xs text-slate-400 dark:text-slate-500">There are no staff members added yet or matching your search filter.</p>
+      <button (click)="openAddModal()" class="mt-2 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-md">+ New Staff</button>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="totalPages() > 1" class="flex items-center justify-between pt-3 px-1">
+      <button (click)="prevPage()" [disabled]="currentPage === 1" class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 disabled:opacity-50 shadow-sm active:scale-95 transition-all">
+        Prev
+      </button>
+      <div class="flex items-center gap-1.5 px-2">
+        <span class="text-indigo-600 dark:text-indigo-400 font-black text-xs">{{ currentPage }}</span>
+        <span class="text-slate-300 dark:text-slate-700 text-xs font-bold">/</span>
+        <span class="text-slate-400 dark:text-slate-600 font-bold text-xs">{{ totalPages() }}</span>
+      </div>
+      <button (click)="nextPage()" [disabled]="currentPage === totalPages()" class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 disabled:opacity-50 shadow-sm active:scale-95 transition-all">
+        Next
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Staff Modal -->
+<app-modal [isOpen]="isModalOpen" [title]="newStaff.id ? 'Edit Staff Details' : 'Add Staff Member'"
+    actionLabel="Save Member" (onClose)="closeModal()" (onSubmit)="saveStaff()">
+    <div class="flex flex-col items-center gap-6 p-2">
+        <!-- Profile Photo (Upload or Google Drive Link) -->
+        <div class="flex flex-col items-center space-y-2 shrink-0 w-full sm:w-auto">
+            <div class="relative group w-24 h-24 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex items-center justify-center transition-all hover:border-indigo-500"
+                 [class.cursor-pointer]="!isGdriveImageMode"
+                 (click)="!isGdriveImageMode && photoInput.click()">
+                <img *ngIf="newStaff.photo" [src]="newStaff.photo | gdriveImage" class="w-full h-full object-cover">
+                <div *ngIf="!newStaff.photo" class="text-center p-2">
+                    <span class="text-2xl block">{{ isGdriveImageMode ? '☁️' : '📷' }}</span>
+                    <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-1">
+                      {{ isGdriveImageMode ? 'Drive Image' : 'Add Photo' }}
+                    </span>
+                </div>
+                <div *ngIf="!isGdriveImageMode" (click)="photoInput.click()" class="absolute inset-0 bg-slate-950/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span class="text-white text-[9px] font-black uppercase tracking-wider">Change</span>
+                </div>
+            </div>
+
+            <!-- File Upload Input -->
+            <input #photoInput type="file" (change)="onPhotoChange($event)" accept="image/*" class="hidden">
+
+            <!-- Google Drive Link Input (when Google Drive Link mode) -->
+            <div *ngIf="isGdriveImageMode" class="w-full max-w-[200px]">
+                <input type="text" [(ngModel)]="newStaff.photo"
+                    placeholder="Paste Drive image link..."
+                    class="w-full px-2.5 py-1.5 text-[11px] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded-xl text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/20">
+            </div>
+
+            <button *ngIf="newStaff.photo" (click)="removePhoto()" type="button" class="text-[9px] font-bold text-rose-500 hover:text-rose-600 transition-colors uppercase tracking-wider">Remove Photo</button>
+        </div>
+
+        <!-- Form Fields -->
+        <div class="w-full space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Staff ID</label>
+                    <input type="text" [(ngModel)]="newStaff.staff_id" [readonly]="!isStaffIdManual && !newStaff.id"
+                        [class.bg-slate-100]="!isStaffIdManual && !newStaff.id"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-indigo-500/10 font-mono font-bold outline-none text-sm"
+                        [placeholder]="isStaffIdManual ? 'e.g. STF-001' : 'Auto-generated'">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Full Name <span class="text-rose-500">*</span></label>
+                    <input type="text" [(ngModel)]="newStaff.name"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-indigo-500/10 font-medium outline-none text-sm"
+                        placeholder="e.g. Dr. John Doe">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Mobile Number <span class="text-rose-500">*</span></label>
+                    <input type="text" [(ngModel)]="newStaff.mobile"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-indigo-500/10 font-medium outline-none text-sm"
+                        placeholder="9876543210">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Email Address</label>
+                    <input type="email" [(ngModel)]="newStaff.email"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-indigo-500/10 font-medium outline-none text-sm"
+                        placeholder="john@institute.com">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Designation <span class="text-rose-500">*</span></label>
+                    <input type="text" [(ngModel)]="newStaff.designation"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-indigo-500/10 font-medium outline-none text-sm"
+                        placeholder="e.g. Senior Faculty">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Qualification</label>
+                    <input type="text" [(ngModel)]="newStaff.qualification"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-indigo-500/10 font-medium outline-none text-sm"
+                        placeholder="e.g. M.Tech (CS)">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Years of Experience</label>
+                    <input type="text" [(ngModel)]="newStaff.experience"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-4 focus:ring-indigo-500/10 font-medium outline-none text-sm"
+                        placeholder="e.g. 5">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Joining Date</label>
+                    <app-date-picker [(ngModel)]="newStaff.joiningDate"></app-date-picker>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Status</label>
+                    <select [(ngModel)]="newStaff.status"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none cursor-pointer text-sm">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Salary Fixed (Monthly)</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                        <input type="number" [(ngModel)]="newStaff.salary"
+                            class="w-full pl-9 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none text-sm"
+                            placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+
+            <app-custom-fields-renderer location="staff" [entityId]="newStaff.id"></app-custom-fields-renderer>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Staff Details ID Card Modal -->
+<app-modal [isOpen]="isDetailsModalOpen" title="Staff Profile" (onClose)="closeDetailsModal()" size="md" [showFooter]="false">
+    <div class="space-y-6 py-2 text-slate-800 dark:text-white">
+        <div id="staff-id-card-mobile" class="bg-gradient-to-br from-slate-900 to-indigo-950 p-6 rounded-[2rem] border border-slate-800 text-white relative shadow-2xl overflow-hidden max-w-sm mx-auto">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-indigo-600/10 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-indigo-600/15 rounded-full blur-2xl"></div>
+
+            <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                <div class="flex items-center gap-2">
+                    <img *ngIf="settings?.logo_path" [src]="getImageUrl(settings.logo_path)"
+                        class="w-8 h-8 object-contain rounded-lg bg-white/10 p-0.5 border border-white/10">
+                    <span *ngIf="!settings?.logo_path" class="text-lg">🏫</span>
+                    <div>
+                        <h3 class="text-xs font-black tracking-widest uppercase text-indigo-400 leading-none mb-0.5">
+                            {{ settings?.institute_name || 'Classivo' }}
+                        </h3>
+                        <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none">Staff ID Card</p>
+                    </div>
+                </div>
+                <span *ngIf="selectedStaffDetails?.staff_id" class="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300">
+                    {{ selectedStaffDetails?.staff_id }}
+                </span>
+            </div>
+
+            <div class="flex flex-col items-center text-center space-y-3">
+                <div class="w-24 h-24 rounded-2xl border-2 border-white/20 bg-slate-800 shadow-inner overflow-hidden flex items-center justify-center">
+                    <img *ngIf="selectedStaffDetails?.photo" [src]="selectedStaffDetails.photo | gdriveImage" class="w-full h-full object-cover">
+                    <span *ngIf="!selectedStaffDetails?.photo" class="text-4xl text-slate-500">👤</span>
+                </div>
+                <div>
+                    <h2 class="text-base font-black tracking-tight text-white">{{ selectedStaffDetails?.name }}</h2>
+                    <p class="text-[10px] text-indigo-400 font-black uppercase tracking-wider mt-0.5">
+                        {{ selectedStaffDetails?.designation }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-6 space-y-2 text-xs border-t border-white/10 pt-4">
+                <div *ngIf="selectedStaffDetails?.qualification" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Qualification</span>
+                    <span class="font-bold text-slate-200 text-right">{{ selectedStaffDetails?.qualification }}</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.experience" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Experience</span>
+                    <span class="font-bold text-slate-200 text-right">{{ selectedStaffDetails?.experience }} Years</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.mobile" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mobile</span>
+                    <span class="font-bold text-slate-200 font-mono text-right">{{ selectedStaffDetails?.mobile }}</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.email" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email</span>
+                    <span class="font-bold text-slate-200 text-right truncate max-w-[180px]">{{ selectedStaffDetails?.email }}</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.joiningDate" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Joining Date</span>
+                    <span class="font-bold text-slate-200 text-right">{{ selectedStaffDetails?.joiningDate | date:'dd-MM-yyyy' }}</span>
+                </div>
+                <div *ngIf="selectedStaffDetails?.status" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/40 border border-emerald-500/20"
+                        [class.text-emerald-400]="selectedStaffDetails?.status === 'active'"
+                        [class.text-rose-400]="selectedStaffDetails?.status === 'inactive'">
+                        {{ selectedStaffDetails?.status }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="mt-6 border-t border-white/5 pt-4 text-center">
+                <p class="text-[7px] text-slate-500 font-bold uppercase tracking-widest">{{ settings?.institute_name || 'Classivo' }} Management System</p>
+            </div>
+        </div>
+
+        <div class="flex justify-center gap-3">
+            <button (click)="closeDetailsModal()" class="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase tracking-widest rounded-xl">
+                Close
+            </button>
+            <button (click)="printIDCard()" class="px-6 py-2.5 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-md">
+                🖨️ Print ID Card
+            </button>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Import Modal -->
+<app-modal [isOpen]="isImportModalOpen" title="Batch Import Staff Records" (onClose)="isImportModalOpen = false" [showFooter]="false">
+    <div class="space-y-6">
+        <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="font-black text-indigo-900 dark:text-indigo-100 flex items-center gap-2 text-xs">
+                    📖 Formatting Guidance
+                </h4>
+                <div class="flex items-center gap-2">
+                    <button (click)="downloadSampleTemplate()" type="button" class="px-2 py-1 bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 font-bold text-[10px] rounded-lg border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
+                        <span>📥</span> Sample (.xlsx)
+                    </button>
+                    <button (click)="toggleGuidance()" class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline">
+                        {{ isGuidanceOpen ? 'Hide' : 'Show Columns' }}
+                    </button>
+                </div>
+            </div>
+            
+            <div *ngIf="isGuidanceOpen" class="grid grid-cols-2 gap-2">
+                <div *ngFor="let col of ['Name*', 'Mobile*', 'Email', 'Designation*', 'Qualification', 'Experience', 'Staff ID', 'Salary', 'Joining Date', 'Status']" 
+                     class="px-2 py-1.5 bg-white dark:bg-slate-900 rounded-lg text-[9px] font-bold text-slate-600 dark:text-slate-400 border border-indigo-100 dark:border-indigo-800/30">
+                    {{ col }}
+                </div>
+            </div>
+            <p class="text-[10px] text-indigo-700/70 dark:text-indigo-300/50 mt-3 italic">
+                * Required fields. Excel headers must match exactly.
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest">Select File</label>
+            <div class="relative">
+                <input type="file" (change)="onFileChange($event)" accept=".xlsx, .xls, .csv"
+                       class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                <div class="p-6 bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center">
+                    <span class="text-3xl mb-2">{{ importFile ? '📄' : '📤' }}</span>
+                    <p class="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                        {{ importFile ? importFile.name : 'Drop .xlsx or .csv here' }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <button (click)="isImportModalOpen = false" class="flex-1 py-3 font-bold text-slate-400 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
+            <button (click)="processImport()" [disabled]="!importFile"
+                    class="flex-[2] bg-indigo-600 text-white py-3 rounded-xl font-bold text-xs shadow-md disabled:opacity-50">
+                🚀 Import
+            </button>
+        </div>
+    </div>
+</app-modal>
+

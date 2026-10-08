@@ -1,0 +1,557 @@
+<!-- Mobile Course List Template -->
+<div class="m-courses p-3 pb-24 space-y-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-bold text-slate-800 dark:text-white">Courses</h2>
+            <p class="text-xs text-slate-500">Manage institute courses</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button (click)="triggerImport()"
+                class="px-2.5 py-2 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl font-bold text-xs border border-amber-200/50">
+                📥 Import
+            </button>
+            <button (click)="openAddModal()"
+                class="px-3.5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md">
+                + New Course
+            </button>
+        </div>
+    </div>
+
+    <input type="text" [(ngModel)]="searchTerm" placeholder="Search course name..."
+        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white shadow-sm">
+
+    <div class="space-y-3">
+        <div *ngFor="let c of filteredCourses()"
+            class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2">
+            <div class="flex justify-between items-start gap-2">
+                <div class="flex items-center gap-3">
+                    <div *ngIf="c.imagePath" class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                        <img [src]="c.imagePath | gdriveImage" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span *ngIf="c.course_id"
+                                class="text-[10px] font-extrabold px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded">
+                                {{ c.course_id }}
+                            </span>
+                            <span *ngIf="c.isOnline || c.is_online"
+                                class="text-[10px] font-extrabold px-1.5 py-0.5 bg-sky-500 text-white rounded flex items-center gap-0.5">
+                                🌐 Online
+                            </span>
+                            <span
+                                class="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded">
+                                {{ getCourseTypeLabel(c.courseType || c.course_type) }}
+                            </span>
+                            <h3 class="font-bold text-slate-800 dark:text-white text-sm w-full mt-0.5">{{ c.name }}</h3>
+                        </div>
+                        <p class="text-xs text-slate-500 line-clamp-1 mt-0.5">{{ c.description || 'No description' }}
+                        </p>
+                    </div>
+                </div>
+                <span
+                    class="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-bold whitespace-nowrap">
+                    ₹{{ c.fees | number }}
+                </span>
+            </div>
+
+            <div
+                class="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700/50 text-xs text-slate-600 dark:text-slate-400">
+                <span>Duration: <strong class="text-slate-800 dark:text-white">{{ c.duration }}</strong></span>
+                <div class="flex items-center gap-2">
+                    <a [href]="getImageUrl(c.syllabusPath)" target="_blank" *ngIf="c.syllabusPath"
+                        class="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg font-bold text-xs">
+                        📄 Syllabus
+                    </a>
+                    <button (click)="editCourse(c)"
+                        class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg font-bold text-xs">
+                        Edit
+                    </button>
+                    <button (click)="deleteCourse(c)"
+                        class="px-2 py-1 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg font-bold text-xs">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div *ngIf="filteredCourses().length === 0"
+            class="flex flex-col items-center justify-center gap-2 py-12 text-center bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 my-4 shadow-sm">
+            <span class="text-4xl mb-1">📚</span>
+            <p class="text-sm font-bold text-slate-700 dark:text-slate-200">No courses found</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500">There are no courses created yet or matching your search filter.</p>
+            <button (click)="openAddModal()" class="mt-2 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-md">+ Add Course</button>
+        </div>
+    </div>
+    <!-- COURSE MODAL POPUP -->
+    <app-modal [isOpen]="isModalOpen" [title]="editingCourse ? 'Edit Course' : 'Create New Course'" size="3xl"
+        (onClose)="closeModal()" (onSubmit)="saveCourse()">
+        <div class="space-y-4">
+            <!-- Row 1: Course ID & Name -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Course ID</label>
+                    <input type="text" [(ngModel)]="newCourse.course_id"
+                        [readonly]="!isCourseIdManual && !editingCourse"
+                        [class.bg-slate-100]="!isCourseIdManual && !editingCourse"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none font-mono font-bold text-sm"
+                        [placeholder]="isCourseIdManual ? 'e.g. CRS-001' : 'Auto-generated'">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Course Name <span
+                            class="text-rose-500">*</span></label>
+                    <input type="text" [(ngModel)]="newCourse.name" name="name"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none text-sm font-medium"
+                        placeholder="e.g. Master Backend Dev">
+                </div>
+            </div>
+
+            <!-- Row 2: Description & Category -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Description</label>
+                    <textarea [(ngModel)]="newCourse.description" name="description"
+                        class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none text-sm resize-none"
+                        rows="2" placeholder="Course overview..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                    <input type="text" [(ngModel)]="newCourse.category" name="category"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none text-sm"
+                        placeholder="e.g. Design, Development">
+                </div>
+            </div>
+
+            <!-- Row 3: Course Type, Billing Period, Online Option -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Course Type</label>
+                    <select [(ngModel)]="newCourse.courseType" name="courseType" (change)="onCourseTypeChange()"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none cursor-pointer text-sm font-medium">
+                        <option value="self">Regular / Self Course</option>
+                        <option value="crash">Crash Course</option>
+                        <option value="seasonal">Seasonal</option>
+                        <option value="workshop">Workshop</option>
+                        <option value="camp">Camp</option>
+                        <option value="bootcamp">Bootcamp</option>
+                        <option *ngIf="enableStandardCourses" value="standard">Standard Course</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Billing
+                        Period</label>
+                    <select [(ngModel)]="newCourse.feePeriod" name="feePeriod"
+                        class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none cursor-pointer text-sm font-medium">
+                        <option value="course">Per Course (One-time)</option>
+                        <option value="day">Per Day</option>
+                        <option value="week">Per Week</option>
+                        <option value="month">Per Month</option>
+                        <option value="year">Per Year</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Mode</label>
+                    <label (click)="newCourse.isOnline = !newCourse.isOnline"
+                        class="flex items-center gap-3 px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors">
+                        <input type="checkbox" [checked]="newCourse.isOnline"
+                            (change)="$event.stopPropagation(); newCourse.isOnline = !newCourse.isOnline"
+                            class="w-5 h-5 accent-primary-600 rounded cursor-pointer">
+                        <span class="text-sm font-bold text-slate-800 dark:text-white">
+                            Online Course
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Row 4: Schedule Type, Duration, Fees & Custom Days -->
+            <div
+                class="p-4 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-indigo-950 dark:text-indigo-200 mb-1">Schedule
+                            Type</label>
+                        <select [(ngModel)]="newCourse.scheduleType" name="scheduleType"
+                            (change)="onScheduleTypeChange()"
+                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/60 rounded-xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none cursor-pointer text-sm font-semibold">
+                            <option value="Weekdays">Weekdays</option>
+                            <option value="Weekends">Weekends</option>
+                            <option value="All Days">All Days</option>
+                            <option value="WeekDays + Saturday">WeekDays + Saturday</option>
+                            <option value="Custom Days">Custom Days</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-indigo-950 dark:text-indigo-200 mb-1">Duration <span
+                                class="text-rose-500">*</span></label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" min="1" [(ngModel)]="durationValue" name="durationValue"
+                                (ngModelChange)="updateDurationString()"
+                                class="w-1/2 px-3 py-2.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/60 rounded-xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none text-sm font-semibold"
+                                placeholder="6">
+                            <select [(ngModel)]="durationUnit" name="durationUnit" (change)="updateDurationString()"
+                                class="w-1/2 px-3 py-2.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/60 rounded-xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none cursor-pointer text-sm font-semibold">
+                                <option value="Days">Days</option>
+                                <option value="Weeks">Weeks</option>
+                                <option value="Months">Months</option>
+                                <option value="Years">Years</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div *ngIf="newCourse.courseType !== 'standard'">
+                        <label class="block text-sm font-bold text-indigo-950 dark:text-indigo-200 mb-1">Fees (₹) <span
+                                class="text-rose-500">*</span></label>
+                        <input type="number" [(ngModel)]="newCourse.fees" name="fees"
+                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/60 rounded-xl focus:ring-2 focus:ring-primary-500/20 dark:text-white outline-none text-sm font-bold"
+                            placeholder="0.00">
+                    </div>
+                </div>
+
+                <!-- Custom Days Checkbox Selector -->
+                <div *ngIf="newCourse.scheduleType === 'Custom Days'"
+                    class="pt-2 border-t border-indigo-100 dark:border-indigo-900/50">
+                    <label
+                        class="block text-xs font-bold text-indigo-900 dark:text-indigo-300 mb-2 uppercase tracking-wider">Select
+                        Class Days</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" *ngFor="let day of availableDays" (click)="toggleDay(day)"
+                            [class.bg-indigo-600]="isDaySelected(day)" [class.text-white]="isDaySelected(day)"
+                            [class.bg-white]="!isDaySelected(day)" [class.dark:bg-slate-900]="!isDaySelected(day)"
+                            [class.text-indigo-950]="!isDaySelected(day)"
+                            [class.dark:text-indigo-200]="!isDaySelected(day)"
+                            [class.border-indigo-600]="isDaySelected(day)"
+                            [class.border-indigo-200]="!isDaySelected(day)"
+                            [class.dark:border-indigo-800]="!isDaySelected(day)"
+                            class="px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
+                            <span *ngIf="isDaySelected(day)">✓</span>
+                            <span>{{ day }}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 5: Validity Dates (Seasonal, Workshop, Camp, Bootcamp) -->
+            <div *ngIf="isDatedCourseType(newCourse.courseType)"
+                class="p-4 bg-amber-50/60 dark:bg-amber-950/20 rounded-2xl border border-amber-200/80 dark:border-amber-900/40 space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider">
+                        📅 Course Validity Window (From & To)
+                    </label>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold"
+                        [class.bg-sky-100]="newCourse.status === 'upcoming'"
+                        [class.text-sky-700]="newCourse.status === 'upcoming'"
+                        [class.bg-emerald-100]="newCourse.status === 'active'"
+                        [class.text-emerald-700]="newCourse.status === 'active'"
+                        [class.bg-slate-200]="newCourse.status === 'inactive'"
+                        [class.text-slate-700]="newCourse.status === 'inactive'">
+                        Status: {{ newCourse.status | uppercase }}
+                    </span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Valid From (Start
+                            Date) <span class="text-rose-500">*</span></label>
+                        <app-date-picker [(ngModel)]="newCourse.validFrom" (change)="calculateCourseStatus()"></app-date-picker>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Valid To (End
+                            Date) <span class="text-rose-500">*</span></label>
+                        <app-date-picker [(ngModel)]="newCourse.validTo" (change)="calculateCourseStatus()"></app-date-picker>
+                    </div>
+                </div>
+                <p class="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                    * Status is automatically set to <b>Upcoming</b> before Start Date, <b>Active</b> during dates, and
+                    <b>Inactive</b> after End Date.
+                </p>
+            </div>
+
+            <div *ngIf="newCourse.courseType === 'standard' && enableStandardCourses"
+                class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-transparent dark:border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Course Subjects & Fees</p>
+                    <button type="button" (click)="addSubject()"
+                        class="px-3 py-1.5 bg-primary-600/10 hover:bg-primary-600/20 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-xl transition-all">
+                        + Add Subject
+                    </button>
+                </div>
+
+                <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <div *ngFor="let subject of newCourse.subjects; let i = index" class="flex gap-2 items-center">
+                        <input type="text" [(ngModel)]="subject.name" name="sub_name_{{i}}" placeholder="Subject Name"
+                            class="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white text-sm outline-none">
+                        <input type="number" [(ngModel)]="subject.fees" name="sub_fee_{{i}}" placeholder="Fee"
+                            class="w-28 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white text-sm outline-none">
+                        <button type="button" (click)="removeSubject(i)"
+                            class="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl transition-colors">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    class="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 dark:text-slate-400">
+                    <span>Total Calculated Fees:</span>
+                    <span class="text-primary-600 dark:text-primary-400 text-sm font-extrabold">₹{{ getSubjectsSum() |
+                        number }}<span *ngIf="newCourse.feePeriod === 'month'"> / Month</span></span>
+                </div>
+            </div>
+            <div
+                class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-transparent dark:border-slate-800 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Course Status</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-500">Enable or disable this course catalog entry
+                    </p>
+                </div>
+                <button type="button"
+                    (click)="newCourse.status = (newCourse.status === 'active' ? 'inactive' : 'active')"
+                    [class.bg-emerald-500]="newCourse.status === 'active'"
+                    [class.bg-slate-300]="newCourse.status !== 'active'"
+                    [class.dark:bg-slate-700]="newCourse.status !== 'active'"
+                    class="w-12 h-6 rounded-full relative transition-colors duration-300 outline-none">
+                    <div [class.translate-x-6]="newCourse.status === 'active'"
+                        [class.translate-x-1]="newCourse.status !== 'active'"
+                        class="absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm">
+                    </div>
+                </button>
+            </div>
+
+            <div class="space-y-4 pt-2">
+                <h4 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Media &
+                    Resources</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label
+                            class="block text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Course
+                            Artwork (Google Drive Link)</label>
+                        <div class="relative flex items-center">
+                            <span class="absolute left-3.5 text-base text-slate-400 pointer-events-none">🔗</span>
+                            <input type="text" [(ngModel)]="newCourse.imagePath"
+                                placeholder="Paste Google Drive link or ID..."
+                                class="w-full pl-10 pr-9 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 focus:border-primary-500 dark:focus:border-primary-400 rounded-2xl outline-none text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all placeholder:text-slate-400">
+                            <button *ngIf="newCourse.imagePath" (click)="newCourse.imagePath = ''"
+                                type="button"
+                                class="absolute right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 hover:text-rose-500 text-xs transition-colors"
+                                title="Clear link">✕</button>
+                        </div>
+                        <!-- Live preview -->
+                        <div *ngIf="newCourse.imagePath" class="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-xl">
+                            <img [src]="newCourse.imagePath | gdriveImage" alt="Course Preview"
+                                class="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-sm"
+                                (error)="$event.target.style.display='none'">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                    <span>✓</span> Live Preview
+                                </p>
+                                <p class="text-[10px] text-slate-400 truncate">{{ newCourse.imagePath }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label
+                            class="block text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Curriculum
+                            PDF</label>
+                        <div class="relative group">
+                            <input type="file" (change)="onFileSelected($event)" accept="application/pdf" class="hidden"
+                                #mFileInput>
+                            <div (click)="!selectedFileName && mFileInput.click()"
+                                [class.cursor-pointer]="!selectedFileName"
+                                class="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl min-h-[52px]">
+                                <span class="text-lg">{{ isUploadingSyllabus ? '⏳' : '📄' }}</span>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-bold truncate" [class.text-slate-400]="!selectedFileName">
+                                        {{ isUploadingSyllabus ? 'Uploading...' : (selectedFileName || 'Attach
+                                        Syllabus') }}
+                                    </p>
+                                </div>
+                                <button *ngIf="selectedFileName && !isUploadingSyllabus"
+                                    (click)="$event.stopPropagation(); removeSyllabus()"
+                                    class="w-7 h-7 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p *ngIf="isUploadingImage || isUploadingSyllabus"
+                class="text-xs font-bold text-amber-600 dark:text-amber-400">
+                Please wait until uploads finish before clicking Save Changes.
+            </p>
+            <app-custom-fields-renderer location="course" [entityId]="newCourse.id"></app-custom-fields-renderer>
+        </div>
+    </app-modal>
+
+    <!-- IMPORT MODAL -->
+    <app-modal [isOpen]="isImportModalOpen" [isSubmitting]="isImporting" [actionLabel]="isImporting ? 'Importing...' : 'Save Changes'" title="Import Courses" (onClose)="isImportModalOpen = false"
+        (onSubmit)="processImport()">
+        <!-- Loading State -->
+        <div *ngIf="isImporting" class="py-10 flex flex-col items-center justify-center text-center space-y-4">
+            <div class="relative w-14 h-14 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full border-4 border-amber-200 dark:border-amber-900/40"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-amber-600 border-t-transparent animate-spin"></div>
+                <span class="text-xl animate-pulse">📚</span>
+            </div>
+            <div class="space-y-1">
+                <h4 class="text-base font-bold text-slate-800 dark:text-white">Importing Course Catalog...</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Please wait while courses are being processed.</p>
+            </div>
+        </div>
+
+        <!-- Main Import Form -->
+        <div *ngIf="!isImporting" class="space-y-6">
+            <div
+                class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-900/30">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex gap-3">
+                        <span class="text-xl">ℹ️</span>
+                        <div>
+                            <h4 class="text-sm font-bold text-amber-800 dark:text-amber-400">Import Format Requirements</h4>
+                            <p class="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                                Upload an Excel or CSV file with course data.
+                            </p>
+                        </div>
+                    </div>
+                    <button type="button" (click)="downloadSampleXls()"
+                        class="px-2.5 py-1.5 bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 font-bold text-[10px] rounded-xl border border-amber-300 dark:border-amber-700 shadow-sm flex items-center gap-1 flex-shrink-0">
+                        <span>📥</span> Sample (.xlsx)
+                    </button>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-1.5">
+                    <span *ngFor="let col of ['Name*', 'Duration*', 'Fees*']"
+                        class="px-2 py-0.5 bg-amber-600 text-white rounded-md text-[10px] font-bold">{{ col }}</span>
+                    <span *ngFor="let col of ['Course ID', 'Category', 'Course Type', 'Schedule Type', 'Custom Days', 'Fee Period', 'Is Online', 'Valid From', 'Valid To', 'Subjects', 'Subject Fees', 'Description', 'Status']"
+                        class="px-2 py-0.5 bg-white dark:bg-slate-800 rounded-md text-[10px] font-bold text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800">{{ col }}</span>
+                    <span *ngFor="let cf of customFields"
+                        class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 rounded-md text-[10px] font-bold text-amber-800 dark:text-amber-200 border border-amber-300/50">{{ cf.label }}</span>
+                </div>
+                <button (click)="isGuidanceOpen = !isGuidanceOpen"
+                    class="mt-3 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
+                    {{ isGuidanceOpen ? 'Hide' : 'View' }} Column Mapping Guide
+                </button>
+            </div>
+
+            <div *ngIf="isGuidanceOpen"
+                class="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-3 border border-amber-200/60 dark:border-amber-900/40 space-y-3 shadow-sm animate-in fade-in duration-200">
+                <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                    <h5 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <span>📋</span> Column Values Guide
+                    </h5>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900">
+                    <table class="w-full text-[11px] text-left border-collapse">
+                        <thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold uppercase text-[9px]">
+                            <tr>
+                                <th class="p-2">Column</th>
+                                <th class="p-2">Values to Enter</th>
+                                <th class="p-2">Sample</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                            <tr class="bg-amber-50/40 dark:bg-amber-950/20">
+                                <td class="p-2 font-bold whitespace-nowrap">Fee Period<br><span class="text-[9px] text-slate-400 font-mono">(Fees Type)</span></td>
+                                <td class="p-2 font-mono text-[10px]">
+                                    Per Course ➔ <code class="text-amber-700 font-bold">course</code><br>
+                                    Per Day ➔ <code class="text-amber-700 font-bold">day</code><br>
+                                    Per Week ➔ <code class="text-amber-700 font-bold">week</code><br>
+                                    Per Month ➔ <code class="text-amber-700 font-bold">month</code><br>
+                                    Per Year ➔ <code class="text-amber-700 font-bold">year</code>
+                                </td>
+                                <td class="p-2 font-mono font-bold text-amber-600">course</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 font-bold whitespace-nowrap">Course Type</td>
+                                <td class="p-2 font-mono text-[10px]">
+                                    Regular ➔ <code class="text-indigo-600 font-bold">master</code><br>
+                                    Standard ➔ <code class="text-indigo-600 font-bold">standard</code><br>
+                                    Crash ➔ <code class="text-indigo-600 font-bold">crash</code><br>
+                                    Seasonal ➔ <code class="text-indigo-600 font-bold">seasonal</code><br>
+                                    Workshop ➔ <code class="text-indigo-600 font-bold">workshop</code>
+                                </td>
+                                <td class="p-2 font-mono font-bold text-indigo-600">master</td>
+                            </tr>
+                            <tr class="bg-slate-50/50 dark:bg-slate-800/30">
+                                <td class="p-2 font-bold whitespace-nowrap">Schedule Type</td>
+                                <td class="p-2 font-mono text-[10px]">
+                                    Weekdays, Weekends, All Days, Custom Days
+                                </td>
+                                <td class="p-2 font-mono">Weekdays</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 font-bold whitespace-nowrap">Custom Days</td>
+                                <td class="p-2 font-mono text-[10px]">
+                                    <code class="font-bold">Mon, Wed, Fri</code> (if Custom)
+                                </td>
+                                <td class="p-2 font-mono">Mon, Wed, Fri</td>
+                            </tr>
+                            <tr class="bg-slate-50/50 dark:bg-slate-800/30">
+                                <td class="p-2 font-bold whitespace-nowrap">Is Online</td>
+                                <td class="p-2 font-mono text-[10px]">
+                                    Online: <code class="text-emerald-600 font-bold">Yes</code> | Offline: <code class="text-rose-600 font-bold">No</code>
+                                </td>
+                                <td class="p-2 font-mono font-bold text-emerald-600">Yes</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 font-bold whitespace-nowrap">Status</td>
+                                <td class="p-2 font-mono text-[10px]">
+                                    <code class="font-bold">active</code>, <code class="font-bold">upcoming</code>, <code class="font-bold">inactive</code>
+                                </td>
+                                <td class="p-2 font-mono font-bold text-emerald-600">active</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Select File (.xlsx, .xls,
+                    .csv)</label>
+                <div class="relative group">
+                    <input type="file" (change)="onFileChange($event)"
+                        class="w-full px-4 py-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-sm font-medium text-slate-500 dark:text-slate-400 file:hidden hover:border-primary-500 dark:hover:border-primary-400 transition-all cursor-pointer bg-slate-50/50 dark:bg-slate-900/50"
+                        accept=".xlsx, .xls, .csv">
+                    <div *ngIf="importFile"
+                        class="mt-4 flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-2xl border border-primary-100 dark:border-primary-900/30">
+                        <span class="text-xl">📄</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-primary-700 dark:text-primary-400 truncate">{{
+                                importFile.name }}</p>
+                            <p class="text-[10px] text-primary-600 dark:text-primary-500 uppercase font-black">{{
+                                (importFile.size / 1024) | number:'1.0-1' }} KB</p>
+                        </div>
+                        <button (click)="importFile = null"
+                            class="p-2 hover:bg-primary-100 dark:hover:bg-primary-900/40 rounded-lg text-primary-600 dark:text-primary-400 transition-colors">✕</button>
+                    </div>
+                    <div *ngIf="!importFile"
+                        class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity">
+                        <span class="text-3xl mb-2">📁</span>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Click or drag file to
+                            upload</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </app-modal>
+
+    <!-- Success Celebration -->
+    <div *ngIf="showSuccess"
+        class="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center overflow-hidden">
+        <div class="relative scale-in-center">
+            <div
+                class="bg-white dark:bg-slate-900 p-8 rounded-[40px] shadow-2xl border border-emerald-100 dark:border-emerald-900/30 flex flex-col items-center text-center max-w-sm mx-4 relative overflow-hidden">
+                <div
+                    class="absolute inset-0 bg-gradient-to-b from-emerald-50/50 dark:from-emerald-900/10 to-transparent">
+                </div>
+                <div
+                    class="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-5xl mb-6 relative">
+                    ✨
+                </div>
+                <h2 class="text-3xl font-black text-slate-800 dark:text-white mb-2 relative">Import Success!</h2>
+                <p class="text-slate-500 dark:text-slate-400 font-bold mb-6 relative">Successfully imported {{
+                    importedCount }} courses to your catalog.</p>
+                <div
+                    class="px-6 py-3 bg-emerald-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 relative">
+                    Awesome
+                </div>
+            </div>
+        </div>
+    </div>

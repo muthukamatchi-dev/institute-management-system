@@ -1,10 +1,20 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, NavigationEnd } from '@angular/router';
+import { Subscription, filter } from 'rxjs';
 import { SidebarComponent } from './sidebar.component';
 import { HeaderComponent } from './header.component';
 import { AuthService } from '../../services/auth.service';
 
+import { PlanService } from '../../services/plan.service';
+
+/**
+ * Desktop layout shell — provides sidebar + header + router-outlet.
+ *
+ * Shared business logic (role-based redirects, page-title resolution,
+ * read-only mode) lives here and is inherited by LayoutMobileComponent
+ * so that both presentations stay in sync.
+ */
 @Component({
   selector: 'app-layout',
   standalone: true,
@@ -21,7 +31,7 @@ import { AuthService } from '../../services/auth.service';
       <app-sidebar 
         [isOpen]="sidebarOpen"
         (closeSidebar)="sidebarOpen = false"
-        class="fixed md:relative z-50 md:z-auto h-full transition-transform duration-300 md:translate-x-0"
+        class="block w-64 shrink-0 fixed md:relative z-50 md:z-auto h-full transition-transform duration-300 md:translate-x-0"
         [class.-translate-x-full]="!sidebarOpen">
       </app-sidebar>
       
@@ -42,18 +52,44 @@ import { AuthService } from '../../services/auth.service';
     </div>
   `
 })
-export class LayoutComponent implements OnInit {
-  pageTitle: string = 'Dashboard';
+export class LayoutComponent implements OnInit, OnDestroy {
+  protected pageTitle: string = 'Dashboard';
   sidebarOpen: boolean = false;
-  isReadOnly: boolean = false;
+  protected isReadOnly: boolean = false;
 
-  constructor(private authService: AuthService, private router: Router) {}
+  private userSub?: Subscription;
+  private routerSub?: Subscription;
+
+  constructor(
+    protected authService: AuthService,
+    protected router: Router,
+    protected planService: PlanService
+  ) { }
 
   ngOnInit() {
-    this.authService.currentUser.subscribe(user => {
+    this.routerSub = this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe(() => {
+        this.updatePageTitle();
+      });
+    this.updatePageTitle();
+
+    this.userSub = this.authService.currentUser.subscribe(user => {
       this.isReadOnly = user?.is_read_only || false;
       const role = (user?.role_name || user?.role || '').trim().toLowerCase();
-      const url = window.location.hash.replace(/^#/, '') || '/';
+      const rawUrl = window.location.hash.replace(/^#/, '') || '/';
+      const url = rawUrl.split('?')[0].split('#')[0] || '/';
+
+      if (role === 'staff' && !this.planService.canUse('staffLogin')) {
+        this.authService.logout();
+        this.router.navigate(['/login']);
+        return;
+      }
+      if (role === 'student' && !this.planService.canUse('studentLogin')) {
+        this.authService.logout();
+        this.router.navigate(['/login']);
+        return;
+      }
 
       if ((url === '/' || url === '/dashboard') && role === 'student') {
         this.router.navigate(['/my-progress']);
@@ -63,10 +99,21 @@ export class LayoutComponent implements OnInit {
     });
   }
 
+  ngOnDestroy() {
+    this.userSub?.unsubscribe();
+    this.routerSub?.unsubscribe();
+  }
+
   onActivate(component: any) {
-    const url = window.location.hash.replace(/^#/, '') || '/dashboard';
-    const segments = url.split('/').filter(s => s && s !== 'dashboard');
-    
+    this.updatePageTitle();
+  }
+
+  protected updatePageTitle() {
+    const rawUrl = this.router.url || window.location.hash.replace(/^#/, '') || '/dashboard';
+    // Strip query strings (?batch_id=...) and hash fragments
+    const cleanUrl = rawUrl.split('?')[0].split('#')[0];
+    const segments = cleanUrl.split('/').filter(s => s && s !== 'dashboard');
+
     if (segments.length === 0) {
       this.pageTitle = 'Dashboard';
       return;
@@ -76,12 +123,22 @@ export class LayoutComponent implements OnInit {
     const lastSegment = segments[segments.length - 1];
     const secondLastSegment = segments.length > 1 ? segments[segments.length - 2] : null;
 
-    if (url.includes('/exams/external/results/')) {
+    if (cleanUrl.includes('/exams/external/results/')) {
       this.pageTitle = 'External Results';
     } else if (secondLastSegment === 'exams') {
       this.pageTitle = lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1) + ' Exams';
-    } else if (url.includes('study-material')) {
-      this.pageTitle = url.includes('my-study-material') ? 'My Study Material' : 'Study Material';
+    } else if (cleanUrl.includes('study-material')) {
+      this.pageTitle = cleanUrl.includes('my-study-material') ? 'My Study Material' : 'Study Material';
+    } else if (cleanUrl.includes('staff-dashboard')) {
+      this.pageTitle = 'Staff Attendance Dashboard';
+    } else if (cleanUrl.includes('student-dashboard')) {
+      this.pageTitle = 'Student Attendance Dashboard';
+    } else if (cleanUrl.includes('/attendance/file')) {
+      this.pageTitle = 'File Attendance';
+    } else if (lastSegment.toLowerCase() === 'attendance') {
+      this.pageTitle = 'Attendance';
+    } else if (lastSegment.toLowerCase() === 'schedule' || lastSegment.toLowerCase() === 'schedule-class') {
+      this.pageTitle = 'Schedule Class';
     } else {
       this.pageTitle = lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1).replace(/-/g, ' ');
     }

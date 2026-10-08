@@ -1,0 +1,29 @@
+<!-- Mobile Internal Exam Management Template -->
+<div class="m-internal-exam p-3 pb-24 space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">Internal Exams</h2>
+      <p class="text-xs text-slate-500">Class & batch tests</p>
+    </div>
+    <button (click)="isModalOpen = true" class="px-3.5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md">
+      + New Test
+    </button>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let exam of exams" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ exam.title }}</h3>
+          <p class="text-xs text-slate-500">{{ exam.course_name || 'Course Test' }}</p>
+        </div>
+        <span class="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-xs font-bold">
+          {{ exam.total_marks || 100 }} Marks
+        </span>
+      </div>
+    </div>
+    <div *ngIf="exams.length === 0" class="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No internal exams scheduled.
+    </div>
+  </div>
+</div>

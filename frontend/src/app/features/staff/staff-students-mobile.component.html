@@ -1,0 +1,24 @@
+<!-- Mobile Staff Students Template -->
+<div class="m-staff-students p-3 pb-24 space-y-4">
+  <div>
+    <h2 class="text-xl font-bold text-slate-800 dark:text-white">My Students</h2>
+    <p class="text-xs text-slate-500">Students under your batches</p>
+  </div>
+
+  <div class="relative">
+    <input type="text" [(ngModel)]="searchTerm" placeholder="Search student name or reg..." 
+           class="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white">
+  </div>
+
+  <div class="space-y-2">
+    <div *ngFor="let student of filteredStudents()" class="bg-white dark:bg-slate-800 p-3.5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 flex justify-between items-center">
+      <div>
+        <h4 class="font-bold text-slate-800 dark:text-white text-sm">{{ student.name }}</h4>
+        <p class="text-xs text-slate-500 font-mono">{{ student.reg_number || student.regNumber }}</p>
+      </div>
+      <span class="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-xs font-semibold">
+        {{ student.batch_name || 'Enrolled' }}
+      </span>
+    </div>
+  </div>
+</div>

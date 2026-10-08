@@ -11,6 +11,11 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.annotation.PostConstruct;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * Exams Service
  * Line-by-line migration of: Exams_model.php (1340 lines)
@@ -44,6 +49,31 @@ public class ExamsService {
 
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Autowired(required = false)
+    private JdbcTemplate jdbcTemplate;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @PostConstruct
+    public void ensureQuestionColumnsExist() {
+        if (jdbcTemplate == null) return;
+        String[] tables = {"template_questions", "exam_questions", "external_questions"};
+        for (String table : tables) {
+            try {
+                jdbcTemplate.execute("ALTER TABLE " + table + " MODIFY COLUMN question_type VARCHAR(50)");
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.execute("ALTER TABLE " + table + " ADD COLUMN correct_answer TEXT");
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.execute("ALTER TABLE " + table + " ADD COLUMN is_section_title BOOLEAN DEFAULT FALSE");
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.execute("ALTER TABLE " + table + " ADD COLUMN match_pairs_json TEXT");
+            } catch (Exception ignored) {}
+        }
+    }
 
     public ExamsService(ExamRepository examRepo, ExamQuestionRepository examQuestionRepo,
                         ExamOptionRepository examOptionRepo, ExamAssignmentRepository examAssignmentRepo,
@@ -83,11 +113,11 @@ public class ExamsService {
 
     // ============ INTERNAL EXAMS (Exams_model.php lines 7-200) ============
 
-    public List<Map<String, Object>> getInternalExams(Long examId, Map<String, String> filters, Map<String, Object> details) {
-        String role = details.getOrDefault("role", "").toString().toLowerCase();
-        String type = details.getOrDefault("type", "").toString().toLowerCase();
-        Long currentUserId = Long.valueOf(details.get("id").toString());
-        boolean isStaffUser = "staff".equals(type) || "staff".equals(role);
+    public Object getInternalExams(Long examId, Map<String, String> filters, Map<String, Object> details) {
+        String role = details != null ? details.getOrDefault("role", "").toString().toLowerCase() : "";
+        String type = details != null ? details.getOrDefault("type", "").toString().toLowerCase() : "";
+        Long currentUserId = (details != null && details.get("id") != null) ? Long.valueOf(details.get("id").toString()) : null;
+        boolean isStaffUser = currentUserId != null && ("staff".equals(type) || "staff".equals(role));
         
         List<Exam> exams;
         if (examId != null) {
@@ -115,8 +145,48 @@ public class ExamsService {
         }
         System.out.println("Computed exams list size: " + (exams != null ? exams.size() : 0));
 
+        if (exams != null && exams.size() > 1) {
+            exams = new ArrayList<>(exams);
+            exams.sort((a, b) -> {
+                Long idA = a.getId() != null ? a.getId() : 0L;
+                Long idB = b.getId() != null ? b.getId() : 0L;
+                return Long.compare(idB, idA);
+            });
+        }
+
+        boolean isPaged = filters != null && filters.containsKey("page") && examId == null;
+        int totalElements = exams != null ? exams.size() : 0;
+        int page = 0;
+        int size = 10;
+        if (isPaged) {
+            try {
+                page = Math.max(0, Integer.parseInt(filters.get("page")));
+            } catch (Exception ignored) {}
+            try {
+                if (filters.containsKey("size")) {
+                    size = Math.max(1, Integer.parseInt(filters.get("size")));
+                }
+            } catch (Exception ignored) {}
+        }
+
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        if (totalPages == 0) totalPages = 1;
+
+        List<Exam> examsToProcess;
+        if (isPaged) {
+            int startIdx = page * size;
+            if (startIdx >= totalElements) {
+                examsToProcess = Collections.emptyList();
+            } else {
+                int endIdx = Math.min(startIdx + size, totalElements);
+                examsToProcess = exams.subList(startIdx, endIdx);
+            }
+        } else {
+            examsToProcess = exams != null ? exams : Collections.emptyList();
+        }
+
         List<Map<String, Object>> result = new ArrayList<>();
-        for (Exam e : exams) {
+        for (Exam e : examsToProcess) {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("id", e.getId());
             map.put("title", e.getTitle());
@@ -157,6 +227,9 @@ public class ExamsService {
                 qMap.put("question_type", q.getQuestionType());
                 qMap.put("question_text", q.getQuestionText());
                 qMap.put("marks", q.getMarks());
+                qMap.put("is_section_title", Boolean.TRUE.equals(q.getIsSectionTitle()));
+                qMap.put("is_section_break", "section_break".equalsIgnoreCase(q.getQuestionType()));
+                qMap.put("correct_answer", q.getCorrectAnswer());
                 qMap.put("order_index", q.getOrderIndex());
                 
                 List<ExamOption> options = examOptionRepo.findByQuestionId(q.getId());
@@ -182,6 +255,17 @@ public class ExamsService {
 
             result.add(map);
         }
+
+        if (isPaged) {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("content", result);
+            response.put("totalElements", totalElements);
+            response.put("totalPages", totalPages);
+            response.put("currentPage", page + 1);
+            response.put("size", size);
+            return response;
+        }
+
         return result;
     }
 
@@ -240,6 +324,26 @@ public class ExamsService {
                 question.setQuestionText((String) qData.get("question_text"));
                 question.setMarks(qData.containsKey("marks") ? Integer.valueOf(qData.get("marks").toString()) : 1);
                 question.setOrderIndex(order++);
+
+                if (qData.containsKey("correct_answer") && qData.get("correct_answer") != null) {
+                    question.setCorrectAnswer(qData.get("correct_answer").toString());
+                } else if (qData.containsKey("correctAnswer") && qData.get("correctAnswer") != null) {
+                    question.setCorrectAnswer(qData.get("correctAnswer").toString());
+                }
+                if (qData.containsKey("is_section_title")) {
+                    question.setIsSectionTitle(Boolean.TRUE.equals(qData.get("is_section_title")) || "1".equals(String.valueOf(qData.get("is_section_title"))));
+                }
+                if (qData.containsKey("is_section_break")) {
+                    if (Boolean.TRUE.equals(qData.get("is_section_break")) || "1".equals(String.valueOf(qData.get("is_section_break")))) {
+                        question.setIsSectionTitle(true);
+                    }
+                }
+                if (qData.containsKey("match_pairs")) {
+                    try {
+                        question.setMatchPairsJson(objectMapper.writeValueAsString(qData.get("match_pairs")));
+                    } catch (Exception ignored) {}
+                }
+
                 ExamQuestion savedQ = examQuestionRepo.save(question);
 
                 if (qData.containsKey("options") && qData.get("options") instanceof List) {
@@ -496,9 +600,45 @@ public class ExamsService {
                     answer.setMarksObtained(isCorrect && question != null ?
                         new BigDecimal(question.getMarks()) : BigDecimal.ZERO);
                     if (isCorrect && question != null) totalScore = totalScore.add(new BigDecimal(question.getMarks()));
-                } else if (ans.containsKey("answer_text")) {
-                    answer.setAnswerText((String) ans.get("answer_text"));
-                    autoEvaluated = 0; // Descriptive - needs manual eval
+                } else if (ans.containsKey("answer_text") || ans.containsKey("either_or_selected")) {
+                    String ansText = ans.get("answer_text") != null ? ans.get("answer_text").toString() : "";
+                    answer.setAnswerText(ansText);
+
+                    String qType = question != null && question.getQuestionType() != null ? question.getQuestionType().toLowerCase() : "";
+
+                    if ("fillups".equals(qType) || "fill_in_the_blanks".equals(qType) || "fill".equals(qType)) {
+                        String expectedAnswer = question != null && question.getCorrectAnswer() != null ? question.getCorrectAnswer().trim() : "";
+                        if (expectedAnswer.isEmpty() && question != null) {
+                            List<TemplateQuestion> tqs = templateQuestionRepo.findAll().stream()
+                                .filter(tq -> tq.getQuestionText() != null && tq.getQuestionText().equalsIgnoreCase(question.getQuestionText()) && tq.getCorrectAnswer() != null)
+                                .collect(Collectors.toList());
+                            if (!tqs.isEmpty()) {
+                                expectedAnswer = tqs.get(0).getCorrectAnswer().trim();
+                                question.setCorrectAnswer(expectedAnswer);
+                                examQuestionRepo.save(question);
+                            }
+                        }
+
+                        boolean isCorrect = !expectedAnswer.isEmpty() && expectedAnswer.equalsIgnoreCase(ansText.trim());
+                        answer.setIsCorrect(isCorrect ? 1 : 0);
+                        BigDecimal marks = isCorrect && question != null ? new BigDecimal(question.getMarks()) : BigDecimal.ZERO;
+                        answer.setMarksObtained(marks);
+                        totalScore = totalScore.add(marks);
+                    } else if ("descriptive".equals(qType) || "text".equals(qType) || "either_or".equals(qType)) {
+                        autoEvaluated = 0; // Only Descriptive and Either Or Questions are verified by staff
+                        answer.setMarksObtained(BigDecimal.ZERO);
+                        answer.setIsCorrect(0);
+                    } else {
+                        if (question != null && question.getCorrectAnswer() != null && !question.getCorrectAnswer().isBlank()) {
+                            boolean isCorrect = question.getCorrectAnswer().trim().equalsIgnoreCase(ansText.trim());
+                            answer.setIsCorrect(isCorrect ? 1 : 0);
+                            BigDecimal marks = isCorrect ? new BigDecimal(question.getMarks()) : BigDecimal.ZERO;
+                            answer.setMarksObtained(marks);
+                            totalScore = totalScore.add(marks);
+                        } else {
+                            autoEvaluated = 0;
+                        }
+                    }
                 }
 
                 examSubmissionAnswerRepo.save(answer);
@@ -622,7 +762,32 @@ public class ExamsService {
                   aMap.put("question_type", q.getQuestionType());
                   aMap.put("max_marks", q.getMarks());
                   aMap.put("question_marks", q.getMarks());
-                  aMap.put("remarks", "");
+                  aMap.put("is_section_title", q.getIsSectionTitle());
+                  aMap.put("is_section_break", "section_break".equalsIgnoreCase(q.getQuestionType()));
+                  aMap.put("remarks", a.getAnswerText() != null ? a.getAnswerText() : "");
+
+                  String expectedAnswer = q.getCorrectAnswer();
+                  if ((expectedAnswer == null || expectedAnswer.isBlank()) && q.getQuestionText() != null) {
+                      List<TemplateQuestion> tqs = templateQuestionRepo.findAll().stream()
+                          .filter(tq -> tq.getQuestionText() != null && tq.getQuestionText().equalsIgnoreCase(q.getQuestionText()) && tq.getCorrectAnswer() != null)
+                          .collect(Collectors.toList());
+                      if (!tqs.isEmpty()) {
+                          expectedAnswer = tqs.get(0).getCorrectAnswer().trim();
+                          q.setCorrectAnswer(expectedAnswer);
+                          examQuestionRepo.save(q);
+                      }
+                  }
+                  aMap.put("correct_answer", expectedAnswer);
+
+                  String qType = q.getQuestionType() != null ? q.getQuestionType().toLowerCase() : "";
+                  if ("fillups".equals(qType) || "fill_in_the_blanks".equals(qType) || "fill".equals(qType)) {
+                      String ansText = a.getAnswerText() != null ? a.getAnswerText().trim() : "";
+                      String expText = expectedAnswer != null ? expectedAnswer.trim() : "";
+                      boolean isCorrect = !expText.isEmpty() && expText.equalsIgnoreCase(ansText);
+                      aMap.put("is_correct", isCorrect ? 1 : 0);
+                      BigDecimal marks = isCorrect ? new BigDecimal(q.getMarks() != null ? q.getMarks() : 1) : BigDecimal.ZERO;
+                      aMap.put("marks_obtained", marks);
+                  }
                   
                   List<ExamOption> options = examOptionRepo.findByQuestionId(q.getId());
                   List<Map<String, Object>> oList = new ArrayList<>();
@@ -659,17 +824,45 @@ public class ExamsService {
 
             ExamSubmissionAnswer answer = examSubmissionAnswerRepo.findById(answerId).orElse(null);
             if (answer != null) {
-                // Restrict marks to original allocated marks
-                BigDecimal maxMarks = examQuestionRepo.findById(answer.getQuestionId())
-                    .map(q -> new BigDecimal(q.getMarks().toString()))
-                    .orElse(BigDecimal.valueOf(999999)); // Default fallback
-                
-                if (marks.compareTo(maxMarks) > 0) {
-                    marks = maxMarks;
+                ExamQuestion q = examQuestionRepo.findById(answer.getQuestionId()).orElse(null);
+                String qType = q != null && q.getQuestionType() != null ? q.getQuestionType().toLowerCase() : "";
+
+                // If section break, marks are 0 and not counted
+                if (q != null && (Boolean.TRUE.equals(q.getIsSectionTitle()) || "section_break".equals(qType) || "section_header".equals(qType) || "section".equals(qType))) {
+                    answer.setMarksObtained(BigDecimal.ZERO);
+                    answer.setIsCorrect(null);
+                    examSubmissionAnswerRepo.save(answer);
+                    continue;
+                }
+
+                // If MCQ or Fillups, enforce auto-graded marks (staff intervention not allowed)
+                if ("mcq".equals(qType)) {
+                    Optional<ExamOption> correctOpt = examOptionRepo.findByQuestionIdAndIsCorrect(q.getId(), 1);
+                    boolean isCorrect = correctOpt.map(o -> o.getId().equals(answer.getSelectedOptionId())).orElse(false);
+                    marks = isCorrect && q.getMarks() != null ? new BigDecimal(q.getMarks()) : BigDecimal.ZERO;
+                    answer.setIsCorrect(isCorrect ? 1 : 0);
+                } else if ("fillups".equals(qType) || "fill_in_the_blanks".equals(qType) || "fill".equals(qType)) {
+                    String expText = q.getCorrectAnswer() != null ? q.getCorrectAnswer().trim() : "";
+                    String ansText = answer.getAnswerText() != null ? answer.getAnswerText().trim() : "";
+                    boolean isCorrect = !expText.isEmpty() && expText.equalsIgnoreCase(ansText);
+                    marks = isCorrect && q.getMarks() != null ? new BigDecimal(q.getMarks()) : BigDecimal.ZERO;
+                    answer.setIsCorrect(isCorrect ? 1 : 0);
+                } else {
+                    // Descriptive / Either_Or / Text: staff intervention mark
+                    BigDecimal maxMarks = q != null && q.getMarks() != null
+                        ? new BigDecimal(q.getMarks().toString())
+                        : BigDecimal.valueOf(999999);
+                    
+                    if (marks.compareTo(maxMarks) > 0) {
+                        marks = maxMarks;
+                    }
+                    if (marks.compareTo(BigDecimal.ZERO) < 0) {
+                        marks = BigDecimal.ZERO;
+                    }
+                    answer.setIsCorrect(marks.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
                 }
                 
                 answer.setMarksObtained(marks);
-                answer.setIsCorrect(marks.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
                 examSubmissionAnswerRepo.save(answer);
                 totalScore = totalScore.add(marks);
             }
@@ -682,9 +875,173 @@ public class ExamsService {
         return true;
     }
 
+    @Transactional
+    public void savePerformance(Map<String, Object> data) {
+        if (data == null || !data.containsKey("exam_id")) {
+            throw new IllegalArgumentException("Exam ID is required");
+        }
+        Long examId = Long.valueOf(data.get("exam_id").toString());
+        List<Map<String, Object>> evaluations = (List<Map<String, Object>>) data.get("evaluations");
+
+        Optional<Exam> internalExamOpt = examRepo.findById(examId);
+        if (internalExamOpt.isPresent()) {
+            Object studentIdVal = data.get("student_id") != null ? data.get("student_id") : data.get("participant_id");
+            if (studentIdVal == null) {
+                throw new IllegalArgumentException("Student ID is required");
+            }
+            Long studentId = Long.valueOf(studentIdVal.toString());
+
+            Optional<ExamSubmission> lastSub = examSubmissionRepo
+                .findTopByExamIdAndStudentIdOrderByAttemptNumberDesc(examId, studentId);
+
+            int attemptNumber = lastSub.map(s -> s.getAttemptNumber() + 1).orElse(1);
+            LocalDateTime now = LocalDateTime.now();
+
+            ExamSubmission submission = lastSub.filter(s -> "submitted".equalsIgnoreCase(s.getStatus()) || "ongoing".equalsIgnoreCase(s.getStatus()))
+                .orElse(null);
+
+            if (submission == null) {
+                submission = ExamSubmission.builder()
+                    .examId(examId)
+                    .studentId(studentId)
+                    .startTime(now)
+                    .endTime(now)
+                    .totalScore(BigDecimal.ZERO)
+                    .isEvaluated(1)
+                    .attemptNumber(attemptNumber)
+                    .status("evaluated")
+                    .build();
+                submission = examSubmissionRepo.save(submission);
+            } else {
+                submission.setEndTime(now);
+                submission.setIsEvaluated(1);
+                submission.setStatus("evaluated");
+            }
+
+            BigDecimal totalScore = BigDecimal.ZERO;
+            if (evaluations != null) {
+                for (Map<String, Object> eval : evaluations) {
+                    if (!eval.containsKey("question_id")) continue;
+                    Long questionId = Long.valueOf(eval.get("question_id").toString());
+                    Object mVal = eval.get("marks") != null ? eval.get("marks") : eval.get("marks_obtained");
+                    BigDecimal marks = mVal != null ? new BigDecimal(mVal.toString()) : BigDecimal.ZERO;
+                    String remarks = eval.get("remarks") != null ? eval.get("remarks").toString() : "";
+
+                    ExamQuestion question = examQuestionRepo.findById(questionId).orElse(null);
+                    if (question != null && (Boolean.TRUE.equals(question.getIsSectionTitle()) || 
+                        "section_header".equalsIgnoreCase(question.getQuestionType()) || 
+                        "section_break".equalsIgnoreCase(question.getQuestionType()))) {
+                        continue;
+                    }
+
+                    if (question != null && question.getMarks() != null) {
+                        BigDecimal maxMarks = new BigDecimal(question.getMarks().toString());
+                        if (marks.compareTo(maxMarks) > 0) marks = maxMarks;
+                    }
+                    if (marks.compareTo(BigDecimal.ZERO) < 0) marks = BigDecimal.ZERO;
+
+                    ExamSubmissionAnswer answer = examSubmissionAnswerRepo.findBySubmissionIdAndQuestionId(submission.getId(), questionId)
+                        .orElse(new ExamSubmissionAnswer());
+                    answer.setSubmissionId(submission.getId());
+                    answer.setQuestionId(questionId);
+                    answer.setMarksObtained(marks);
+                    answer.setAnswerText(remarks);
+                    answer.setIsCorrect(marks.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
+                    examSubmissionAnswerRepo.save(answer);
+
+                    totalScore = totalScore.add(marks);
+                }
+            }
+
+            submission.setTotalScore(totalScore);
+            submission.setIsEvaluated(1);
+            submission.setStatus("evaluated");
+            submission.setEndTime(now);
+            examSubmissionRepo.save(submission);
+            return;
+        }
+
+        Optional<ExternalExam> externalExamOpt = externalExamRepo.findById(examId);
+        if (externalExamOpt.isPresent()) {
+            Object participantIdVal = data.get("participant_id") != null ? data.get("participant_id") : data.get("student_id");
+            if (participantIdVal == null) {
+                throw new IllegalArgumentException("Participant ID is required");
+            }
+            Long participantId = Long.valueOf(participantIdVal.toString());
+
+            Optional<ExternalExamSubmission> lastSub = externalSubmissionRepo
+                .findTopByExamIdAndParticipantIdOrderByAttemptNumberDesc(examId, participantId);
+
+            int attemptNumber = lastSub.map(s -> s.getAttemptNumber() + 1).orElse(1);
+            LocalDateTime now = LocalDateTime.now();
+
+            ExternalExamSubmission submission = lastSub.filter(s -> "submitted".equalsIgnoreCase(s.getStatus()))
+                .orElse(null);
+
+            if (submission == null) {
+                submission = ExternalExamSubmission.builder()
+                    .examId(examId)
+                    .participantId(participantId)
+                    .submittedAt(now)
+                    .score(BigDecimal.ZERO)
+                    .isEvaluated(1)
+                    .status("evaluated")
+                    .attemptNumber(attemptNumber)
+                    .build();
+                submission = externalSubmissionRepo.save(submission);
+            } else {
+                submission.setSubmittedAt(now);
+                submission.setIsEvaluated(1);
+                submission.setStatus("evaluated");
+            }
+
+            BigDecimal totalScore = BigDecimal.ZERO;
+            if (evaluations != null) {
+                for (Map<String, Object> eval : evaluations) {
+                    if (!eval.containsKey("question_id")) continue;
+                    Long questionId = Long.valueOf(eval.get("question_id").toString());
+                    Object mVal = eval.get("marks_obtained") != null ? eval.get("marks_obtained") : eval.get("marks");
+                    BigDecimal marks = mVal != null ? new BigDecimal(mVal.toString()) : BigDecimal.ZERO;
+                    String remarks = eval.get("remarks") != null ? eval.get("remarks").toString() : "";
+
+                    ExternalQuestion question = externalQuestionRepo.findById(questionId).orElse(null);
+                    if (question != null && (Boolean.TRUE.equals(question.getIsSectionTitle()) || 
+                        "section_header".equalsIgnoreCase(question.getQuestionType()) || 
+                        "section_break".equalsIgnoreCase(question.getQuestionType()))) {
+                        continue;
+                    }
+
+                    if (question != null && question.getMarks() != null) {
+                        BigDecimal maxMarks = new BigDecimal(question.getMarks().toString());
+                        if (marks.compareTo(maxMarks) > 0) marks = maxMarks;
+                    }
+                    if (marks.compareTo(BigDecimal.ZERO) < 0) marks = BigDecimal.ZERO;
+
+                    ExternalSubmissionAnswer answer = externalSubmissionAnswerRepo.findBySubmissionIdAndQuestionId(submission.getId(), questionId)
+                        .orElse(new ExternalSubmissionAnswer());
+                    answer.setSubmissionId(submission.getId());
+                    answer.setQuestionId(questionId);
+                    answer.setMarksObtained(marks);
+                    answer.setAnswerText(remarks);
+                    answer.setIsCorrect(marks.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
+                    externalSubmissionAnswerRepo.save(answer);
+
+                    totalScore = totalScore.add(marks);
+                }
+            }
+
+            submission.setScore(totalScore);
+            submission.setIsEvaluated(1);
+            submission.setStatus("evaluated");
+            submission.setSubmittedAt(now);
+            externalSubmissionRepo.save(submission);
+            return;
+        }
+    }
+
     // ============ EXTERNAL EXAMS (Exams_model.php lines 452-800) ============
 
-    public List<Map<String, Object>> getExternalExams(Long examId, Map<String, String> filters, Map<String, Object> details) {
+    public Object getExternalExams(Long examId, Map<String, String> filters, Map<String, Object> details) {
         String role = details != null ? details.getOrDefault("role", "").toString().toLowerCase() : "";
         String type = details != null ? details.getOrDefault("type", "").toString().toLowerCase() : "";
         Long currentUserId = (details != null && details.get("id") != null)
@@ -698,10 +1055,18 @@ public class ExamsService {
                 .filter(exam -> !isStaffUser || Objects.equals(exam.getCreatedBy(), currentUserId))
                 .map(List::of)
                 .orElse(List.of());
+        } else if (filters != null && filters.containsKey("id") && filters.get("id") != null && !filters.get("id").isBlank()) {
+            String slugOrId = filters.get("id").trim();
+            exams = externalExamRepo.findBySlug(slugOrId)
+                .filter(exam -> !isStaffUser || Objects.equals(exam.getCreatedBy(), currentUserId))
+                .map(List::of)
+                .orElse(List.of());
         } else if (isStaffUser) {
             exams = externalExamRepo.findAll().stream()
                 .filter(exam -> Objects.equals(exam.getCreatedBy(), currentUserId))
                 .collect(Collectors.toList());
+        } else if (details == null) {
+            exams = Collections.emptyList();
         } else {
             exams = externalExamRepo.findAll();
         }
@@ -713,8 +1078,48 @@ public class ExamsService {
         }
         System.out.println("Computed external exams list size: " + (exams != null ? exams.size() : 0));
 
+        if (exams != null && exams.size() > 1) {
+            exams = new ArrayList<>(exams);
+            exams.sort((a, b) -> {
+                Long idA = a.getId() != null ? a.getId() : 0L;
+                Long idB = b.getId() != null ? b.getId() : 0L;
+                return Long.compare(idB, idA);
+            });
+        }
+
+        boolean isPaged = filters != null && filters.containsKey("page") && examId == null;
+        int totalElements = exams != null ? exams.size() : 0;
+        int page = 0;
+        int size = 10;
+        if (isPaged) {
+            try {
+                page = Math.max(0, Integer.parseInt(filters.get("page")));
+            } catch (Exception ignored) {}
+            try {
+                if (filters.containsKey("size")) {
+                    size = Math.max(1, Integer.parseInt(filters.get("size")));
+                }
+            } catch (Exception ignored) {}
+        }
+
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        if (totalPages == 0) totalPages = 1;
+
+        List<ExternalExam> examsToProcess;
+        if (isPaged) {
+            int startIdx = page * size;
+            if (startIdx >= totalElements) {
+                examsToProcess = Collections.emptyList();
+            } else {
+                int endIdx = Math.min(startIdx + size, totalElements);
+                examsToProcess = exams.subList(startIdx, endIdx);
+            }
+        } else {
+            examsToProcess = exams != null ? exams : Collections.emptyList();
+        }
+
         List<Map<String, Object>> result = new ArrayList<>();
-        for (ExternalExam e : exams) {
+        for (ExternalExam e : examsToProcess) {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("id", e.getId());
             map.put("title", e.getTitle());
@@ -745,13 +1150,39 @@ public class ExamsService {
 
             List<ExternalQuestion> questions = externalQuestionRepo.findByExamId(e.getId());
             map.put("question_count", questions.size());
+
+            int computedTotalMarks = questions.stream()
+                .filter(q -> !Boolean.TRUE.equals(q.getIsSectionTitle()) && !"section_break".equalsIgnoreCase(q.getQuestionType()))
+                .mapToInt(q -> q.getMarks() != null ? q.getMarks() : 1)
+                .sum();
+            if (e.getTotalMarks() == null || e.getTotalMarks() == 0) {
+                map.put("total_marks", computedTotalMarks);
+            }
+            if (e.getDurationMinutes() == null || e.getDurationMinutes() == 0) {
+                map.put("duration_minutes", 60);
+            }
+
+            boolean isPublicPortal = (details == null);
             List<Map<String, Object>> qList = new ArrayList<>();
             for (ExternalQuestion q : questions) {
                 Map<String, Object> qMap = new LinkedHashMap<>();
                 qMap.put("id", q.getId());
                 qMap.put("question_type", q.getQuestionType());
                 qMap.put("question_text", q.getQuestionText());
-                qMap.put("marks", q.getMarks());
+                qMap.put("marks", q.getMarks() != null ? q.getMarks() : 1);
+                qMap.put("is_section_title", Boolean.TRUE.equals(q.getIsSectionTitle()));
+                qMap.put("is_section_break", "section_break".equalsIgnoreCase(q.getQuestionType()));
+                qMap.put("order_index", q.getOrderIndex() != null ? q.getOrderIndex() : 0);
+
+                if (!isPublicPortal) {
+                    qMap.put("correct_answer", q.getCorrectAnswer());
+                }
+
+                if (q.getMatchPairsJson() != null && !q.getMatchPairsJson().isBlank()) {
+                    try {
+                        qMap.put("match_pairs", objectMapper.readValue(q.getMatchPairsJson(), Object.class));
+                    } catch (Exception ignored) {}
+                }
                 
                 List<ExternalOption> options = externalOptionRepo.findByQuestionId(q.getId());
                 List<Map<String, Object>> oList = new ArrayList<>();
@@ -759,18 +1190,35 @@ public class ExamsService {
                     Map<String, Object> oMap = new LinkedHashMap<>();
                     oMap.put("id", o.getId());
                     oMap.put("option_text", o.getOptionText());
-                    oMap.put("is_correct", o.getIsCorrect());
+                    if (!isPublicPortal) {
+                        oMap.put("is_correct", o.getIsCorrect());
+                    }
                     oList.add(oMap);
                 }
                 qMap.put("options", oList);
                 qList.add(qMap);
             }
+            qList.sort(Comparator.comparingInt(q -> {
+                Object idx = q.get("order_index");
+                return idx instanceof Number ? ((Number) idx).intValue() : 0;
+            }));
             map.put("questions", qList);
             map.put("participant_count", externalParticipantRepo.findByExamId(e.getId()).size());
             map.put("submission_count", externalSubmissionRepo.findByExamId(e.getId()).size());
 
             result.add(map);
         }
+
+        if (isPaged) {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("content", result);
+            response.put("totalElements", totalElements);
+            response.put("totalPages", totalPages);
+            response.put("currentPage", page + 1);
+            response.put("size", size);
+            return response;
+        }
+
         return result;
     }
 
@@ -831,6 +1279,31 @@ public class ExamsService {
                 question.setQuestionText((String) qData.get("question_text"));
                 question.setMarks(qData.containsKey("marks") ? Integer.valueOf(qData.get("marks").toString()) : 1);
                 question.setOrderIndex(order++);
+
+                if (qData.containsKey("correct_answer") && qData.get("correct_answer") != null) {
+                    question.setCorrectAnswer(qData.get("correct_answer").toString());
+                } else if (qData.containsKey("correctAnswer") && qData.get("correctAnswer") != null) {
+                    question.setCorrectAnswer(qData.get("correctAnswer").toString());
+                }
+                if (qData.containsKey("is_section_title")) {
+                    question.setIsSectionTitle(Boolean.TRUE.equals(qData.get("is_section_title")) || "1".equals(String.valueOf(qData.get("is_section_title"))));
+                }
+                if (qData.containsKey("is_section_break")) {
+                    if (Boolean.TRUE.equals(qData.get("is_section_break")) || "1".equals(String.valueOf(qData.get("is_section_break")))) {
+                        question.setIsSectionTitle(true);
+                    }
+                }
+                String checkType = question.getQuestionType() != null ? question.getQuestionType().toLowerCase() : "";
+                if (Boolean.TRUE.equals(question.getIsSectionTitle()) || "section_header".equals(checkType) || "section_break".equals(checkType) || "section".equals(checkType)) {
+                    question.setMarks(0);
+                    question.setIsSectionTitle(true);
+                }
+                if (qData.containsKey("match_pairs")) {
+                    try {
+                        question.setMatchPairsJson(objectMapper.writeValueAsString(qData.get("match_pairs")));
+                    } catch (Exception ignored) {}
+                }
+
                 ExternalQuestion savedQ = externalQuestionRepo.save(question);
 
                 if (qData.containsKey("options") && qData.get("options") instanceof List) {
@@ -852,7 +1325,13 @@ public class ExamsService {
     // ============ EXTERNAL LOGIN (Exams_model.php lines 680-720) ============
 
     public Map<String, Object> externalLogin(Long examId, String email, String password) {
-        Optional<ExternalParticipant> pOpt = externalParticipantRepo.findByExamIdAndEmailAndPassword(examId, email, password);
+        if (email == null || password == null) return null;
+        String ident = email.trim();
+        String pass = password.trim();
+        Optional<ExternalParticipant> pOpt = externalParticipantRepo.findByExamIdAndIdentifierAndPassword(examId, ident, pass);
+        if (pOpt.isEmpty()) {
+            pOpt = externalParticipantRepo.findByExamIdAndEmailAndPassword(examId, ident, pass);
+        }
         if (pOpt.isPresent()) {
             ExternalParticipant p = pOpt.get();
             Map<String, Object> result = new LinkedHashMap<>();
@@ -903,8 +1382,17 @@ public class ExamsService {
                 Map<String, Object> qMap = new LinkedHashMap<>();
                 qMap.put("id", q.getId());
                 qMap.put("question_type", q.getQuestionType());
-                qMap.put("question_text", q.getQuestionText());
+                qMap.put("question_text", q.getQuestionText() != null ? q.getQuestionText() : "");
                 qMap.put("marks", q.getMarks());
+                qMap.put("correct_answer", q.getCorrectAnswer());
+                qMap.put("is_section_title", Boolean.TRUE.equals(q.getIsSectionTitle()));
+                if (q.getMatchPairsJson() != null && !q.getMatchPairsJson().isBlank()) {
+                    try {
+                        qMap.put("match_pairs", objectMapper.readValue(q.getMatchPairsJson(), List.class));
+                    } catch (Exception e) {
+                        qMap.put("match_pairs", Collections.emptyList());
+                    }
+                }
                 qMap.put("options", templateOptionRepo.findByQuestionId(q.getId()));
                 qList.add(qMap);
             }
@@ -952,8 +1440,23 @@ public class ExamsService {
                 TemplateQuestion question = new TemplateQuestion();
                 question.setTemplateId(saved.getId());
                 question.setQuestionType((String) qData.getOrDefault("question_type", "mcq"));
-                question.setQuestionText((String) qData.get("question_text"));
+                question.setQuestionText(qData.get("question_text") != null ? qData.get("question_text").toString() : "");
                 question.setMarks(qData.containsKey("marks") ? Integer.valueOf(qData.get("marks").toString()) : 1);
+                
+                if (qData.containsKey("correct_answer") && qData.get("correct_answer") != null) {
+                    question.setCorrectAnswer(qData.get("correct_answer").toString());
+                }
+                if (qData.containsKey("is_section_title")) {
+                    question.setIsSectionTitle(Boolean.TRUE.equals(qData.get("is_section_title")) || "true".equalsIgnoreCase(String.valueOf(qData.get("is_section_title"))));
+                }
+                if (qData.containsKey("match_pairs") && qData.get("match_pairs") instanceof List) {
+                    try {
+                        question.setMatchPairsJson(objectMapper.writeValueAsString(qData.get("match_pairs")));
+                    } catch (Exception e) {
+                        question.setMatchPairsJson(null);
+                    }
+                }
+
                 TemplateQuestion savedQ = templateQuestionRepo.save(question);
 
                 if (qData.containsKey("options") && qData.get("options") instanceof List) {
@@ -1025,10 +1528,22 @@ public class ExamsService {
             java.time.LocalDate itemDate = extractExamDate(exam);
             java.time.LocalDate createdAtDate = extractCreatedAt(exam);
 
-            // Scheduled Date Filters
-            if (fExamDate != null && (itemDate == null || !itemDate.equals(fExamDate))) return false;
-            if (fDateFrom != null && (itemDate == null || itemDate.isBefore(fDateFrom))) return false;
-            if (fDateTo != null && (itemDate == null || itemDate.isAfter(fDateTo))) return false;
+            // Scheduled Date or Created Date Filters
+            if (fExamDate != null) {
+                boolean matchExamDate = itemDate != null && itemDate.equals(fExamDate);
+                boolean matchCreated = createdAtDate != null && createdAtDate.equals(fExamDate);
+                if (!matchExamDate && !matchCreated) return false;
+            }
+            if (fDateFrom != null) {
+                boolean matchExamDate = itemDate != null && !itemDate.isBefore(fDateFrom);
+                boolean matchCreated = createdAtDate != null && !createdAtDate.isBefore(fDateFrom);
+                if (!matchExamDate && !matchCreated) return false;
+            }
+            if (fDateTo != null) {
+                boolean matchExamDate = itemDate != null && !itemDate.isAfter(fDateTo);
+                boolean matchCreated = createdAtDate != null && !createdAtDate.isAfter(fDateTo);
+                if (!matchExamDate && !matchCreated) return false;
+            }
 
             // Created At Filters - Be lenient if createdAt is null (show anyway unless explicitly filtering)
             if (fCreatedFrom != null) {
@@ -1241,6 +1756,30 @@ public class ExamsService {
                 aMap.put("question_text", q.getQuestionText());
                 aMap.put("question_type", q.getQuestionType());
                 aMap.put("question_marks", q.getMarks());
+                aMap.put("is_section_title", q.getIsSectionTitle());
+
+                String expectedAnswer = q.getCorrectAnswer();
+                if ((expectedAnswer == null || expectedAnswer.isBlank()) && q.getQuestionText() != null) {
+                    List<TemplateQuestion> tqs = templateQuestionRepo.findAll().stream()
+                        .filter(tq -> tq.getQuestionText() != null && tq.getQuestionText().equalsIgnoreCase(q.getQuestionText()) && tq.getCorrectAnswer() != null)
+                        .collect(Collectors.toList());
+                    if (!tqs.isEmpty()) {
+                        expectedAnswer = tqs.get(0).getCorrectAnswer().trim();
+                        q.setCorrectAnswer(expectedAnswer);
+                        externalQuestionRepo.save(q);
+                    }
+                }
+                aMap.put("correct_answer", expectedAnswer);
+
+                String qType = q.getQuestionType() != null ? q.getQuestionType().toLowerCase() : "";
+                if ("fillups".equals(qType) || "fill_in_the_blanks".equals(qType) || "fill".equals(qType)) {
+                    String ansText = a.getAnswerText() != null ? a.getAnswerText().trim() : "";
+                    String expText = expectedAnswer != null ? expectedAnswer.trim() : "";
+                    boolean isCorrect = !expText.isEmpty() && expText.equalsIgnoreCase(ansText);
+                    aMap.put("is_correct", isCorrect ? 1 : 0);
+                    BigDecimal marks = isCorrect ? new BigDecimal(q.getMarks() != null ? q.getMarks() : 1) : BigDecimal.ZERO;
+                    aMap.put("marks_obtained", marks);
+                }
 
                 List<ExternalOption> options = externalOptionRepo.findByQuestionId(q.getId());
                 List<Map<String, Object>> oList = new ArrayList<>();
@@ -1293,35 +1832,56 @@ public class ExamsService {
                 }
 
                 ExternalQuestion question = externalQuestionRepo.findById(answer.getQuestionId()).orElse(null);
-                BigDecimal maxMarks = question != null && question.getMarks() != null
-                    ? BigDecimal.valueOf(question.getMarks())
-                    : BigDecimal.ZERO;
+                String qType = question != null && question.getQuestionType() != null ? question.getQuestionType().toLowerCase() : "";
+
+                // If section break, marks are 0
+                if (question != null && (Boolean.TRUE.equals(question.getIsSectionTitle()) || "section_break".equals(qType) || "section_header".equals(qType) || "section".equals(qType))) {
+                    answer.setMarksObtained(BigDecimal.ZERO);
+                    answer.setIsCorrect(null);
+                    externalSubmissionAnswerRepo.save(answer);
+                    continue;
+                }
 
                 BigDecimal marks = BigDecimal.ZERO;
-                Object marksValue = evaluation.get("marks");
-                if (marksValue == null) {
-                    marksValue = evaluation.get("marks_obtained");
-                }
-                if (marksValue != null && !marksValue.toString().isBlank()) {
-                    marks = new BigDecimal(marksValue.toString());
-                }
 
-                if (marks.compareTo(BigDecimal.ZERO) < 0 || marks.compareTo(maxMarks) > 0) {
-                    throw new IllegalArgumentException("Marks cannot be less than 0 or greater than the question mark");
-                }
+                // If MCQ or Fillups, enforce auto-graded marks
+                if ("mcq".equals(qType)) {
+                    Optional<ExternalOption> correctOpt = externalOptionRepo.findByQuestionIdAndIsCorrect(question.getId(), 1);
+                    boolean isCorrect = correctOpt.map(o -> o.getId().equals(answer.getSelectedOptionId())).orElse(false);
+                    marks = isCorrect && question.getMarks() != null ? new BigDecimal(question.getMarks()) : BigDecimal.ZERO;
+                    answer.setIsCorrect(isCorrect ? 1 : 0);
+                } else if ("fillups".equals(qType) || "fill_in_the_blanks".equals(qType) || "fill".equals(qType)) {
+                    String expText = question.getCorrectAnswer() != null ? question.getCorrectAnswer().trim() : "";
+                    String ansText = answer.getAnswerText() != null ? answer.getAnswerText().trim() : "";
+                    boolean isCorrect = !expText.isEmpty() && expText.equalsIgnoreCase(ansText);
+                    marks = isCorrect && question.getMarks() != null ? new BigDecimal(question.getMarks()) : BigDecimal.ZERO;
+                    answer.setIsCorrect(isCorrect ? 1 : 0);
+                } else {
+                    // Descriptive / Either_Or / Text: staff intervention mark
+                    BigDecimal maxMarks = question != null && question.getMarks() != null
+                        ? BigDecimal.valueOf(question.getMarks())
+                        : BigDecimal.ZERO;
 
-                Integer isCorrect = null;
-                Object isCorrectValue = evaluation.get("is_correct");
-                if (isCorrectValue != null && !isCorrectValue.toString().isBlank()) {
-                    isCorrect = Integer.valueOf(isCorrectValue.toString());
+                    Object marksValue = evaluation.get("marks");
+                    if (marksValue == null) {
+                        marksValue = evaluation.get("marks_obtained");
+                    }
+                    if (marksValue != null && !marksValue.toString().isBlank()) {
+                        marks = new BigDecimal(marksValue.toString());
+                    }
+
+                    if (marks.compareTo(BigDecimal.ZERO) < 0) marks = BigDecimal.ZERO;
+                    if (marks.compareTo(maxMarks) > 0) marks = maxMarks;
+
+                    Integer isCorrect = null;
+                    Object isCorrectValue = evaluation.get("is_correct");
+                    if (isCorrectValue != null && !isCorrectValue.toString().isBlank()) {
+                        isCorrect = Integer.valueOf(isCorrectValue.toString());
+                    }
+                    answer.setIsCorrect(isCorrect != null ? isCorrect : (marks.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0));
                 }
 
                 answer.setMarksObtained(marks);
-                if (isCorrect != null) {
-                    answer.setIsCorrect(isCorrect);
-                } else if ("mcq".equalsIgnoreCase(question != null ? question.getQuestionType() : null)) {
-                    answer.setIsCorrect(marks.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
-                }
                 externalSubmissionAnswerRepo.save(answer);
                 totalScore = totalScore.add(marks);
             }
@@ -1405,9 +1965,45 @@ public class ExamsService {
                     answer.setMarksObtained(isCorrect && question != null ?
                         new BigDecimal(question.getMarks()) : BigDecimal.ZERO);
                     if (isCorrect && question != null) totalScore = totalScore.add(new BigDecimal(question.getMarks()));
-                } else if (ans.containsKey("answer_text")) {
-                    answer.setAnswerText((String) ans.get("answer_text"));
-                    autoEvaluated = 0;
+                } else if (ans.containsKey("answer_text") || ans.containsKey("either_or_selected")) {
+                    String ansText = ans.get("answer_text") != null ? ans.get("answer_text").toString() : "";
+                    answer.setAnswerText(ansText);
+
+                    String qType = question != null && question.getQuestionType() != null ? question.getQuestionType().toLowerCase() : "";
+
+                    if ("fillups".equals(qType) || "fill_in_the_blanks".equals(qType) || "fill".equals(qType)) {
+                        String expectedAnswer = question != null && question.getCorrectAnswer() != null ? question.getCorrectAnswer().trim() : "";
+                        if (expectedAnswer.isEmpty() && question != null) {
+                            List<TemplateQuestion> tqs = templateQuestionRepo.findAll().stream()
+                                .filter(tq -> tq.getQuestionText() != null && tq.getQuestionText().equalsIgnoreCase(question.getQuestionText()) && tq.getCorrectAnswer() != null)
+                                .collect(Collectors.toList());
+                            if (!tqs.isEmpty()) {
+                                expectedAnswer = tqs.get(0).getCorrectAnswer().trim();
+                                question.setCorrectAnswer(expectedAnswer);
+                                externalQuestionRepo.save(question);
+                            }
+                        }
+
+                        boolean isCorrect = !expectedAnswer.isEmpty() && expectedAnswer.equalsIgnoreCase(ansText.trim());
+                        answer.setIsCorrect(isCorrect ? 1 : 0);
+                        BigDecimal marks = isCorrect && question != null ? new BigDecimal(question.getMarks()) : BigDecimal.ZERO;
+                        answer.setMarksObtained(marks);
+                        totalScore = totalScore.add(marks);
+                    } else if ("descriptive".equals(qType) || "text".equals(qType) || "either_or".equals(qType)) {
+                        autoEvaluated = 0; // Only Descriptive and Either Or Questions are verified by staff
+                        answer.setMarksObtained(BigDecimal.ZERO);
+                        answer.setIsCorrect(0);
+                    } else {
+                        if (question != null && question.getCorrectAnswer() != null && !question.getCorrectAnswer().isBlank()) {
+                            boolean isCorrect = question.getCorrectAnswer().trim().equalsIgnoreCase(ansText.trim());
+                            answer.setIsCorrect(isCorrect ? 1 : 0);
+                            BigDecimal marks = isCorrect ? new BigDecimal(question.getMarks()) : BigDecimal.ZERO;
+                            answer.setMarksObtained(marks);
+                            totalScore = totalScore.add(marks);
+                        } else {
+                            autoEvaluated = 0;
+                        }
+                    }
                 }
 
                 externalSubmissionAnswerRepo.save(answer);
@@ -1416,6 +2012,7 @@ public class ExamsService {
 
         savedSub.setScore(totalScore);
         savedSub.setIsEvaluated(autoEvaluated);
+        if (autoEvaluated == 1) savedSub.setStatus("evaluated");
         externalSubmissionRepo.save(savedSub);
 
         Map<String, Object> result = new LinkedHashMap<>();

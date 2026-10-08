@@ -1,0 +1,35 @@
+<!-- Mobile Attendance Template -->
+<div class="m-attendance p-3 pb-24 space-y-4">
+  <!-- Date Navigation -->
+  <div class="flex items-center justify-between bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+    <button (click)="changeDate(-1)" class="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-xs font-bold">◀</button>
+    <input type="date" [(ngModel)]="selectedDate" (change)="loadSchedule()" class="bg-transparent text-xs font-bold text-slate-800 dark:text-white border-none text-center">
+    <button (click)="changeDate(1)" class="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-xs font-bold">▶</button>
+  </div>
+
+  <!-- Schedule List Cards -->
+  <div class="space-y-3">
+    <div *ngFor="let item of schedule" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ item.batch_name || item.student_name }}</h3>
+          <p class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">{{ item.course_name }}</p>
+        </div>
+        <span class="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-xs font-bold">
+          {{ item.status }}
+        </span>
+      </div>
+      <p class="text-xs text-slate-500 line-clamp-1">{{ item.topic || 'No topic specified' }}</p>
+      <div class="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700/50 text-xs text-slate-600 dark:text-slate-400">
+        <span>🕒 {{ formatTime(item.start_time) }} - {{ formatTime(item.end_time) }}</span>
+        <button (click)="viewAttendance(item)" class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg font-bold">
+          View
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="schedule.length === 0" class="text-center py-10 text-slate-400 text-sm">
+      No classes scheduled for this date.
+    </div>
+  </div>
+</div>

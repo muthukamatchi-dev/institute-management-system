@@ -109,7 +109,182 @@ public class InstituteSetting {
     @Column(name = "enable_standard_courses")
     private Integer enableStandardCourses;
 
+    @Column(name = "enable_exams")
+    private Integer enableExams;
+
+    @Column(name = "enable_expenses")
+    private Integer enableExpenses;
+
+    @Column(name = "enable_study_material")
+    private Integer enableStudyMaterial;
+
+    @Column(name = "enable_programs")
+    private Integer enablePrograms;
+
+    @Column(name = "basic_settings", columnDefinition = "TEXT")
+    private String basicSettings;
+
+    @Column(name = "gdrive_backup_url", length = 500)
+    private String gdriveBackupUrl;
+
+    @Column(name = "backup_frequency", length = 50)
+    private String backupFrequency;
+
+    @Column(name = "last_backup_at")
+    private LocalDateTime lastBackupAt;
+
+    // SMTP Configuration
+    @Column(name = "smtp_host", length = 255)
+    private String smtpHost;
+
+    @Column(name = "smtp_port")
+    private Integer smtpPort;
+
+    @Column(name = "smtp_username", length = 255)
+    private String smtpUsername;
+
+    @Column(name = "smtp_password", length = 255)
+    private String smtpPassword;
+
+    @Column(name = "smtp_from_email", length = 255)
+    private String smtpFromEmail;
+
+    @Column(name = "smtp_from_name", length = 255)
+    private String smtpFromName;
+
+    @Column(name = "smtp_encryption", length = 20)
+    private String smtpEncryption;
+
+    @Column(name = "enable_smtp")
+    private Integer enableSmtp;
+
+    @Column(name = "smtp_triggers", length = 500)
+    private String smtpTriggers;
+
+    // Getters and Setters for SMTP
+    public String getSmtpHost() {
+        return smtpHost;
+    }
+
+    public void setSmtpHost(String smtpHost) {
+        this.smtpHost = smtpHost;
+    }
+
+    public Integer getSmtpPort() {
+        return smtpPort;
+    }
+
+    public void setSmtpPort(Integer smtpPort) {
+        this.smtpPort = smtpPort;
+    }
+
+    public String getSmtpUsername() {
+        return smtpUsername;
+    }
+
+    public void setSmtpUsername(String smtpUsername) {
+        this.smtpUsername = smtpUsername;
+    }
+
+    public String getSmtpPassword() {
+        return smtpPassword;
+    }
+
+    public void setSmtpPassword(String smtpPassword) {
+        this.smtpPassword = smtpPassword;
+    }
+
+    public String getSmtpFromEmail() {
+        return smtpFromEmail;
+    }
+
+    public void setSmtpFromEmail(String smtpFromEmail) {
+        this.smtpFromEmail = smtpFromEmail;
+    }
+
+    public String getSmtpFromName() {
+        return smtpFromName;
+    }
+
+    public void setSmtpFromName(String smtpFromName) {
+        this.smtpFromName = smtpFromName;
+    }
+
+    public String getSmtpEncryption() {
+        return smtpEncryption;
+    }
+
+    public void setSmtpEncryption(String smtpEncryption) {
+        this.smtpEncryption = smtpEncryption;
+    }
+
+    public Integer getEnableSmtp() {
+        return enableSmtp;
+    }
+
+    public void setEnableSmtp(Integer enableSmtp) {
+        this.enableSmtp = enableSmtp;
+    }
+
+    public String getSmtpTriggers() {
+        return smtpTriggers;
+    }
+
+    public void setSmtpTriggers(String smtpTriggers) {
+        this.smtpTriggers = smtpTriggers;
+    }
+
+    public Integer getAllowSchedulePastDates() {
+        if (basicSettings != null && !basicSettings.isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(basicSettings);
+                if (node.has("allowPast")) {
+                    com.fasterxml.jackson.databind.JsonNode p = node.get("allowPast");
+                    if (p.isBoolean()) return p.asBoolean() ? 1 : 0;
+                    if (p.isNumber()) return p.asInt() != 0 ? 1 : 0;
+                    return ("true".equalsIgnoreCase(p.asText()) || "1".equals(p.asText())) ? 1 : 0;
+                }
+                if (node.has("allowSchedulePastDates")) {
+                    com.fasterxml.jackson.databind.JsonNode p = node.get("allowSchedulePastDates");
+                    if (p.isBoolean()) return p.asBoolean() ? 1 : 0;
+                    if (p.isNumber()) return p.asInt() != 0 ? 1 : 0;
+                    return ("true".equalsIgnoreCase(p.asText()) || "1".equals(p.asText())) ? 1 : 0;
+                }
+            } catch (Exception ignored) {}
+        }
+        return 0;
+    }
+
+    public Integer getAllowScheduleFutureDates() {
+        if (basicSettings != null && !basicSettings.isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(basicSettings);
+                if (node.has("allowFuture")) {
+                    com.fasterxml.jackson.databind.JsonNode p = node.get("allowFuture");
+                    if (p.isBoolean()) return p.asBoolean() ? 1 : 0;
+                    if (p.isNumber()) return p.asInt() != 0 ? 1 : 0;
+                    return ("true".equalsIgnoreCase(p.asText()) || "1".equals(p.asText())) ? 1 : 0;
+                }
+                if (node.has("allowScheduleFutureDates")) {
+                    com.fasterxml.jackson.databind.JsonNode p = node.get("allowScheduleFutureDates");
+                    if (p.isBoolean()) return p.asBoolean() ? 1 : 0;
+                    if (p.isNumber()) return p.asInt() != 0 ? 1 : 0;
+                    return ("true".equalsIgnoreCase(p.asText()) || "1".equals(p.asText())) ? 1 : 0;
+                }
+            } catch (Exception ignored) {}
+        }
+        return 0;
+    }
+
     @Builder.Default
     @Column(name = "tenant_id", length = 100)
     private String tenantId = "default";
+
+    @PrePersist
+    @PreUpdate
+    protected void onSave() {
+        if (updatedAt == null) {
+            updatedAt = LocalDateTime.now();
+        }
+    }
 }

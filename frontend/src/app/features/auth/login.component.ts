@@ -95,8 +95,10 @@ export class LoginComponent implements OnInit {
       },
       error: (err) => {
         this.loading = false;
-        if (err.error && err.error.message) {
+        if (err?.error?.message) {
           this.error = err.error.message;
+        } else if (err?.message) {
+          this.error = err.message;
         } else {
           this.error = 'Unable to connect to server. Ensure backend is running.';
         }

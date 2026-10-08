@@ -14,11 +14,12 @@ import { ToastService } from '../../services/toast.service';
 import { CustomFieldsRendererComponent } from '../../shared/ui/custom-fields-renderer.component';
 import { ViewChild } from '@angular/core';
 import { ExportHelper } from '../../shared/utils/export-helper';
+import { DatePickerComponent } from '../../shared/ui/date-picker.component';
 
 @Component({
   selector: 'app-expenses',
   standalone: true,
-  imports: [CommonModule, FormsModule, ModalComponent, BadgeComponent, CustomFieldsRendererComponent],
+  imports: [CommonModule, FormsModule, ModalComponent, BadgeComponent, CustomFieldsRendererComponent, DatePickerComponent],
   templateUrl: './expenses.component.html'
 })
 export class ExpensesComponent implements OnInit {

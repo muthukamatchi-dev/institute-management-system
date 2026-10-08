@@ -77,6 +77,7 @@ export class DataService {
                     mobile: s.mobile,
                     parentMobile: s.parent_mobile,
                     dob: s.dob,
+                    gender: s.gender,
                     qualification: s.qualification,
                     email: s.email,
                     courseId: s.course_id,
@@ -88,6 +89,7 @@ export class DataService {
                     status: s.status || 'active',
                     referredBy: s.referred_by,
                     referralProfession: s.referral_profession,
+                    address: s.address,
                     instructor: s.instructor,
                     instructorName: s.instructor_name,
                     timing: s.timing,
@@ -124,6 +126,7 @@ export class DataService {
                     mobile: s.mobile,
                     parentMobile: s.parent_mobile,
                     dob: s.dob,
+                    gender: s.gender,
                     qualification: s.qualification,
                     email: s.email,
                     courseId: String(s.course_id || ''),
@@ -135,6 +138,7 @@ export class DataService {
                     feeStatus: s.fee_status || 'pending',
                     referredBy: s.referred_by,
                     referralProfession: s.referral_profession,
+                    address: s.address,
                     photo: s.photo,
                     selectedSubjects: s.selected_subjects ?? s.selectedSubjects,
                     batchIds: s.batch_ids || [],
@@ -172,6 +176,7 @@ export class DataService {
             mobile: student.mobile,
             parent_mobile: student.parentMobile,
             dob: student.dob,
+            gender: student.gender,
             qualification: student.qualification,
             email: student.email,
             course_id: student.courseId,
@@ -181,6 +186,7 @@ export class DataService {
             joining_date: student.joiningDate || new Date().toISOString().split('T')[0],
             referred_by: student.referredBy,
             referral_profession: student.referralProfession,
+            address: student.address,
             selected_subjects: student.selectedSubjects ?? student.selected_subjects,
             photo: student.photo
         };
@@ -195,6 +201,66 @@ export class DataService {
         return this.http.get<any>(`${this.apiUrl}/institute/students?batch_id=${batchId}`);
     }
 
+    // Multi-course enrollment
+    getStudentCourses(studentId: string | number): Observable<any[]> {
+        return this.http.get<any>(`${this.apiUrl}/institute/student_courses?student_id=${studentId}`).pipe(
+            map(res => res?.data || [])
+        );
+    }
+
+    enrollAdditionalCourse(studentId: string | number, data: any): Observable<any> {
+        return this.http.post(`${this.apiUrl}/institute/enroll_additional_course`, {
+            student_id: studentId,
+            course_id: data.courseId,
+            batch_id: data.batchId && data.batchId !== '0' ? data.batchId : null,
+            joining_date: data.joiningDate || new Date().toISOString().split('T')[0],
+            status: data.status || 'active',
+            selected_subjects: data.selectedSubjects
+        });
+    }
+
+    unenrollFromCourse(studentId: string | number, courseId: string | number): Observable<any> {
+        return this.http.post(`${this.apiUrl}/institute/unenroll_course`, {
+            student_id: studentId,
+            course_id: courseId
+        });
+    }
+
+    updateStudentCourse(studentId: string | number, data: any): Observable<any> {
+        return this.http.post(`${this.apiUrl}/institute/update_student_course`, {
+            student_id: studentId,
+            course_id: data.courseId || data.course_id,
+            batch_id: data.batchId && data.batchId !== '0' ? data.batchId : (data.batch_id || null),
+            joining_date: data.joiningDate || data.joining_date,
+            status: data.status || 'active',
+            selected_subjects: data.selectedSubjects ? (typeof data.selectedSubjects === 'string' ? data.selectedSubjects : JSON.stringify(data.selectedSubjects)) : (data.selected_subjects || null)
+        });
+    }
+
+    // Enquiries
+    getEnquiries(): Observable<any[]> {
+        return this.http.get<any>(`${this.apiUrl}/institute/enquiries`).pipe(
+            map(res => res?.data || [])
+        );
+    }
+
+    createEnquiry(data: any): Observable<any> {
+        return this.http.post(`${this.apiUrl}/institute/enquiries`, data);
+    }
+
+    updateEnquiry(id: string | number, data: any): Observable<any> {
+        return this.http.put(`${this.apiUrl}/institute/enquiries/${id}`, data);
+    }
+
+    deleteEnquiry(id: string | number): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/institute/enquiries/${id}`);
+    }
+
+    updateEnquiryStatus(id: string | number, status: string): Observable<any> {
+        return this.http.patch(`${this.apiUrl}/institute/enquiries/${id}/status`, { status });
+    }
+
+
     // Courses
     getCourses(): Observable<Course[]> {
         return this.http.get<any>(`${this.apiUrl}/institute/courses`).pipe(
@@ -203,7 +269,7 @@ export class DataService {
                 if (!Array.isArray(data)) return [];
                 return data.map((c: any) => ({
                     id: c.id,
-                    course_id: String(c.course_id ?? c.courseId),
+                    course_id: String(c.course_id ?? c.courseId ?? ''),
                     name: c.name,
                     description: c.description,
                     duration: c.duration,
@@ -214,7 +280,13 @@ export class DataService {
                     imagePath: c.image_path ?? c.imagePath,
                     courseType: c.course_type ?? c.courseType,
                     subjects: c.subjects,
-                    feePeriod: c.fee_period ?? c.feePeriod
+                    feePeriod: c.fee_period ?? c.feePeriod,
+                    scheduleType: c.schedule_type ?? c.scheduleType,
+                    customDays: c.custom_days ?? c.customDays,
+                    isOnline: c.is_online ?? c.isOnline,
+                    validFrom: c.valid_from ?? c.validFrom,
+                    validTo: c.valid_to ?? c.validTo,
+                    custom_fields: c.custom_fields
                 }));
             })
         );
@@ -223,24 +295,90 @@ export class DataService {
     addCourse(course: any): Observable<any> {
         const payload = {
             id: course.id,
-            course_id: course.course_id,
+            course_id: course.course_id ?? course.courseId,
             name: course.name,
             description: course.description,
             category: course.category,
             duration: course.duration,
             fees: course.fees,
             status: course.status || 'active',
-            syllabus_path: course.syllabusPath,
-            image_path: course.imagePath,
+            syllabus_path: course.syllabusPath ?? course.syllabus_path,
+            image_path: course.imagePath ?? course.image_path,
             course_type: course.courseType ?? course.course_type,
+            courseType: course.courseType ?? course.course_type,
             subjects: course.subjects,
-            fee_period: course.feePeriod ?? course.fee_period
+            fee_period: course.feePeriod ?? course.fee_period,
+            feePeriod: course.feePeriod ?? course.fee_period,
+            schedule_type: course.scheduleType ?? course.schedule_type,
+            scheduleType: course.scheduleType ?? course.schedule_type,
+            custom_days: typeof course.customDays === 'object' ? JSON.stringify(course.customDays) : (course.customDays ?? course.custom_days),
+            customDays: typeof course.customDays === 'object' ? JSON.stringify(course.customDays) : (course.customDays ?? course.custom_days),
+            is_online: course.isOnline ?? course.is_online,
+            isOnline: course.isOnline ?? course.is_online,
+            valid_from: course.validFrom ?? course.valid_from,
+            validFrom: course.validFrom ?? course.valid_from,
+            valid_to: course.validTo ?? course.valid_to,
+            validTo: course.validTo ?? course.valid_to,
+            custom_fields: course.custom_fields
         };
         return this.http.post(`${this.apiUrl}/institute/save_course`, payload);
     }
 
     deleteCourse(id: string): Observable<any> {
         return this.http.post(`${this.apiUrl}/institute/delete_course`, { id });
+    }
+
+    // Programs
+    getPrograms(): Observable<any[]> {
+        return this.http.get<any>(`${this.apiUrl}/programs`).pipe(
+            map(res => res?.data || [])
+        );
+    }
+
+    getProgram(id: string | number): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/programs/${id}`).pipe(
+            map(res => res?.data)
+        );
+    }
+
+    saveProgram(program: any): Observable<any> {
+        return this.http.post(`${this.apiUrl}/programs/save`, program);
+    }
+
+    deleteProgram(id: string | number): Observable<any> {
+        return this.http.post(`${this.apiUrl}/programs/delete`, { id });
+    }
+
+    saveProgramModule(programId: string | number, moduleData: any): Observable<any> {
+        return this.http.post(`${this.apiUrl}/programs/${programId}/modules`, moduleData);
+    }
+
+    deleteProgramModule(moduleId: string | number): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/programs/modules/${moduleId}`);
+    }
+
+    reorderProgramModules(programId: string | number, moduleIds: (string | number)[]): Observable<any> {
+        return this.http.post(`${this.apiUrl}/programs/${programId}/modules/reorder`, { moduleIds });
+    }
+
+    enrollStudentInProgram(studentId: string | number, programId: string | number): Observable<any> {
+        return this.http.post(`${this.apiUrl}/programs/enroll`, { studentId, programId });
+    }
+
+    getStudentProgramProgress(studentId: string | number, programId: string | number): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/programs/student/${studentId}/progress?programId=${programId}`).pipe(
+            map(res => res?.data)
+        );
+    }
+
+    completeStudentModule(progressId: string | number): Observable<any> {
+        return this.http.post(`${this.apiUrl}/programs/complete-module`, { progressId });
+    }
+
+    parseQuestionDoc(file: File): Observable<any> {
+        const formData = new FormData();
+        formData.append('file', file);
+        return this.http.post<any>(`${this.apiUrl}/exams/parse_doc`, formData);
     }
 
     uploadSyllabus(file: File): Observable<any> {
@@ -301,9 +439,9 @@ export class DataService {
 
     addBatch(batch: any): Observable<any> {
         const payload = {
-            id: batch.id,
+            id: batch.id || null,
             batch_name: batch.batchName,
-            course_id: batch.courseId,
+            course_id: batch.courseId || null,
             instructor: batch.instructor,
             timing: batch.timing,
             start_date: batch.startDate,
@@ -400,7 +538,7 @@ export class DataService {
             map(res => {
                 const data = res.data || [];
                 // Client-side filter for extra safety
-                return data.filter((r: any) => 
+                return data.filter((r: any) =>
                     String(r.student_id || r.studentId) === String(studentId)
                 ).map((r: any) => ({
                     id: r.id,
@@ -480,6 +618,22 @@ export class DataService {
 
     saveSettings(settings: any): Observable<any> {
         return this.http.post(`${this.apiUrl}/institute/save_settings`, settings);
+    }
+
+    getAboutInfo(): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/institute/about`).pipe(
+            map(res => res?.data || {})
+        );
+    }
+
+    saveBackupSettings(data: { gdrive_backup_url?: string; backup_frequency?: string }): Observable<any> {
+        return this.http.post(`${this.apiUrl}/institute/save_backup_settings`, data);
+    }
+
+    downloadManualBackup(): Observable<Blob> {
+        return this.http.get(`${this.apiUrl}/institute/backup/download`, {
+            responseType: 'blob'
+        });
     }
 
     getNextRegNumber(): Observable<any> {
@@ -577,7 +731,7 @@ export class DataService {
     }
 
     // Exams (Reconstructed)
-    getInternalExams(filters: any = {}): Observable<any[]> {
+    getInternalExams(filters: any = {}): Observable<any> {
         let params = new HttpParams();
         if (filters.exam_date) params = params.set('exam_date', filters.exam_date);
         if (filters.date_from) params = params.set('date_from', filters.date_from);
@@ -585,13 +739,29 @@ export class DataService {
         if (filters.created_from) params = params.set('created_from', filters.created_from);
         if (filters.created_to) params = params.set('created_to', filters.created_to);
         if (filters.q) params = params.set('q', filters.q);
+        if (filters.page !== undefined && filters.page !== null) params = params.set('page', filters.page.toString());
+        if (filters.size !== undefined && filters.size !== null) params = params.set('size', filters.size.toString());
 
         return this.http.get<any>(`${this.apiUrl}/exams/internal`, { params }).pipe(
-            map(res => Array.isArray(res?.data) ? res.data : [])
+            map(res => {
+                if (res?.data?.content && Array.isArray(res.data.content)) {
+                    return res.data;
+                }
+                if (Array.isArray(res?.data)) {
+                    return {
+                        content: res.data,
+                        totalElements: res.data.length,
+                        totalPages: 1,
+                        currentPage: 1,
+                        size: res.data.length
+                    };
+                }
+                return { content: [], totalElements: 0, totalPages: 1, currentPage: 1, size: 10 };
+            })
         );
     }
 
-    getExternalExams(filters: any = {}): Observable<any[]> {
+    getExternalExams(filters: any = {}): Observable<any> {
         let params = new HttpParams();
         if (filters.exam_date) params = params.set('exam_date', filters.exam_date);
         if (filters.date_from) params = params.set('date_from', filters.date_from);
@@ -599,21 +769,47 @@ export class DataService {
         if (filters.created_from) params = params.set('created_from', filters.created_from);
         if (filters.created_to) params = params.set('created_to', filters.created_to);
         if (filters.q) params = params.set('q', filters.q);
+        if (filters.page !== undefined && filters.page !== null) params = params.set('page', filters.page.toString());
+        if (filters.size !== undefined && filters.size !== null) params = params.set('size', filters.size.toString());
 
         return this.http.get<any>(`${this.apiUrl}/exams/external`, { params }).pipe(
-            map(res => Array.isArray(res?.data) ? res.data : [])
+            map(res => {
+                if (res?.data?.content && Array.isArray(res.data.content)) {
+                    return res.data;
+                }
+                if (Array.isArray(res?.data)) {
+                    return {
+                        content: res.data,
+                        totalElements: res.data.length,
+                        totalPages: 1,
+                        currentPage: 1,
+                        size: res.data.length
+                    };
+                }
+                return { content: [], totalElements: 0, totalPages: 1, currentPage: 1, size: 10 };
+            })
         );
     }
 
     getExam(id: string): Observable<any> {
         return this.http.get<any>(`${this.apiUrl}/exams/internal?id=${id}`).pipe(
-            map(res => Array.isArray(res?.data) ? (res.data[0] ?? null) : (res?.data ?? null))
+            map(res => {
+                const data = res?.data;
+                if (Array.isArray(data)) return data[0] ?? null;
+                if (data?.content && Array.isArray(data.content)) return data.content[0] ?? null;
+                return data ?? null;
+            })
         );
     }
 
     getExternalExam(id: string): Observable<any> {
         return this.http.get<any>(`${this.apiUrl}/exams/external?id=${id}`).pipe(
-            map(res => Array.isArray(res?.data) ? (res.data[0] ?? null) : (res?.data ?? null))
+            map(res => {
+                const data = res?.data;
+                if (Array.isArray(data)) return data[0] ?? null;
+                if (data?.content && Array.isArray(data.content)) return data.content[0] ?? null;
+                return data ?? null;
+            })
         );
     }
 
@@ -741,6 +937,8 @@ export class DataService {
                 id: t.id,
                 title: t.title,
                 courseId: t.course_id,
+                subject: t.subject || t.subject_name || '',
+
                 questions: t.questions?.map((q: any) => ({
                     ...q,
                     options: q.options?.map((o: any) => ({
@@ -756,8 +954,9 @@ export class DataService {
     saveQuestionBankItem(item: any): Observable<any> {
         return this.http.post(`${this.apiUrl}/exams/save_question_bank`, {
             ...item,
-            course_id: item.course_id ?? item.courseId
-        });
+            course_id: item.course_id ?? item.courseId,
+            subject: item.subject ?? ''
+});
     }
 
     deleteQuestionBankItem(id: string): Observable<any> {
@@ -1065,9 +1264,43 @@ export class DataService {
         }
     }
 
+    private cachedSettings: any = null;
+
     private normalizeSettings(settings: any): any {
-        return {
+        let allowPast = settings?.allow_schedule_past_dates ?? settings?.allowSchedulePastDates;
+        let allowFuture = settings?.allow_schedule_future_dates ?? settings?.allowScheduleFutureDates;
+        let studentStaffImageStorageType = 'UPLOAD';
+        let studentCanDownloadStudyMaterial = true;
+
+        const rawBasic = settings?.basic_settings ?? settings?.basicSettings;
+        if (rawBasic) {
+            try {
+                const parsed = typeof rawBasic === 'string' ? JSON.parse(rawBasic) : rawBasic;
+                if (parsed.allowPast !== undefined) {
+                    allowPast = (parsed.allowPast === true || parsed.allowPast === 1 || parsed.allowPast === '1' || parsed.allowPast === 'true') ? 1 : 0;
+                }
+                if (parsed.allowFuture !== undefined) {
+                    allowFuture = (parsed.allowFuture === true || parsed.allowFuture === 1 || parsed.allowFuture === '1' || parsed.allowFuture === 'true') ? 1 : 0;
+                }
+                if (parsed.studentStaffImageStorageType) {
+                    studentStaffImageStorageType = parsed.studentStaffImageStorageType;
+                }
+                if (parsed.studentCanDownloadStudyMaterial !== undefined) {
+                    studentCanDownloadStudyMaterial = (parsed.studentCanDownloadStudyMaterial === true || parsed.studentCanDownloadStudyMaterial === 1 || parsed.studentCanDownloadStudyMaterial === '1' || parsed.studentCanDownloadStudyMaterial === 'true');
+                } else if (parsed.allowStudentDownloadStudyMaterial !== undefined) {
+                    studentCanDownloadStudyMaterial = (parsed.allowStudentDownloadStudyMaterial === true || parsed.allowStudentDownloadStudyMaterial === 1 || parsed.allowStudentDownloadStudyMaterial === '1' || parsed.allowStudentDownloadStudyMaterial === 'true');
+                }
+            } catch {}
+        }
+
+        const normalized = {
             ...settings,
+            basic_settings: rawBasic,
+            basicSettings: rawBasic,
+            student_staff_image_storage_type: studentStaffImageStorageType,
+            studentStaffImageStorageType: studentStaffImageStorageType,
+            student_can_download_study_material: studentCanDownloadStudyMaterial,
+            studentCanDownloadStudyMaterial: studentCanDownloadStudyMaterial,
             institute_name: settings?.institute_name ?? settings?.instituteName,
             registration_id: settings?.registration_id ?? settings?.registrationId,
             logo_path: settings?.logo_path ?? settings?.logoPath,
@@ -1092,7 +1325,22 @@ export class DataService {
             allow_performance_exams: settings?.allow_performance_exams ?? settings?.allowPerformanceExams,
             enableMultipleBranches: settings?.enableMultipleBranches ?? settings?.enable_multiple_branches,
             enableStandardCourses: settings?.enableStandardCourses ?? settings?.enable_standard_courses,
-            enable_standard_courses: settings?.enableStandardCourses ?? settings?.enable_standard_courses
+            enable_standard_courses: settings?.enableStandardCourses ?? settings?.enable_standard_courses,
+            allow_schedule_past_dates: allowPast ? 1 : 0,
+            allowSchedulePastDates: allowPast ? 1 : 0,
+            allow_schedule_future_dates: allowFuture ? 1 : 0,
+            allowScheduleFutureDates: allowFuture ? 1 : 0
         };
+
+        this.cachedSettings = normalized;
+        return normalized;
+    }
+
+    getCachedStudentStaffImageStorageType(): 'UPLOAD' | 'GDRIVE' {
+        return this.cachedSettings?.studentStaffImageStorageType || 'UPLOAD';
+    }
+
+    getCachedStudentCanDownloadStudyMaterial(): boolean {
+        return this.cachedSettings?.studentCanDownloadStudyMaterial !== false;
     }
 }

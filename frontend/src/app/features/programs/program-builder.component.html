@@ -1,0 +1,167 @@
+<div class="p-6 space-y-6">
+  <!-- Back & Header -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <button routerLink="/programs" class="text-xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest hover:underline flex items-center gap-1 mb-2">
+        ← Back to Programs List
+      </button>
+      <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+        {{ program?.name || 'Program Builder' }}
+      </h1>
+      <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
+        Configure Sequential Module Pathway & Prerequisites
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button (click)="openAddModal()" 
+        class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2">
+        <span>+</span> Add Module to Program
+      </button>
+    </div>
+  </div>
+
+  <!-- Program Details Summary Banner -->
+  <div *ngIf="program" class="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="space-y-1">
+      <span class="px-3 py-1 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] font-black uppercase rounded-xl">
+        {{ program.category }}
+      </span>
+      <h2 class="text-lg font-black text-slate-800 dark:text-white mt-1">{{ program.name }}</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400">{{ program.description }}</p>
+    </div>
+    <div class="flex items-center gap-6 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800/80 pt-4 md:pt-0 md:pl-6">
+      <div>
+        <p class="text-[10px] font-black text-slate-400 uppercase">Duration</p>
+        <p class="text-sm font-black text-slate-800 dark:text-white">{{ program.totalDuration }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] font-black text-slate-400 uppercase">Total Fee</p>
+        <p class="text-sm font-black text-emerald-600 dark:text-emerald-400">₹{{ program.totalFee | number }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] font-black text-slate-400 uppercase">Total Modules</p>
+        <p class="text-sm font-black text-slate-800 dark:text-white">{{ modules.length }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Module Sequence List -->
+  <div class="space-y-4">
+    <h3 class="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+      Sequential Module Progression Flow
+    </h3>
+
+    <div *ngIf="modules.length === 0" class="py-16 text-center bg-white/40 dark:bg-slate-900/40 rounded-[2.5rem] border border-dashed border-slate-300 dark:border-slate-800">
+      <div class="text-4xl mb-3">🧩</div>
+      <p class="text-base font-black text-slate-700 dark:text-slate-300">No modules added to this program yet.</p>
+      <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">Click "+ Add Module" to map an existing Course as Module 1.</p>
+      <button (click)="openAddModal()" class="mt-4 px-5 py-2.5 bg-primary-600 text-white text-xs font-black uppercase rounded-2xl">
+        + Add First Module
+      </button>
+    </div>
+
+    <!-- Module Cards -->
+    <div *ngFor="let mod of modules; let i = index" 
+      class="group bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-4 relative transition-all hover:border-primary-500/30">
+      
+      <!-- Order Badge & Details -->
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-primary-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-primary-500/20 shrink-0">
+          0{{ i + 1 }}
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h4 class="text-base font-black text-slate-800 dark:text-white">{{ mod.moduleName || mod.courseName }}</h4>
+            <span *ngIf="mod.isMandatory" class="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase rounded-lg border border-emerald-200 dark:border-emerald-800">
+              Mandatory
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Course Block: <strong class="text-slate-700 dark:text-slate-200">{{ mod.courseName }}</strong> 
+            <span *ngIf="mod.courseDuration">• {{ mod.courseDuration }}</span>
+            <span *ngIf="mod.courseFees">• ₹{{ mod.courseFees | number }}</span>
+          </p>
+
+          <!-- Prerequisite Rule Pill -->
+          <div class="mt-2 flex items-center gap-2">
+            <span class="text-[10px] font-bold text-slate-400 uppercase">Unlock Rule:</span>
+            <span class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-black uppercase rounded-lg">
+              <span *ngIf="mod.prerequisiteType === 'NONE'">🔓 Unlocks Immediately on Enrollment</span>
+              <span *ngIf="mod.prerequisiteType === 'PREVIOUS_MODULE'">🔒 Requires Module 0{{ i }} Completion</span>
+              <span *ngIf="mod.prerequisiteType === 'SPECIFIC_COURSE'">🔒 Requires {{ mod.prerequisiteCourseName || 'Specific Course' }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ordering & Delete Actions -->
+      <div class="flex items-center gap-2 self-end md:self-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-slate-800">
+        <button (click)="moveUp(i)" [disabled]="i === 0" 
+          class="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all">
+          ▲
+        </button>
+        <button (click)="moveDown(i)" [disabled]="i === modules.length - 1" 
+          class="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all">
+          ▼
+        </button>
+        <button (click)="deleteModule(mod)" 
+          class="p-2 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl transition-all">
+          🗑️
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Module Modal -->
+  <app-modal [isOpen]="isAddModalOpen" (closeModal)="closeAddModal()" [showFooter]="false" title="Add Module to Program">
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Select Catalog Course *</label>
+        <select [(ngModel)]="newModule.courseId" (change)="onCourseSelect()" 
+          class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <option value="">-- Choose Existing Course --</option>
+          <option *ngFor="let c of courses" [value]="c.id">{{ c.name }} ({{ c.duration || 'Standard' }} - ₹{{ c.fees | number }})</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Module Name / Title Override</label>
+        <input type="text" [(ngModel)]="newModule.moduleName" placeholder="e.g. 01. Computer Fundamentals" 
+          class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+      </div>
+
+      <div>
+        <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Prerequisite Unlock Rule</label>
+        <select [(ngModel)]="newModule.prerequisiteType" 
+          class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <option value="PREVIOUS_MODULE">Require Completion of Previous Module (Sequential)</option>
+          <option value="NONE">No Prerequisite (Unlocks Immediately)</option>
+          <option value="SPECIFIC_COURSE">Require Completion of Specific Course</option>
+        </select>
+      </div>
+
+      <div *ngIf="newModule.prerequisiteType === 'SPECIFIC_COURSE'">
+        <label class="block text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Select Required Prerequisite Course</label>
+        <select [(ngModel)]="newModule.prerequisiteCourseId" 
+          class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <option value="">-- Choose Course --</option>
+          <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <input type="checkbox" id="isMandatory" [(ngModel)]="newModule.isMandatory" class="w-4 h-4 rounded text-primary-600">
+        <label for="isMandatory" class="text-xs font-bold text-slate-700 dark:text-slate-300">Mandatory Module (Required for Program Completion Certificate)</label>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <button (click)="closeAddModal()" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold uppercase rounded-xl">
+          Cancel
+        </button>
+        <button (click)="addModule()" [disabled]="isSaving" class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-black uppercase rounded-xl shadow-lg shadow-primary-500/20">
+          {{ isSaving ? 'Adding...' : 'Add Module' }}
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>

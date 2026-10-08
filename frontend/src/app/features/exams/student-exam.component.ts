@@ -58,7 +58,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
                     </div>
                     
                     <h3 class="font-black text-slate-800 dark:text-white text-2xl mb-2 leading-tight group-hover:text-primary-600 transition-colors">{{ ex.title }}</h3>
-                    <p class="text-[10px] font-black text-primary-500 uppercase tracking-widest mb-8">Capacity: {{ ex.total_marks }} Cumulative Marks</p>
+                    <p class="text-xs font-black text-primary-500 uppercase tracking-widest mb-8">Total Marks: {{ ex.total_marks }} Marks</p>
                     
                     <button (click)="takeExam(ex)"
                             [disabled]="!ex.can_take || ex.exam_type === 'performance'"
@@ -106,7 +106,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
                                 </div>
                             </td>
                             <td class="px-10 py-8 text-center">
-                                <span class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase">{{ res.end_time | date:'mediumDate' }}</span>
+                                <span class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase">{{ res.end_time | date:'dd-MM-yyyy' }}</span>
                             </td>
                             <td class="px-10 py-8 text-center">
                                 <p class="text-xl font-black text-slate-800 dark:text-white">{{ res.total_score }} <span class="text-slate-300 dark:text-slate-600 text-xs font-bold ring-1 ring-slate-100 dark:ring-slate-800 px-2 py-1 rounded-lg ml-1">/ {{ res.exam_total_marks }}</span></p>
@@ -212,14 +212,15 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
                 <div *ngFor="let q of activeSubmission?.answers; let i = index" 
                     class="p-8 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] shadow-soft relative overflow-hidden">
                     
-                    <div class="absolute top-0 right-10 w-24 h-24 bg-slate-50 dark:bg-slate-800/30 rounded-full -mt-12 flex items-center justify-center pt-8">
+                    <div *ngIf="!isSectionItem(q)" class="absolute top-0 right-10 w-24 h-24 bg-slate-50 dark:bg-slate-800/30 rounded-full -mt-12 flex items-center justify-center pt-8">
                         <span class="text-xs font-black" [class.text-emerald-500]="q.is_correct == 1" [class.text-rose-500]="q.is_correct == 0">
                             {{ q.marks_obtained }} / {{ q.question_marks }}
                         </span>
                     </div>
 
                     <div class="flex items-start gap-6 mb-6">
-                        <span class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-slate-400">0{{i+1}}</span>
+                        <span *ngIf="!isSectionItem(q)" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-slate-400">{{ getQuestionNumberForList(activeSubmission?.answers, i) }}</span>
+                        <span *ngIf="isSectionItem(q)" class="px-3 py-1 bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest">SECTION</span>
                         <div class="flex-1">
                             <p class="text-lg font-bold text-slate-800 dark:text-white leading-relaxed">{{ q.question_text }}</p>
                         </div>
@@ -244,7 +245,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
                         </div>
 
                         <!-- For Text -->
-                        <div *ngIf="q.question_type === 'text' || q.question_type === 'task'">
+                        <div *ngIf="q.question_type === 'text' || q.question_type === 'task' || q.question_type === 'either_or' || q.question_type === 'descriptive'">
                             <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
                                 {{ q.question_type === 'task' ? 'Task Description:' : 'Submitted Response:' }}
                             </p>
@@ -255,6 +256,21 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
                             <div *ngIf="q.remarks" class="mt-4 p-4 bg-primary-50 dark:bg-primary-900/10 border-l-4 border-primary-500 rounded-r-2xl">
                                 <p class="text-[9px] font-black uppercase tracking-widest text-primary-600 mb-1">Faculty Feedback</p>
                                 <p class="text-sm font-medium text-slate-700 dark:text-slate-300">{{ q.remarks }}</p>
+                            </div>
+                        </div>
+
+                        <!-- For Fillups -->
+                        <div *ngIf="q.question_type === 'fillups'">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Blank Fill Answer:</p>
+                            <div class="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-400 block mb-1">Your Typed Answer:</span>
+                                    <span class="text-base font-extrabold text-slate-800 dark:text-white">{{ q.answer_text || '(Empty)' }}</span>
+                                </div>
+                                <div *ngIf="q.correct_answer" class="text-left sm:text-right">
+                                    <span class="text-xs font-bold text-emerald-500 block mb-1">Expected Answer:</span>
+                                    <span class="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{{ q.correct_answer }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -312,4 +328,34 @@ export class StudentExamComponent implements OnInit {
             this.isReviewModalOpen = true;
         });
     }
+
+    isSectionItem(q: any): boolean {
+        if (!q) return false;
+        if (q.is_section_title || q.is_section_break) return true;
+        const type = (q.question_type || '').toLowerCase();
+        if (type === 'section_header' || type === 'section_break' || type === 'section') return true;
+        const text = (q.question_text || '').trim();
+        const marks = Number(q.marks || q.question_marks || q.max_marks) || 0;
+        if (marks === 0 && (
+            /^section\b/i.test(text) || 
+            /^part\b/i.test(text) || 
+            /^[ivxlcdm]+\.\s*(answer|choose|fill|match)/i.test(text)
+        )) {
+            return true;
+        }
+        return false;
+    }
+
+    getQuestionNumberForList(questions: any[] | undefined, targetIndex: number): number {
+        if (!questions) return 1;
+        let count = 0;
+        for (let i = 0; i <= targetIndex; i++) {
+            const q = questions[i];
+            if (q && !this.isSectionItem(q)) {
+                count++;
+            }
+        }
+        return count || 1;
+    }
+
 }

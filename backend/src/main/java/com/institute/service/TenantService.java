@@ -158,6 +158,11 @@ public class TenantService {
             ? adminNameInput.trim()
             : tenantName + " Admin";
         int trialDays = Integer.parseInt(request.getOrDefault("trial_days", "7").toString());
+        String plan = (String) request.getOrDefault("plan", "basic");
+        // Normalize plan value
+        if (!List.of("basic", "growth", "professional", "enterprise").contains(plan)) {
+            plan = "basic";
+        }
         
         // Auto-generate subdomain from tenant_name if not provided
         String subdomain = request.containsKey("subdomain") 
@@ -191,6 +196,7 @@ public class TenantService {
                 .adminEmail(adminEmail)
                 .adminPhone(adminPhone)
                 .databaseType(databaseType)
+                .plan(plan)
                 .status("active")
                 .isTrialActive(true)
                 .trialStartDate(LocalDate.now())
@@ -227,7 +233,7 @@ public class TenantService {
             // 3. Create admin role for this tenant (if not exists)
             Role adminRole = roleRepository.findByRoleNameAndTenantId("Admin", tenantCode)
                     .orElseGet(() -> {
-                        Role r = Role.builder().roleName("Admin").tenantId(tenantCode).build();
+                        Role r = Role.builder().roleName("Admin").tenantId(tenantCode).createdAt(LocalDateTime.now()).build();
                         return roleRepository.save(r);
                     });
 
@@ -264,6 +270,7 @@ public class TenantService {
                     .courseIdLastNumber("0")
                     .courseIdMode("auto")
                     .tenantId(tenantCode)
+                    .updatedAt(LocalDateTime.now())
                     .build();
             instituteSettingRepository.save(settings);
 
@@ -273,6 +280,8 @@ public class TenantService {
                     .code("MAIN")
                     .isMain(true)
                     .status("Active")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
                     .tenantId(tenantCode)
                     .build();
             branchRepository.save(branch);
@@ -287,6 +296,7 @@ public class TenantService {
         result.put("tenant_id", tenant.getId());
         result.put("tenant_code", tenant.getTenantCode());
         result.put("subdomain", tenant.getSubdomain());
+        result.put("plan", tenant.getPlan());
         result.put("admin_username", adminUsername);
         result.put("admin_password", adminPassword);
         result.put("trial_end_date", tenant.getTrialEndDate().toString());
@@ -311,6 +321,12 @@ public class TenantService {
         if (request.containsKey("max_students")) tenant.setMaxStudents(Integer.parseInt(request.get("max_students").toString()));
         if (request.containsKey("max_staff")) tenant.setMaxStaff(Integer.parseInt(request.get("max_staff").toString()));
         if (request.containsKey("status")) tenant.setStatus((String) request.get("status"));
+        if (request.containsKey("plan")) {
+            String newPlan = (String) request.get("plan");
+            if (List.of("basic", "growth", "professional", "enterprise").contains(newPlan)) {
+                tenant.setPlan(newPlan);
+            }
+        }
 
         // Extend trial
         if (request.containsKey("trial_days")) {

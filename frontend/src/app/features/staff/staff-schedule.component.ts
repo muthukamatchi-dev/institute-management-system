@@ -28,12 +28,12 @@ import { ToastService } from '../../services/toast.service';
             <button (click)="changeDate(-1)" class="p-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-all text-xs">◀</button>
             <div class="relative flex items-center">
               <span class="absolute left-3 text-[10px]">📅</span>
-              <input type="date" [(ngModel)]="selectedDate" (change)="loadSchedule()"
+              <input type="date" [(ngModel)]="selectedDate" (change)="onDateChange()"
                      class="pl-8 pr-2 py-2 bg-transparent border-none outline-none text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest cursor-pointer w-32 sm:w-auto">
             </div>
             <button (click)="changeDate(1)" class="p-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-all text-xs">▶</button>
             <div class="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
-            <button *ngIf="isToday() && (!isAdmin || adminAsStaffEnabled)" (click)="clonePreviousDay()"
+            <button *ngIf="canScheduleForSelectedDate() && (!isAdmin || adminAsStaffEnabled)" (click)="clonePreviousDay()"
                     [disabled]="loading"
                     class="p-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-all text-emerald-600"
                     title="Clone Previous day">
@@ -41,11 +41,11 @@ import { ToastService } from '../../services/toast.service';
             </button>
           </div>
 
-          <!-- Main Action Button -->
-          <div class="relative w-full sm:w-auto" *ngIf="isToday() && (!isAdmin || adminAsStaffEnabled)">
+          <!-- Main Action Button (shown based on date and past/future schedule settings) -->
+          <div class="relative w-full sm:w-auto" *ngIf="canScheduleForSelectedDate() && (!isAdmin || adminAsStaffEnabled)">
             <button (click)="showDropdown = !showDropdown"
                     class="w-full bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl shadow-lg shadow-primary-200 dark:shadow-none hover:bg-primary-700 transition-all flex items-center justify-center gap-2">
-              <span>📅</span> Schedule Today's Class <span class="text-[8px] opacity-70">▼</span>
+              <span>📅</span> {{ isToday() ? "Schedule Today's Class" : "Schedule Class" }} <span class="text-[8px] opacity-70">▼</span>
             </button>
             
             <div *ngIf="showDropdown" 
@@ -54,8 +54,8 @@ import { ToastService } from '../../services/toast.service';
                       class="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 transition-colors">
                 <span class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600">✍️</span>
                 <div>
-                  <p class="text-sm font-black text-slate-800 dark:text-white">Today's Class</p>
-                  <p class="text-[10px] font-medium text-slate-500">Schedule your regular session</p>
+                  <p class="text-sm font-black text-slate-800 dark:text-white">{{ isToday() ? "Today's Class" : "Class Session" }}</p>
+                  <p class="text-[10px] font-medium text-slate-500">{{ isToday() ? "Schedule your regular session" : "Schedule session for selected date" }}</p>
                 </div>
               </button>
               <button (click)="prepareSchedule('substitute')"
@@ -163,6 +163,21 @@ import { ToastService } from '../../services/toast.service';
     <app-modal [isOpen]="isModalOpen" [title]="getModalTitle()" actionLabel="Commit Schedule" 
                (onClose)="isModalOpen = false" (onSubmit)="saveSchedule()" size="md">
       <div class="space-y-6">
+        <!-- Schedule Date & Day Context -->
+        <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="text-lg">📅</span>
+            <div>
+              <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Scheduling Date</p>
+              <p class="text-xs font-bold text-slate-700 dark:text-slate-200">{{ formatSelectedDate() }}</p>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-wider"
+                [ngClass]="isWeekendDay() ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400'">
+            {{ getSelectedDayName() }} ({{ isWeekendDay() ? 'Weekend' : 'Weekday' }})
+          </span>
+        </div>
+
         <!-- substitute Mode Banner -->
         <div *ngIf="isSubstituteMode" class="p-5 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800 flex items-start gap-4">
           <span class="text-xl">🔄</span>
@@ -195,13 +210,18 @@ import { ToastService } from '../../services/toast.service';
           </div>
 
           <div *ngIf="newSchedule.targetType === 'batch'" class="space-y-2">
-            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Course <span class="text-rose-500">*</span></label>
+            <div class="flex items-center justify-between ml-1">
+              <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Course <span class="text-rose-500">*</span></label>
+              <span *ngIf="excludedCoursesCount > 0" class="text-[9px] font-bold text-slate-400 dark:text-slate-500">
+                ({{ excludedCoursesCount }} {{ isWeekendDay() ? 'weekday' : 'weekend' }} course{{ excludedCoursesCount > 1 ? 's' : '' }} hidden)
+              </span>
+            </div>
             <app-searchable-select
               [(modelValue)]="newSchedule.course_id"
-              [options]="myCourses"
+              [options]="availableCourses"
               placeholder="Select Course..."
               labelKey="name"
-              subLabelKey="course_id"
+              subLabelKey="subInfo"
               (onChange)="onCourseChange()"
             ></app-searchable-select>
           </div>
@@ -219,13 +239,18 @@ import { ToastService } from '../../services/toast.service';
           </div>
 
           <div *ngIf="newSchedule.targetType === 'student'" class="space-y-2">
-            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Course <span class="text-rose-500">*</span></label>
+            <div class="flex items-center justify-between ml-1">
+              <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Course <span class="text-rose-500">*</span></label>
+              <span *ngIf="excludedCoursesCount > 0" class="text-[9px] font-bold text-slate-400 dark:text-slate-500">
+                ({{ excludedCoursesCount }} {{ isWeekendDay() ? 'weekday' : 'weekend' }} course{{ excludedCoursesCount > 1 ? 's' : '' }} hidden)
+              </span>
+            </div>
             <app-searchable-select
               [(modelValue)]="newSchedule.course_id"
-              [options]="myCourses"
+              [options]="availableCourses"
               placeholder="Select Course..."
               labelKey="name"
-              subLabelKey="course_id"
+              subLabelKey="subInfo"
               (onChange)="onCourseChange()"
             ></app-searchable-select>
           </div>
@@ -298,6 +323,8 @@ export class StaffScheduleComponent implements OnInit {
 
   isAdmin = false;
   adminAsStaffEnabled = false;
+  allowSchedulePastDates = false;
+  allowScheduleFutureDates = false;
   currentUserId: any = null;
   selectedStaffId: any = 'all';
 
@@ -308,14 +335,29 @@ export class StaffScheduleComponent implements OnInit {
       if (u) {
         this.isAdmin = u.role_name === 'Admin';
         this.currentUserId = this.isAdmin ? (1000000 + parseInt(u.id)) : u.id;
+      }
+    });
 
-        if (this.isAdmin) {
-          this.dataService.getSettings().subscribe(s => {
-            this.adminAsStaffEnabled = s?.admin_as_staff == 1;
-          });
+    this.dataService.getSettings().subscribe(s => {
+      if (s) {
+        this.adminAsStaffEnabled = s.admin_as_staff == 1;
+        const raw = s.basic_settings || s.basicSettings;
+        if (raw) {
+          try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            this.allowSchedulePastDates = parsed.allowPast === true || parsed.allowPast === 1 || parsed.allowPast === '1' || parsed.allowPast === 'true';
+            this.allowScheduleFutureDates = parsed.allowFuture === true || parsed.allowFuture === 1 || parsed.allowFuture === '1' || parsed.allowFuture === 'true';
+          } catch {
+            this.allowSchedulePastDates = s.allow_schedule_past_dates == 1 || s.allowSchedulePastDates == 1;
+            this.allowScheduleFutureDates = s.allow_schedule_future_dates == 1 || s.allowScheduleFutureDates == 1;
+          }
+        } else {
+          this.allowSchedulePastDates = s.allow_schedule_past_dates == 1 || s.allowSchedulePastDates == 1;
+          this.allowScheduleFutureDates = s.allow_schedule_future_dates == 1 || s.allowScheduleFutureDates == 1;
         }
       }
     });
+
     this.loadSchedule();
     this.loadResources();
     this.loadStaff();
@@ -326,14 +368,31 @@ export class StaffScheduleComponent implements OnInit {
     return this.isSubstituteMode ? 'Schedule Substitute Class' : 'Schedule New Class';
   }
 
+  get availableCourses() {
+    return this.myCourses
+      .filter((course: any) => this.isCourseScheduledForDate(course, this.selectedDate))
+      .map((course: any) => ({
+        ...course,
+        subInfo: `${course.course_id ? course.course_id + ' • ' : ''}${course.scheduleType || course.schedule_type || 'Weekdays'}`
+      }));
+  }
+
+  get excludedCoursesCount(): number {
+    return Math.max(0, this.myCourses.length - this.availableCourses.length);
+  }
+
   get filteredBatches() {
-    if (!this.newSchedule.course_id) return this.myBatches;
-    return this.myBatches.filter((batch: any) => String(batch.course_id) === String(this.newSchedule.course_id));
+    const allowedCourseIds = new Set(this.availableCourses.map((c: any) => String(c.id)));
+    const dayBatches = this.myBatches.filter((batch: any) => allowedCourseIds.has(String(batch.course_id)));
+    if (!this.newSchedule.course_id) return dayBatches;
+    return dayBatches.filter((batch: any) => String(batch.course_id) === String(this.newSchedule.course_id));
   }
 
   get filteredStudents() {
-    if (!this.newSchedule.course_id) return this.myStudents;
-    return this.myStudents.filter((student: any) => String(student.course_id) === String(this.newSchedule.course_id));
+    const allowedCourseIds = new Set(this.availableCourses.map((c: any) => String(c.id)));
+    const dayStudents = this.myStudents.filter((student: any) => allowedCourseIds.has(String(student.course_id)));
+    if (!this.newSchedule.course_id) return dayStudents;
+    return dayStudents.filter((student: any) => String(student.course_id) === String(this.newSchedule.course_id));
   }
 
   loadSchedule() {
@@ -345,18 +404,41 @@ export class StaffScheduleComponent implements OnInit {
     });
   }
 
+  getTodayDate(): string {
+    return new Date().toLocaleDateString('sv-SE');
+  }
+
+  canScheduleForSelectedDate(): boolean {
+    const today = this.getTodayDate();
+    if (this.selectedDate === today) {
+      return true;
+    }
+    if (this.selectedDate < today) {
+      return !!this.allowSchedulePastDates;
+    }
+    if (this.selectedDate > today) {
+      return !!this.allowScheduleFutureDates;
+    }
+    return true;
+  }
+
   canManage(item: any): boolean {
-    if (!this.isToday()) return false;
-    if (!this.isAdmin) return true; 
+    if (!this.canScheduleForSelectedDate()) return false;
+    if (!this.isAdmin) return true;
 
     return item.staff_id == this.currentUserId;
   }
 
   isToday(): boolean {
-    return this.selectedDate === new Date().toLocaleDateString('sv-SE');
+    return this.selectedDate === this.getTodayDate();
   }
 
   clonePreviousDay() {
+    if (!this.canScheduleForSelectedDate()) {
+      const isPast = this.selectedDate < this.getTodayDate();
+      this.toastService.warning(`Scheduling classes for ${isPast ? 'past' : 'future'} dates is disabled in Basic Settings.`);
+      return;
+    }
     if (confirm('This will copy all scheduled classes from the previous day to ' + this.selectedDate + '. Continue?')) {
       this.loading = true;
       this.dataService.clonePreviousSchedule(this.selectedDate).subscribe(res => {
@@ -387,10 +469,16 @@ export class StaffScheduleComponent implements OnInit {
     });
   }
 
+  onDateChange() {
+    this.ensureSelectedCourseStillValid();
+    this.loadSchedule();
+  }
+
   changeDate(days: number) {
     const d = new Date(this.selectedDate);
     d.setDate(d.getDate() + days);
     this.selectedDate = d.toLocaleDateString('sv-SE');
+    this.ensureSelectedCourseStillValid();
     this.loadSchedule();
   }
 
@@ -447,6 +535,8 @@ export class StaffScheduleComponent implements OnInit {
   onTargetTypeChange() {
     this.newSchedule.batch_id = null;
     this.newSchedule.student_id = null;
+    this.newSchedule.start_time = '';
+    this.newSchedule.end_time = '';
     this.ensureSelectedCourseStillValid();
   }
 
@@ -455,11 +545,27 @@ export class StaffScheduleComponent implements OnInit {
       const selectedBatch = this.filteredBatches.find((batch: any) => String(batch.id) === String(this.newSchedule.batch_id));
       if (!selectedBatch) {
         this.newSchedule.batch_id = null;
+        if (this.filteredBatches.length === 1) {
+          this.onBatchChange(this.filteredBatches[0]);
+        } else {
+          this.newSchedule.start_time = '';
+          this.newSchedule.end_time = '';
+        }
+      } else {
+        this.onBatchChange(selectedBatch);
       }
     } else {
       const selectedStudent = this.filteredStudents.find((student: any) => String(student.id) === String(this.newSchedule.student_id));
       if (!selectedStudent) {
         this.newSchedule.student_id = null;
+        if (this.filteredStudents.length === 1) {
+          this.onStudentChange(this.filteredStudents[0]);
+        } else {
+          this.newSchedule.start_time = '';
+          this.newSchedule.end_time = '';
+        }
+      } else {
+        this.onStudentChange(selectedStudent);
       }
     }
   }
@@ -468,15 +574,37 @@ export class StaffScheduleComponent implements OnInit {
     this.newSchedule.batch_id = selectedBatch?.id ?? null;
     this.newSchedule.student_id = null;
     this.newSchedule.course_id = selectedBatch?.course_id ?? this.newSchedule.course_id ?? null;
+
+    // Auto-populate start/end time from batch timing
+    const timingStr = this.extractTiming(selectedBatch);
+    if (timingStr) {
+      const { from, to } = this.parseTimingTo24h(timingStr);
+      if (from) this.newSchedule.start_time = from;
+      if (to) this.newSchedule.end_time = to;
+    }
   }
 
   onStudentChange(selectedStudent: any) {
     this.newSchedule.student_id = selectedStudent?.id ?? null;
     this.newSchedule.batch_id = null;
     this.newSchedule.course_id = selectedStudent?.course_id ?? this.newSchedule.course_id ?? null;
+
+    // Auto-populate start/end time from one:one student timing
+    const timingStr = this.extractTiming(selectedStudent);
+    if (timingStr) {
+      const { from, to } = this.parseTimingTo24h(timingStr);
+      if (from) this.newSchedule.start_time = from;
+      if (to) this.newSchedule.end_time = to;
+    }
   }
 
   saveSchedule() {
+    if (!this.canScheduleForSelectedDate()) {
+      const isPast = this.selectedDate < this.getTodayDate();
+      this.toastService.warning(`Scheduling classes for ${isPast ? 'past' : 'future'} dates is disabled in Basic Settings.`);
+      return;
+    }
+
     if (this.customFieldsRenderer && !this.customFieldsRenderer.isValid()) {
       this.toastService.warning('Please fill all required custom fields.');
       return;
@@ -484,6 +612,14 @@ export class StaffScheduleComponent implements OnInit {
 
     if (!this.newSchedule.course_id) {
       this.toastService.warning('Please select a course.');
+      return;
+    }
+
+    const selectedCourse = this.myCourses.find((c: any) => String(c.id) === String(this.newSchedule.course_id));
+    if (selectedCourse && !this.isCourseScheduledForDate(selectedCourse, this.selectedDate)) {
+      const scheduleType = selectedCourse.scheduleType || selectedCourse.schedule_type || 'Weekdays';
+      const dayName = this.getSelectedDayName();
+      this.toastService.warning(`Cannot schedule "${selectedCourse.name}": It is a ${scheduleType} course and cannot be scheduled on ${dayName}.`);
       return;
     }
 
@@ -564,18 +700,133 @@ export class StaffScheduleComponent implements OnInit {
         options.set(key, {
           id: item.course_id,
           name: item.course_name || `Course ${item.course_id}`,
-          course_id: item.course_id
+          course_id: item.course_id,
+          schedule_type: item.schedule_type || item.scheduleType || 'Weekdays',
+          scheduleType: item.scheduleType || item.schedule_type || 'Weekdays',
+          custom_days: item.custom_days || item.customDays,
+          customDays: item.customDays || item.custom_days
         });
       }
     });
     return Array.from(options.values());
   }
 
+  isCourseScheduledForDate(course: any, dateStr?: string): boolean {
+    if (!course) return false;
+    const target = dateStr || this.selectedDate || new Date().toLocaleDateString('sv-SE');
+    if (!target) return true;
+
+    const parts = target.split('-').map(Number);
+    if (parts.length !== 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+      return true;
+    }
+    const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+    const dayIndex = dateObj.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+    const dayCodeMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayCode = dayCodeMap[dayIndex];
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayName = dayNames[dayIndex];
+
+    // Check validity range
+    const validFrom = course.validFrom || course.valid_from;
+    if (validFrom && target < validFrom) return false;
+    const validTo = course.validTo || course.valid_to;
+    if (validTo && target > validTo) return false;
+
+    // Check course status
+    if (course.status && String(course.status).toLowerCase() === 'inactive') {
+      return false;
+    }
+
+    const st = String(course.scheduleType || course.schedule_type || 'Weekdays').trim().toLowerCase();
+
+    // 1. Weekends (Sat, Sun)
+    if (st === 'weekends' || st === 'weekend' || (st.includes('weekend') && !st.includes('weekday'))) {
+      return dayIndex === 0 || dayIndex === 6;
+    }
+
+    // 2. All Days / Weekdays + Weekends
+    if (st === 'all days' || st === 'all' || st.includes('all') || (st.includes('weekday') && st.includes('weekend'))) {
+      return true;
+    }
+
+    // 3. WeekDays + Saturday (Mon-Sat)
+    if (st.includes('saturday') || st === 'weekdays + saturday') {
+      return dayIndex >= 1 && dayIndex <= 6;
+    }
+
+    // 4. Weekdays (Mon-Fri)
+    if (st === 'weekdays' || st === 'weekday' || st.includes('weekday')) {
+      return dayIndex >= 1 && dayIndex <= 5;
+    }
+
+    // 5. Custom Days
+    if (st === 'custom days' || st.includes('custom')) {
+      const rawCd = course.customDays || course.custom_days;
+      let days: string[] = [];
+      if (Array.isArray(rawCd)) {
+        days = rawCd;
+      } else if (typeof rawCd === 'string' && rawCd.trim()) {
+        try {
+          const parsed = JSON.parse(rawCd);
+          days = Array.isArray(parsed) ? parsed : rawCd.split(',');
+        } catch {
+          days = rawCd.split(',');
+        }
+      }
+      if (days.length === 0) {
+        return dayIndex >= 1 && dayIndex <= 5;
+      }
+      return days.some((d: any) => {
+        if (!d) return false;
+        const clean = String(d).trim().toLowerCase();
+        return clean.startsWith(dayCode.toLowerCase()) || clean.startsWith(dayName.toLowerCase());
+      });
+    }
+
+    return dayIndex >= 1 && dayIndex <= 5;
+  }
+
+  formatSelectedDate(): string {
+    if (!this.selectedDate) return '';
+    const parts = this.selectedDate.split('-').map(Number);
+    if (parts.length !== 3) return this.selectedDate;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  getSelectedDayName(): string {
+    if (!this.selectedDate) return 'Today';
+    const parts = this.selectedDate.split('-').map(Number);
+    if (parts.length !== 3) return '';
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return names[d.getDay()] || '';
+  }
+
+  isWeekendDay(): boolean {
+    if (!this.selectedDate) return false;
+    const parts = this.selectedDate.split('-').map(Number);
+    if (parts.length !== 3) return false;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return d.getDay() === 0 || d.getDay() === 6;
+  }
+
+  getExcludedCoursesSummary(): string {
+    const types = new Set<string>();
+    this.myCourses.forEach((c: any) => {
+      if (!this.isCourseScheduledForDate(c, this.selectedDate)) {
+        types.add(c.scheduleType || c.schedule_type || 'Weekends');
+      }
+    });
+    return Array.from(types).join(', ') || 'Weekends';
+  }
+
   private ensureSelectedCourseStillValid() {
     if (!this.newSchedule.course_id) {
       return;
     }
-    const exists = this.myCourses.some((course: any) => String(course.id) === String(this.newSchedule.course_id));
+    const exists = this.availableCourses.some((course: any) => String(course.id) === String(this.newSchedule.course_id));
     if (!exists) {
       this.newSchedule.course_id = null;
       this.newSchedule.batch_id = null;
@@ -608,5 +859,89 @@ export class StaffScheduleComponent implements OnInit {
     h = h % 12;
     h = h ? h : 12; // the hour '0' should be '12'
     return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
+  }
+
+  /**
+   * Extract timing string from batch or one-to-one student
+   */
+  private extractTiming(item: any): string {
+    if (!item) return '';
+
+    // Direct timing string (e.g. "06:00 PM - 07:00 PM")
+    if (typeof item.timing === 'string' && item.timing.trim()) {
+      return item.timing.trim();
+    }
+
+    // Direct timingFrom and timingTo (e.g. "18:00" and "19:00")
+    if (item.timingFrom && item.timingTo) {
+      return `${item.timingFrom} - ${item.timingTo}`;
+    }
+
+    // Check subject allocations (for students with multi-subject allocations)
+    const rawAllocs = item.subject_allocations || item.subjectAllocations;
+    if (rawAllocs) {
+      try {
+        const allocs = typeof rawAllocs === 'string' ? JSON.parse(rawAllocs) : rawAllocs;
+        if (allocs && typeof allocs === 'object') {
+          // If staff is current user, find their allocated subject timing first
+          for (const key of Object.keys(allocs)) {
+            const alloc = allocs[key];
+            if (alloc && alloc.timing && alloc.timing.trim()) {
+              if (this.currentUserId && String(alloc.instructor) === String(this.currentUserId)) {
+                return alloc.timing.trim();
+              }
+            }
+          }
+          // Otherwise pick the first valid timing
+          for (const key of Object.keys(allocs)) {
+            const alloc = allocs[key];
+            if (alloc && alloc.timing && alloc.timing.trim()) {
+              return alloc.timing.trim();
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore json parse error
+      }
+    }
+
+    return '';
+  }
+
+  /**
+   * Parse a timing string like "06:00 PM - 07:00 PM" into 24h format
+   * suitable for HTML <input type="time"> (e.g. "18:00" / "19:00").
+   */
+  private parseTimingTo24h(timingStr: string): { from: string; to: string } {
+    if (!timingStr) return { from: '', to: '' };
+    const parts = timingStr.split(/\s*-\s*|\s+to\s+/i);
+    return {
+      from: this.convertSingleTimeTo24h(parts[0]?.trim()),
+      to: this.convertSingleTimeTo24h(parts[1]?.trim())
+    };
+  }
+
+  private convertSingleTimeTo24h(value?: string): string {
+    if (!value) return '';
+    const trimmed = value.trim();
+
+    // Already in 24h format (e.g. "18:00" or "18:00:00")
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+      const [h, m] = trimmed.split(':');
+      return `${h.padStart(2, '0')}:${m}`;
+    }
+
+    // 12h format (e.g. "06:00 PM")
+    const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    if (!match) return '';
+
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2] || '00', 10);
+    const meridiem = match[3].toUpperCase();
+
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    else if (meridiem === 'PM' && hours !== 12) hours += 12;
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
 }

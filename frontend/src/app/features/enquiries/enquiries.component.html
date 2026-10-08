@@ -1,0 +1,823 @@
+<div class="space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Course Enquiries</h1>
+            <p class="text-slate-600 dark:text-slate-400 font-medium mt-0.5">
+                Track walk-ins, phone calls, online leads, and prospective student follow-ups.
+            </p>
+        </div>
+        <button type="button" (click)="openAddModal()"
+            class="flex-1 sm:flex-none justify-center bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest px-8 py-3.5 rounded-2xl shadow-lg shadow-primary-200 dark:shadow-none hover:bg-primary-700 transition-all flex items-center gap-2 cursor-pointer">
+            <span>+</span> NEW ENQUIRY
+        </button>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div
+            class="p-5 bg-white dark:bg-slate-900 rounded-3xl shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+            <div
+                class="w-12 h-12 rounded-2xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center text-xl font-black shrink-0">
+                📊
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Enquiries</p>
+                <p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">{{ totalCount }}</p>
+            </div>
+        </div>
+
+        <div
+            class="p-5 bg-white dark:bg-slate-900 rounded-3xl shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+            <div
+                class="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xl font-black shrink-0">
+                ✨
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">New Leads</p>
+                <p class="text-2xl font-black text-sky-600 dark:text-sky-400 mt-0.5">{{ newCount }}</p>
+            </div>
+        </div>
+
+        <div
+            class="p-5 bg-white dark:bg-slate-900 rounded-3xl shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+            <div
+                class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl font-black shrink-0">
+                ⏰
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Follow-Ups Due</p>
+                <p class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-0.5">{{ followUpCount }}</p>
+            </div>
+        </div>
+
+        <div
+            class="p-5 bg-white dark:bg-slate-900 rounded-3xl shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+            <div
+                class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl font-black shrink-0">
+                🎓
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Converted</p>
+                <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{{ convertedCount }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div
+        class="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-800 flex flex-col xl:flex-row items-stretch xl:items-center gap-4">
+        <div class="flex-1 relative">
+            <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onFilterChange()"
+                placeholder="Search candidate, phone, email..."
+                class="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-slate-800 dark:text-white placeholder-slate-500 font-bold text-sm focus:ring-2 focus:ring-primary-500/20 transition-all outline-none">
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-lg">🔍</span>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative w-full sm:w-auto">
+                <select [(ngModel)]="filterStatus" (change)="onFilterChange()"
+                    class="appearance-none w-full sm:w-auto pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-slate-800 dark:text-white font-bold tracking-tight text-sm focus:ring-2 focus:ring-primary-500/20 hover:border-slate-300 dark:hover:border-slate-600 transition-all outline-none cursor-pointer shadow-sm">
+                    <option value="">All Statuses</option>
+                    <option value="new">New</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="follow-up">Follow-Up</option>
+                    <option value="converted">Converted</option>
+                    <option value="closed">Closed</option>
+                </select>
+                <span
+                    class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs text-slate-400">▼</span>
+            </div>
+
+            <div class="relative w-full sm:w-auto">
+                <select [(ngModel)]="filterType" (change)="onFilterChange()"
+                    class="appearance-none w-full sm:w-auto pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-slate-800 dark:text-white font-bold tracking-tight text-sm focus:ring-2 focus:ring-primary-500/20 hover:border-slate-300 dark:hover:border-slate-600 transition-all outline-none cursor-pointer shadow-sm">
+                    <option value="">All Modes (Walk-In/Phone...)</option>
+                    <option value="walk-in">🚶 Walk-In</option>
+                    <option value="phone">📞 Phone Call</option>
+                    <option value="online">🌐 Online Form</option>
+                    <option value="referral">👥 Referral</option>
+                </select>
+                <span
+                    class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs text-slate-400">▼</span>
+            </div>
+
+            <div class="w-full sm:w-64 min-w-[200px]">
+                <app-searchable-select [options]="courseOptionsForFilter" placeholder="All Courses"
+                    searchPlaceholder="Search courses..." labelKey="name" valueKey="id" [modelValue]="filterCourse"
+                    (modelValueChange)="filterCourse = $event; onFilterChange()">
+                </app-searchable-select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enquiries Data Table -->
+    <div
+        class="bg-white dark:bg-slate-900 rounded-3xl shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden">
+        <div class="max-h-[calc(100vh-320px)] min-h-[350px] overflow-x-auto overflow-y-auto relative">
+            <table class="w-full text-left border-collapse">
+                <thead class="sticky top-0 z-20 bg-slate-100 dark:bg-slate-800 shadow-sm backdrop-blur-md">
+                    <tr class="bg-slate-100/90 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700">
+                        <th
+                            class="px-6 py-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                            Candidate Info</th>
+                        <th
+                            class="px-6 py-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                            Contact</th>
+                        <th
+                            class="px-6 py-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                            Course & Mode</th>
+                        <th
+                            class="px-6 py-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                            Follow-Up Date</th>
+                        <th
+                            class="px-6 py-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                            Assigned Staff</th>
+                        <th
+                            class="px-6 py-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                            Status</th>
+                        <th
+                            class="px-6 py-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider text-right">
+                            Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
+                    <tr *ngFor="let e of filteredEnquiries()"
+                        class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                        <!-- Candidate Info -->
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black flex items-center justify-center text-sm shrink-0 shadow-sm">
+                                    {{ e.name?.charAt(0)?.toUpperCase() }}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-slate-800 dark:text-white text-sm">{{ e.name }}</p>
+                                    <p *ngIf="e.address"
+                                        class="text-xs text-slate-500 font-medium truncate max-w-[180px]">
+                                        📍 {{ e.address }}
+                                    </p>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Contact -->
+                        <td class="px-6 py-4">
+                            <div class="space-y-1">
+                                <div
+                                    class="flex items-center gap-2 font-bold font-mono text-slate-700 dark:text-slate-300 text-sm">
+                                    <span>{{ e.mobile || '—' }}</span>
+                                    <a *ngIf="e.mobile" [href]="'tel:' + e.mobile" title="Call Customer"
+                                        class="text-emerald-600 hover:text-emerald-700">📞</a>
+                                    <a *ngIf="e.mobile" [href]="getWhatsAppUrl(e.mobile)" target="_blank"
+                                        title="WhatsApp Chat"
+                                        class="text-emerald-500 hover:text-emerald-600 font-bold">💬</a>
+                                </div>
+                                <p *ngIf="e.email" class="text-xs font-medium text-slate-400 truncate max-w-[180px]">{{
+                                    e.email }}</p>
+                            </div>
+                        </td>
+
+                        <!-- Course & Mode -->
+                        <td class="px-6 py-4">
+                            <div class="space-y-1">
+                                <p class="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                                    📚 {{ e.courseName || 'General Enquiry' }}
+                                </p>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border inline-block"
+                                    [class]="getTypeBadgeClass(e.enquiryType)">
+                                    {{ e.enquiryType }}
+                                </span>
+                            </div>
+                        </td>
+
+                        <!-- Follow-Up Date -->
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-700 dark:text-slate-300 text-sm">
+                                <span *ngIf="e.followUpDate">{{ e.followUpDate | date:'dd-MM-yyyy' }}</span>
+                                <span *ngIf="!e.followUpDate" class="text-slate-400 italic">Not set</span>
+                            </div>
+                        </td>
+
+                        <!-- Assigned Staff -->
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-700 dark:text-slate-300 text-sm">
+                                {{ e.assignedStaffName || 'Unassigned' }}
+                            </div>
+                        </td>
+
+                        <!-- Status Badge -->
+                        <td class="px-6 py-4">
+                            <div class="relative inline-block">
+                                <select [ngModel]="e.status" (ngModelChange)="changeStatus(e, $event)"
+                                    class="pl-3.5 pr-8 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border cursor-pointer outline-none transition-all min-w-[125px]"
+                                    [class]="getStatusBadgeClass(e.status)">
+                                    <option value="new">New</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="follow-up">Follow-Up</option>
+                                    <option value="converted">Converted</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                            </div>
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button" (click)="convertToStudent(e)"
+                                    [disabled]="e.status === 'converted'"
+                                    title="{{ e.status === 'converted' ? 'Already converted to student' : 'Convert to Student Enrollment' }}"
+                                    class="px-3 py-1.5 font-bold text-xs rounded-xl border transition-all"
+                                    [class]="e.status === 'converted'
+                                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
+                                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 cursor-pointer'">
+                                    🎓 {{ e.status === 'converted' ? 'Converted' : 'Convert' }}
+                                </button>
+                                <button type="button" (click)="editEnquiry(e)" title="Edit Enquiry"
+                                    class="p-2 text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer">
+                                    ✏️
+                                </button>
+                                <button type="button" (click)="deleteEnquiry(e)" title="Delete Enquiry"
+                                    class="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-all cursor-pointer">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Empty State -->
+                    <tr *ngIf="filteredEnquiries().length === 0">
+                        <td colspan="7" class="py-16 text-center">
+                            <div class="max-w-xs mx-auto space-y-3">
+                                <span class="text-4xl">📞</span>
+                                <p class="text-base font-bold text-slate-600 dark:text-slate-300">No enquiries found</p>
+                                <p class="text-xs text-slate-400">Click "+ NEW ENQUIRY" to log a customer or student
+                                    enquiry.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div
+            class="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/30 dark:bg-slate-800/10">
+            <p class="text-xs text-slate-500 dark:text-slate-500 font-bold uppercase tracking-widest hidden sm:block">
+                Showing {{ getStartCount() }} to {{ getEndCount() }} of {{ allFilteredEnquiries().length }} enquiries
+            </p>
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <button (click)="prevPage()" [disabled]="currentPage === 1"
+                    class="flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer">
+                    Prev
+                </button>
+                <div class="flex items-center gap-1.5 px-3">
+                    <span class="text-primary-600 dark:text-primary-400 font-black text-sm">{{ currentPage }}</span>
+                    <span class="text-slate-300 dark:text-slate-700 text-xs font-bold">/</span>
+                    <span class="text-slate-400 dark:text-slate-600 font-bold text-sm">{{ totalPages() }}</span>
+                </div>
+                <button (click)="nextPage()" [disabled]="currentPage >= totalPages()"
+                    class="flex-1 sm:flex-none px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer">
+                    Next
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== New / Edit Enquiry Modal ====== -->
+<app-modal [isOpen]="isModalOpen" [title]="currentEnquiry.id ? 'Edit Enquiry' : 'Log New Customer Enquiry'"
+    [actionLabel]="saving ? 'Saving...' : 'Save Enquiry'" (onClose)="closeModal()" (onSubmit)="saveEnquiry()"
+    size="2xl">
+    <div class="space-y-4 py-1">
+        <!-- Section 1: Customer & Contact Information -->
+        <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-3 mb-4">
+                <span
+                    class="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center text-[10px] font-black">01</span>
+                <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Customer &
+                    Contact Information</h4>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Candidate Name -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Customer / Student Name <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="text" [(ngModel)]="currentEnquiry.name" placeholder="Full Name"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-primary-500/20 outline-none transition-all">
+                </div>
+
+                <!-- Mobile Number -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Mobile Number
+                    </label>
+                    <input type="tel" [(ngModel)]="currentEnquiry.mobile" placeholder="e.g. 9876543210"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-primary-500/20 outline-none transition-all">
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Email Address
+                    </label>
+                    <input type="email" [(ngModel)]="currentEnquiry.email" placeholder="email@domain.com"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-primary-500/20 outline-none transition-all">
+                </div>
+
+                <!-- Address / City -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Address / City
+                    </label>
+                    <input type="text" [(ngModel)]="currentEnquiry.address" placeholder="City or Area"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-primary-500/20 outline-none transition-all">
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Enquiry & Course Details -->
+        <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-3 mb-4">
+                <span
+                    class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-black">02</span>
+                <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Enquiry & Course
+                    Details</h4>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Interested Course -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Course Interested In
+                    </label>
+                    <select [(ngModel)]="currentEnquiry.courseId" (change)="onCourseChange()"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-emerald-500/20 outline-none appearance-none cursor-pointer">
+                        <option value="">— Select Course —</option>
+                        <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+                    </select>
+                </div>
+
+                <!-- Enquiry Mode -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Mode of Enquiry
+                    </label>
+                    <select [(ngModel)]="currentEnquiry.enquiryType"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-emerald-500/20 outline-none appearance-none cursor-pointer">
+                        <option value="walk-in">🚶 Direct Walk-In (Visited Institute)</option>
+                        <option value="phone">📞 Phone Call</option>
+                        <option value="online">🌐 Online Form / Website</option>
+                        <option value="referral">👥 Referral</option>
+                    </select>
+                </div>
+
+                <!-- Reference Source -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Source of Reference
+                    </label>
+                    <select [(ngModel)]="currentEnquiry.referenceSource"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-emerald-500/20 outline-none appearance-none cursor-pointer">
+                        <option value="walk-in">Direct Walk-In</option>
+                        <option value="social-media">Social Media (Instagram/Facebook)</option>
+                        <option value="newspaper">Newspaper / Pamphlet</option>
+                        <option value="friend">Friend / Existing Student</option>
+                        <option value="banner">Banner / Hoarding</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Assigned Staff -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Assigned Staff Member
+                    </label>
+                    <select [(ngModel)]="currentEnquiry.assignedStaffId" (change)="onStaffChange()"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-emerald-500/20 outline-none appearance-none cursor-pointer">
+                        <option value="">— Unassigned —</option>
+                        <option *ngFor="let s of staffList" [value]="s.id">{{ s.name }}</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Follow-Up & Discussion Notes -->
+        <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-3 mb-4">
+                <span
+                    class="w-7 h-7 rounded-lg bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 flex items-center justify-center text-[10px] font-black">03</span>
+                <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Follow-Up &
+                    Discussion Notes</h4>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <!-- Follow-Up Date -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Follow-Up Date
+                    </label>
+                    <app-date-picker [(ngModel)]="currentEnquiry.followUpDate"></app-date-picker>
+                </div>
+
+                <!-- Initial Status -->
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Status
+                    </label>
+                    <select [(ngModel)]="currentEnquiry.status"
+                        class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-pink-500/20 outline-none appearance-none cursor-pointer">
+                        <option value="new">New Lead</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="follow-up">Follow-Up Required</option>
+                        <option value="converted">Converted to Student</option>
+                        <option value="closed">Closed / Not Interested</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Remarks / Notes -->
+            <div>
+                <label
+                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                    Remarks & Discussion Notes
+                </label>
+                <textarea [(ngModel)]="currentEnquiry.notes" rows="3"
+                    placeholder="Enter customer requirements, discussions, or special conditions..."
+                    class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm focus:border-pink-500/20 outline-none transition-all resize-none"></textarea>
+            </div>
+        </div>
+    </div>
+</app-modal>
+
+<!-- ====== Convert to Student — Enrollment Wizard Modal ====== -->
+<app-modal [isOpen]="isStudentModalOpen" [size]="'4xl'" title="Enroll New Student"
+    [showFooter]="false" (onClose)="closeStudentModal()">
+
+    <!-- Stepper Bar -->
+    <div
+        class="mb-5 p-1.5 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-inner flex items-center justify-between gap-2 sm:gap-4 relative">
+
+        <!-- STEP 1 BTN -->
+        <button type="button" (click)="studentCurrentStep = 1"
+            class="flex-1 flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all duration-300 relative z-10 cursor-pointer"
+            [class.bg-gradient-to-r]="studentCurrentStep === 1" [class.from-primary-600]="studentCurrentStep === 1"
+            [class.to-indigo-600]="studentCurrentStep === 1" [class.text-white]="studentCurrentStep === 1"
+            [class.shadow-md]="studentCurrentStep === 1" [class.shadow-primary-500/25]="studentCurrentStep === 1"
+            [class.text-slate-600]="studentCurrentStep !== 1" [class.dark:text-slate-400]="studentCurrentStep !== 1"
+            [class.hover:bg-slate-200/60]="studentCurrentStep !== 1" [class.dark:hover:bg-slate-700/50]="studentCurrentStep !== 1">
+            <span class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black transition-transform"
+                [class.bg-white/20]="studentCurrentStep === 1" [class.text-white]="studentCurrentStep === 1"
+                [class.bg-slate-200]="studentCurrentStep !== 1" [class.dark:bg-slate-700]="studentCurrentStep !== 1"
+                [class.text-slate-700]="studentCurrentStep !== 1" [class.dark:text-slate-300]="studentCurrentStep !== 1">
+                <span *ngIf="createdStudent && studentCurrentStep === 2">✓</span>
+                <span *ngIf="!createdStudent || studentCurrentStep === 1">1</span>
+            </span>
+            <span class="tracking-wider uppercase text-[11px] font-black">Identity & Profile</span>
+        </button>
+
+        <!-- STEP PROGRESS CONNECTOR LINE -->
+        <div class="flex-1 max-w-[80px] sm:max-w-[140px] h-2 bg-slate-200 dark:bg-slate-700/80 rounded-full overflow-hidden p-0.5 hidden sm:block shadow-inner">
+            <div class="h-full bg-gradient-to-r from-primary-500 to-indigo-500 rounded-full transition-all duration-500"
+                [style.width]="studentCurrentStep === 2 ? '100%' : (createdStudent ? '50%' : '0%')">
+            </div>
+        </div>
+
+        <!-- STEP 2 BTN -->
+        <button type="button" (click)="createdStudent ? studentCurrentStep = 2 : null" [disabled]="!createdStudent"
+            class="flex-1 flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all duration-300 relative z-10"
+            [class.cursor-pointer]="!!createdStudent" [class.cursor-not-allowed]="!createdStudent"
+            [class.opacity-60]="!createdStudent" [class.bg-gradient-to-r]="studentCurrentStep === 2"
+            [class.from-indigo-600]="studentCurrentStep === 2" [class.to-primary-600]="studentCurrentStep === 2"
+            [class.text-white]="studentCurrentStep === 2" [class.shadow-md]="studentCurrentStep === 2"
+            [class.shadow-indigo-500/25]="studentCurrentStep === 2" [class.text-slate-600]="studentCurrentStep !== 2"
+            [class.dark:text-slate-400]="studentCurrentStep !== 2"
+            [class.hover:bg-slate-200/60]="studentCurrentStep !== 2 && createdStudent"
+            [class.dark:hover:bg-slate-700/50]="studentCurrentStep !== 2 && createdStudent">
+            <span class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black transition-transform"
+                [class.bg-white/20]="studentCurrentStep === 2" [class.text-white]="studentCurrentStep === 2"
+                [class.bg-slate-200]="studentCurrentStep !== 2" [class.dark:bg-slate-700]="studentCurrentStep !== 2"
+                [class.text-slate-700]="studentCurrentStep !== 2" [class.dark:text-slate-300]="studentCurrentStep !== 2">
+                2
+            </span>
+            <span class="tracking-wider uppercase text-[11px] font-black">Course Enrollment</span>
+        </button>
+    </div>
+
+    <!-- Sliding Container -->
+    <div class="overflow-hidden relative w-full">
+        <div class="flex transition-transform duration-500 ease-in-out w-[200%]"
+            [style.transform]="studentCurrentStep === 1 ? 'translateX(0%)' : 'translateX(-50%)'">
+
+            <!-- STEP 1: Student Details Form -->
+            <div class="w-1/2 pr-4 space-y-6">
+                <!-- Section 1: Identity & Registration -->
+                <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center text-[10px] font-black">01</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Identity & Registration</h4>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                        <!-- Profile Photo Upload -->
+                        <div class="flex flex-col items-center space-y-2 mt-1 shrink-0">
+                            <div class="relative group w-24 h-24 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex items-center justify-center cursor-pointer transition-all hover:border-primary-500">
+                                <img *ngIf="newStudent.photo" [src]="newStudent.photo" class="w-full h-full object-cover">
+                                <div *ngIf="!newStudent.photo" class="text-center p-2" (click)="studentPhotoInput.click()">
+                                    <span class="text-2xl block">📷</span>
+                                    <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-1">Add Photo</span>
+                                </div>
+                                <div (click)="studentPhotoInput.click()" class="absolute inset-0 bg-slate-950/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span class="text-white text-[9px] font-black uppercase tracking-wider">Change</span>
+                                </div>
+                            </div>
+                            <input #studentPhotoInput type="file" (change)="onPhotoChange($event)" accept="image/*" class="hidden">
+                            <button *ngIf="newStudent.photo" (click)="removePhoto()" type="button"
+                                class="text-[9px] font-bold text-rose-500 hover:text-rose-600 transition-colors uppercase tracking-wider">Delete Photo</button>
+                        </div>
+
+                        <!-- Registration Fields -->
+                        <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+                            <div class="md:col-span-1">
+                                <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Reg #
+                                    <span class="text-primary-500 text-[8px] font-black uppercase ml-1">{{ regSettings?.reg_mode === 'auto' ? '(Auto)' : '(Manual)' }}</span>
+                                </label>
+                                <input type="text" [(ngModel)]="newStudent.regNumber"
+                                    [readonly]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
+                                    [class.bg-white]="regSettings?.reg_mode === 'manual'"
+                                    [class.dark:bg-slate-900]="regSettings?.reg_mode === 'manual'"
+                                    [class.bg-slate-100]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
+                                    [class.dark:bg-slate-800/80]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
+                                    class="w-full px-3 py-2.5 border-2 border-transparent bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 focus:bg-white dark:focus:bg-slate-900 font-mono font-bold text-sm transition-all outline-none"
+                                    placeholder="STU-001">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Full Student Name <span class="text-rose-500">*</span></label>
+                                <input type="text" [(ngModel)]="newStudent.name"
+                                    class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
+                                    placeholder="e.g. Alex Johnson">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Date of Birth</label>
+                                <app-date-picker [(ngModel)]="newStudent.dob"></app-date-picker>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Father's Name</label>
+                                <input type="text" [(ngModel)]="newStudent.fatherName"
+                                    class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
+                                    placeholder="Parent name">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Highest Qualification</label>
+                                <input type="text" [(ngModel)]="newStudent.qualification"
+                                    class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
+                                    placeholder="e.g. B.Tech Graduate">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Contact Details -->
+                <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-black">02</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Contact Details</h4>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Personal Mobile <span class="text-rose-500">*</span></label>
+                            <input type="text" [(ngModel)]="newStudent.mobile"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Student phone">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Parent Mobile</label>
+                            <input type="text" [(ngModel)]="newStudent.parentMobile"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Parent phone">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Email Address</label>
+                            <input type="email" [(ngModel)]="newStudent.email"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Email">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Referral Info & Custom Fields -->
+                <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="w-7 h-7 rounded-lg bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 flex items-center justify-center text-[10px] font-black">03</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Referral Information & Customization Fields</h4>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Referred By</label>
+                            <input type="text" [(ngModel)]="newStudent.referredBy"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-pink-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Name of referrer">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Referral Profession</label>
+                            <input type="text" [(ngModel)]="newStudent.referralProfession"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-pink-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Profession">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <app-custom-fields-renderer location="student"
+                            [entityId]="newStudent.id"></app-custom-fields-renderer>
+                    </div>
+                </div>
+
+                <!-- Footer Buttons for Step 1 -->
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" (click)="closeStudentModal()"
+                        class="px-4 py-2.5 text-slate-600 dark:text-slate-400 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="button" (click)="goToStudentStep2()" [disabled]="studentSaving"
+                        class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-lg shadow-primary-200 dark:shadow-none transition-all flex items-center gap-2 cursor-pointer">
+                        <span>{{ studentSaving ? 'Saving Profile...' : 'Next' }}</span>
+                        <span *ngIf="!studentSaving">→</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: Course Enrollment -->
+            <div class="w-1/2 pl-4 space-y-6">
+                <!-- Created Student Profile Summary Banner -->
+                <div class="p-4 bg-primary-50/50 dark:bg-primary-900/10 rounded-2xl border border-primary-100 dark:border-primary-900/30 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-600 font-black flex items-center justify-center text-lg shrink-0">
+                            {{ createdStudent?.name?.charAt(0) || '🎓' }}
+                        </div>
+                        <div>
+                            <h4 class="font-black text-sm text-slate-800 dark:text-white">{{ createdStudent?.name || newStudent.name }}</h4>
+                            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                                {{ createdStudent?.regNumber || newStudent.regNumber || 'STU-AUTO' }} • {{ createdStudent?.mobile || newStudent.mobile }}
+                            </p>
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full">
+                        Profile Created ✅
+                    </span>
+                </div>
+
+                <!-- Enrolled Courses Box -->
+                <div class="p-5 bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                            <span>📚 ENROLLED COURSES</span>
+                            <span class="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-md text-[10px] font-black">
+                                {{ studentCourses.length }}
+                            </span>
+                        </h4>
+                        <button type="button" (click)="openAdditionalCourseModal()"
+                            class="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer">
+                            <span class="text-sm leading-none">+</span> ADD COURSE
+                        </button>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div *ngIf="studentCourses.length === 0"
+                        class="text-center py-8 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-1">
+                        <p class="text-xs font-bold text-slate-400">No enrollments found.</p>
+                        <p class="text-[10px] text-slate-400">Click "+ ADD COURSE" to enroll.</p>
+                    </div>
+
+                    <!-- List of Enrolled Courses -->
+                    <div class="space-y-2">
+                        <div *ngFor="let sc of studentCourses"
+                            class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-3 flex items-center justify-between shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <span class="text-lg">📖</span>
+                                <div>
+                                    <p class="text-xs font-black text-slate-800 dark:text-slate-200">
+                                        {{ sc.course_name }} - <span class="capitalize text-emerald-600 dark:text-emerald-400 font-bold">{{ sc.status }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" (click)="unenrollFromCourse(sc.course_id)"
+                                    class="text-xs font-bold text-rose-500 hover:text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2 Footer Buttons -->
+                <div class="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" (click)="studentCurrentStep = 1"
+                        class="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-200 cursor-pointer">
+                        ← Back to Profile
+                    </button>
+                    <button type="button" (click)="finishStudentWizard()"
+                        class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all cursor-pointer">
+                        Complete Enrollment 🎉
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</app-modal>
+
+<!-- ====== Add Course Modal (for Convert Step 2) ====== -->
+<app-modal [isOpen]="isAddCourseModalOpen" title="Add Course Enrollment" [actionLabel]="'Enroll in Course'"
+    (onClose)="closeAdditionalCourseModal()" (onSubmit)="enrollAdditionalCourse()" size="xl">
+    <div class="space-y-4">
+        <div>
+            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Select Course <span class="text-rose-500">*</span></label>
+            <select [(ngModel)]="newCourseEnrollment.courseId" (change)="onAdditionalCourseChange()"
+                class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm outline-none appearance-none cursor-pointer">
+                <option value="">— Select Course —</option>
+                <ng-container *ngFor="let c of courses">
+                    <option [value]="c.id" [disabled]="isCourseAlreadyEnrolled(c.id)">
+                        {{ c.name }} {{ isCourseAlreadyEnrolled(c.id) ? '(Already Enrolled)' : '' }}
+                    </option>
+                </ng-container>
+            </select>
+        </div>
+
+        <div *ngIf="newCourseEnrollment.courseId">
+            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Select Batch</label>
+            <select [(ngModel)]="newCourseEnrollment.batchId"
+                class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm outline-none appearance-none cursor-pointer">
+                <option value="0">One-to-One (No Batch)</option>
+                <option *ngFor="let b of getAdditionalCourseFilteredBatches(batches$ | async)" [value]="b.id">{{ b.batchName }}</option>
+            </select>
+        </div>
+
+        <div *ngIf="newCourseEnrollment.courseId">
+            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Joining Date</label>
+            <app-date-picker [(ngModel)]="newCourseEnrollment.joiningDate"></app-date-picker>
+        </div>
+
+        <!-- Subjects selection for standard courses -->
+        <div *ngIf="isAdditionalCourseStandard() && getSubjectsForAdditionalCourse().length > 0">
+            <label class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Select Subjects</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div *ngFor="let subj of getSubjectsForAdditionalCourse()"
+                    class="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 cursor-pointer"
+                    (click)="toggleAdditionalSubject(subj.name)"
+                    [class.border-primary-500]="isAdditionalSubjectSelected(subj.name)"
+                    [class.bg-primary-50]="isAdditionalSubjectSelected(subj.name)">
+                    <span class="text-xs">{{ isAdditionalSubjectSelected(subj.name) ? '☑️' : '⬜' }}</span>
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300">{{ subj.name }}</span>
+                    <span *ngIf="subj.fees" class="text-[10px] text-slate-400 ml-auto">₹{{ subj.fees }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</app-modal>
+
+<!-- ====== Student Enrollment Success Celebration ====== -->
+<div *ngIf="showStudentSuccess" class="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none px-4">
+    <div class="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-500">
+    </div>
+    <div class="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[2.5rem] md:rounded-[3rem] shadow-2xl relative text-center max-w-md w-full animate-in zoom-in slide-in-from-bottom duration-500 pointer-events-auto overflow-hidden border border-white/20 dark:border-slate-800">
+        <div class="absolute inset-0 overflow-hidden opacity-30 select-none">
+            <div *ngFor="let i of [1,2,3,4,5,6,7,8,9,10]" [class]="'absolute w-3 h-3 rounded-full animate-bounce'"
+                [style.left.%]="i * 10" [style.top.%]="i * 8"
+                [style.background-color]="i % 2 === 0 ? '#3b82f6' : '#10b981'" [style.animation-delay]="i * 0.1 + 's'">
+            </div>
+        </div>
+        <div class="relative z-10">
+            <div class="w-20 h-20 md:w-24 md:h-24 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center text-4xl md:text-5xl mx-auto mb-6 md:mb-8 animate-bounce">
+                🎉
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-tight mb-4">
+                Congratulations!
+            </h2>
+            <p class="text-slate-500 dark:text-slate-400 text-base md:text-lg font-medium mb-6 md:mb-8">
+                <span class="text-primary-600 dark:text-primary-400 font-black">{{ successStudentName }}</span> has been
+                successfully enrolled as a student.
+            </p>
+            <div class="bg-slate-50 dark:bg-slate-800/50 p-5 md:p-6 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6 md:mb-8">
+                <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-2 italic">
+                    Enquiry Converted</p>
+                <p class="text-slate-600 dark:text-slate-300 font-bold italic">"Welcome aboard! The enquiry has been converted to a student enrollment."</p>
+            </div>
+            <button (click)="showStudentSuccess = false"
+                class="w-full py-4 bg-slate-900 dark:bg-primary-600 text-white font-black rounded-2xl hover:bg-slate-800 dark:hover:bg-primary-700 transition-all shadow-xl shadow-slate-200 dark:shadow-none uppercase tracking-widest text-sm">
+                Awesome!
+            </button>
+        </div>
+    </div>
+</div>

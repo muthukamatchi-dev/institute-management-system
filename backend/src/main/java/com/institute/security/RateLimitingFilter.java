@@ -25,7 +25,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     @Value("${app.ratelimit.enabled:true}")
     private boolean enabled;
 
-    @Value("${app.ratelimit.capacity:120}")
+    @Value("${app.ratelimit.capacity:1000}")
     private long capacity;
 
     @Value("${app.ratelimit.refill-seconds:60}")
@@ -34,7 +34,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (!enabled) {
+        String uri = request.getRequestURI();
+        if (!enabled || (uri != null && uri.startsWith("/api/auth/"))) {
             filterChain.doFilter(request, response);
             return;
         }

@@ -80,7 +80,7 @@ export class DashboardComponent implements OnInit {
           this.isReminderPopupOpen = true;
         }
       },
-      error: () => {}
+      error: () => { }
     });
   }
 
@@ -91,7 +91,7 @@ export class DashboardComponent implements OnInit {
     this.activitiesLoading = true;
     this.dataService.getRecentActivities({}).subscribe({
       next: data => {
-        this.activities = data;
+        this.activities = (data || []).slice(0, 8);
         this.activitiesLoading = false;
       },
       error: () => this.activitiesLoading = false

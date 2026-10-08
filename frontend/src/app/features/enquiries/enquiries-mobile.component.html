@@ -1,0 +1,489 @@
+<div class="p-3 space-y-4 pb-20">
+  <!-- Mobile Header Bar -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-lg font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+        <span>📞 Enquiries</span>
+      </h1>
+      <p class="text-[10px] text-slate-500 font-bold">Walk-ins & Phone leads</p>
+    </div>
+    <button (click)="openAddModal()"
+      class="px-3 py-1.5 bg-primary-600 text-white font-black text-xs rounded-xl shadow cursor-pointer">
+      + New
+    </button>
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="space-y-2">
+    <div class="relative">
+      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Search candidate or phone..."
+        class="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+    </div>
+    <div class="flex gap-2">
+      <select [(ngModel)]="filterStatus"
+        class="flex-1 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold">
+        <option value="">All Statuses</option>
+        <option value="new">New</option>
+        <option value="in-progress">In Progress</option>
+        <option value="follow-up">Follow-Up</option>
+        <option value="converted">Converted</option>
+        <option value="closed">Closed</option>
+      </select>
+      <select [(ngModel)]="filterType"
+        class="flex-1 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold">
+        <option value="">All Modes</option>
+        <option value="walk-in">Walk-In</option>
+        <option value="phone">Phone</option>
+        <option value="online">Online</option>
+        <option value="referral">Referral</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Mobile Cards List -->
+  <div class="space-y-3">
+    <div *ngFor="let e of filteredEnquiries()"
+      class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm space-y-2">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="font-black text-slate-900 dark:text-white text-sm">{{ e.name }}</p>
+          <p class="text-[10px] text-primary-600 dark:text-primary-400 font-bold">📚 {{ e.courseName || 'General
+            Enquiry' }}</p>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase" [class.bg-sky-100]="e.status === 'new'"
+          [class.text-sky-700]="e.status === 'new'" [class.bg-amber-100]="e.status === 'follow-up'"
+          [class.text-amber-700]="e.status === 'follow-up'" [class.bg-emerald-100]="e.status === 'converted'"
+          [class.text-emerald-700]="e.status === 'converted'" [class.bg-slate-100]="e.status === 'closed'">
+          {{ e.status }}
+        </span>
+      </div>
+
+      <div
+        class="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 font-bold border-t border-slate-100 dark:border-slate-800 pt-2">
+        <div>
+          <span class="text-[10px] text-slate-400 block font-normal">Phone</span>
+          <span class="font-mono">{{ e.mobile || '—' }}</span>
+        </div>
+        <div *ngIf="e.followUpDate">
+          <span class="text-[10px] text-slate-400 block font-normal">Follow-up</span>
+          <span>{{ e.followUpDate | date:'dd-MM-yyyy' }}</span>
+        </div>
+        <div>
+          <span class="text-[10px] text-slate-400 block font-normal">Mode</span>
+          <span class="capitalize">{{ e.enquiryType }}</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <a *ngIf="e.mobile" [href]="'tel:' + e.mobile"
+            class="px-2 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-lg">📞 Call</a>
+          <a *ngIf="e.mobile" [href]="getWhatsAppUrl(e.mobile)" target="_blank"
+            class="px-2 py-1 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-lg">💬 WhatsApp</a>
+        </div>
+        <div class="flex items-center gap-1">
+          <button (click)="convertToStudent(e)" [disabled]="e.status === 'converted'"
+            [class]="e.status === 'converted'
+              ? 'px-2 py-1 bg-slate-100 text-slate-400 font-bold text-[10px] rounded-lg cursor-not-allowed opacity-60'
+              : 'px-2 py-1 bg-indigo-50 text-indigo-600 font-bold text-[10px] rounded-lg cursor-pointer'">🎓 {{ e.status === 'converted' ? 'Converted' : 'Convert' }}</button>
+          <button (click)="editEnquiry(e)" class="p-1 text-slate-400 font-bold text-xs">✏️</button>
+          <button (click)="deleteEnquiry(e)" class="p-1 text-rose-500 font-bold text-xs">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="filteredEnquiries().length === 0"
+      class="text-center py-8 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+      <p class="text-xs font-bold text-slate-400">No enquiries found</p>
+    </div>
+
+    <!-- Mobile Pagination -->
+    <div *ngIf="allFilteredEnquiries().length > 0" class="flex items-center justify-between gap-2 pt-2">
+      <button (click)="prevPage()" [disabled]="currentPage === 1"
+        class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 disabled:opacity-40">←
+        Prev</button>
+      <span class="text-xs font-bold text-slate-500">{{ currentPage }} / {{ totalPages() }}</span>
+      <button (click)="nextPage()" [disabled]="currentPage >= totalPages()"
+        class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 disabled:opacity-40">Next
+        →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<app-modal [isOpen]="isModalOpen" [title]="currentEnquiry.id ? 'Edit Enquiry' : 'Log New Customer Enquiry'"
+  [actionLabel]="saving ? 'Saving...' : 'Save Enquiry'" (onClose)="closeModal()" (onSubmit)="saveEnquiry()" size="lg">
+  <div class="space-y-3 py-1 text-xs">
+    <!-- Section 1 -->
+    <div
+      class="bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+      <div class="flex items-center gap-2 mb-1">
+        <span
+          class="w-6 h-6 rounded-md bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center text-[9px] font-black">01</span>
+        <h4 class="font-black text-slate-800 dark:text-white text-[10px] uppercase tracking-widest">Customer & Contact
+          Information</h4>
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Customer /
+          Student Name *</label>
+        <input type="text" [(ngModel)]="currentEnquiry.name" placeholder="Full Name"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Mobile
+          Number</label>
+        <input type="tel" [(ngModel)]="currentEnquiry.mobile" placeholder="e.g. 9876543210"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Email
+          Address</label>
+        <input type="email" [(ngModel)]="currentEnquiry.email" placeholder="email@domain.com"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Address /
+          City</label>
+        <input type="text" [(ngModel)]="currentEnquiry.address" placeholder="City or Area"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+      </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div
+      class="bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+      <div class="flex items-center gap-2 mb-1">
+        <span
+          class="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[9px] font-black">02</span>
+        <h4 class="font-black text-slate-800 dark:text-white text-[10px] uppercase tracking-widest">Enquiry & Course
+          Details</h4>
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Course
+          Interested In</label>
+        <select [(ngModel)]="currentEnquiry.courseId" (change)="onCourseChange()"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+          <option value="">— Select Course —</option>
+          <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Mode of
+          Enquiry</label>
+        <select [(ngModel)]="currentEnquiry.enquiryType"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+          <option value="walk-in">🚶 Direct Walk-In (Visited Institute)</option>
+          <option value="phone">📞 Phone Call</option>
+          <option value="online">🌐 Online Form / Website</option>
+          <option value="referral">👥 Referral</option>
+        </select>
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Source of
+          Reference</label>
+        <select [(ngModel)]="currentEnquiry.referenceSource"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+          <option value="walk-in">Direct Walk-In</option>
+          <option value="social-media">Social Media (Instagram/Facebook)</option>
+          <option value="newspaper">Newspaper / Pamphlet</option>
+          <option value="friend">Friend / Existing Student</option>
+          <option value="banner">Banner / Hoarding</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Assigned Staff
+          Member</label>
+        <select [(ngModel)]="currentEnquiry.assignedStaffId" (change)="onStaffChange()"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+          <option value="">— Unassigned —</option>
+          <option *ngFor="let s of staffList" [value]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div
+      class="bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+      <div class="flex items-center gap-2 mb-1">
+        <span
+          class="w-6 h-6 rounded-md bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 flex items-center justify-center text-[9px] font-black">03</span>
+        <h4 class="font-black text-slate-800 dark:text-white text-[10px] uppercase tracking-widest">Follow-Up &
+          Discussion Notes</h4>
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Follow-Up
+          Date</label>
+        <app-date-picker [(ngModel)]="currentEnquiry.followUpDate"></app-date-picker>
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Status</label>
+        <select [(ngModel)]="currentEnquiry.status"
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+          <option value="new">New Lead</option>
+          <option value="in-progress">In Progress</option>
+          <option value="follow-up">Follow-Up Required</option>
+          <option value="converted">Converted to Student</option>
+          <option value="closed">Closed / Not Interested</option>
+        </select>
+      </div>
+      <div>
+        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Remarks &
+          Discussion Notes</label>
+        <textarea [(ngModel)]="currentEnquiry.notes" rows="2.5"
+          placeholder="Enter customer requirements, discussions, or special conditions..."
+          class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1 resize-none"></textarea>
+      </div>
+    </div>
+  </div>
+</app-modal>
+
+<!-- ====== Convert to Student — Enrollment Wizard Modal ====== -->
+<app-modal [isOpen]="isStudentModalOpen" [size]="'4xl'" title="Enroll New Student"
+    [showFooter]="false" (onClose)="closeStudentModal()">
+
+    <!-- Stepper Bar -->
+    <div
+        class="mb-4 p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700/60 shadow-inner flex items-center justify-between gap-2 relative">
+        <button type="button" (click)="studentCurrentStep = 1"
+            class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-extrabold text-[10px] transition-all duration-300 relative z-10 cursor-pointer"
+            [class.bg-gradient-to-r]="studentCurrentStep === 1" [class.from-primary-600]="studentCurrentStep === 1"
+            [class.to-indigo-600]="studentCurrentStep === 1" [class.text-white]="studentCurrentStep === 1"
+            [class.shadow-md]="studentCurrentStep === 1"
+            [class.text-slate-600]="studentCurrentStep !== 1">
+            <span class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-black"
+                [class.bg-white/20]="studentCurrentStep === 1" [class.text-white]="studentCurrentStep === 1"
+                [class.bg-slate-200]="studentCurrentStep !== 1">
+                <span *ngIf="createdStudent && studentCurrentStep === 2">✓</span>
+                <span *ngIf="!createdStudent || studentCurrentStep === 1">1</span>
+            </span>
+            <span class="tracking-wider uppercase font-black">Profile</span>
+        </button>
+
+        <button type="button" (click)="createdStudent ? studentCurrentStep = 2 : null" [disabled]="!createdStudent"
+            class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-extrabold text-[10px] transition-all duration-300 relative z-10"
+            [class.cursor-pointer]="!!createdStudent" [class.cursor-not-allowed]="!createdStudent"
+            [class.opacity-60]="!createdStudent" [class.bg-gradient-to-r]="studentCurrentStep === 2"
+            [class.from-indigo-600]="studentCurrentStep === 2" [class.to-primary-600]="studentCurrentStep === 2"
+            [class.text-white]="studentCurrentStep === 2" [class.shadow-md]="studentCurrentStep === 2"
+            [class.text-slate-600]="studentCurrentStep !== 2">
+            <span class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-black"
+                [class.bg-white/20]="studentCurrentStep === 2" [class.text-white]="studentCurrentStep === 2"
+                [class.bg-slate-200]="studentCurrentStep !== 2">2</span>
+            <span class="tracking-wider uppercase font-black">Courses</span>
+        </button>
+    </div>
+
+    <!-- Sliding Container -->
+    <div class="overflow-hidden relative w-full">
+        <div class="flex transition-transform duration-500 ease-in-out w-[200%]"
+            [style.transform]="studentCurrentStep === 1 ? 'translateX(0%)' : 'translateX(-50%)'">
+
+            <!-- STEP 1: Student Details -->
+            <div class="w-1/2 pr-2 space-y-3 text-xs">
+                <!-- Identity -->
+                <div class="bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-6 h-6 rounded-md bg-primary-100 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center text-[9px] font-black">01</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-[10px] uppercase tracking-widest">Identity & Registration</h4>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Reg # <span class="text-primary-500 text-[8px]">{{ regSettings?.reg_mode === 'auto' ? '(Auto)' : '(Manual)' }}</span></label>
+                        <input type="text" [(ngModel)]="newStudent.regNumber"
+                            [readonly]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-mono font-bold mt-1"
+                            placeholder="STU-001">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Full Student Name *</label>
+                        <input type="text" [(ngModel)]="newStudent.name"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1"
+                            placeholder="e.g. Alex Johnson">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Date of Birth</label>
+                        <app-date-picker [(ngModel)]="newStudent.dob"></app-date-picker>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Father's Name</label>
+                        <input type="text" [(ngModel)]="newStudent.fatherName"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1"
+                            placeholder="Parent name">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Highest Qualification</label>
+                        <input type="text" [(ngModel)]="newStudent.qualification"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1"
+                            placeholder="e.g. B.Tech Graduate">
+                    </div>
+                </div>
+
+                <!-- Contact -->
+                <div class="bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center text-[9px] font-black">02</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-[10px] uppercase tracking-widest">Contact Details</h4>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Personal Mobile *</label>
+                        <input type="text" [(ngModel)]="newStudent.mobile"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1"
+                            placeholder="Student phone">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Parent Mobile</label>
+                        <input type="text" [(ngModel)]="newStudent.parentMobile"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1"
+                            placeholder="Parent phone">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Email Address</label>
+                        <input type="email" [(ngModel)]="newStudent.email"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1"
+                            placeholder="Email">
+                    </div>
+                </div>
+
+                <!-- Referral -->
+                <div class="bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-6 h-6 rounded-md bg-pink-100 dark:bg-pink-900/30 text-pink-600 flex items-center justify-center text-[9px] font-black">03</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-[10px] uppercase tracking-widest">Referral Info</h4>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Referred By</label>
+                        <input type="text" [(ngModel)]="newStudent.referredBy"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1"
+                            placeholder="Name of referrer">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-600 dark:text-slate-300 text-[10px] uppercase tracking-wider">Referral Profession</label>
+                        <input type="text" [(ngModel)]="newStudent.referralProfession"
+                            class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1"
+                            placeholder="Profession">
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" (click)="closeStudentModal()"
+                        class="px-3 py-2 text-slate-600 font-bold text-xs rounded-lg hover:bg-slate-100 cursor-pointer">Cancel</button>
+                    <button type="button" (click)="goToStudentStep2()" [disabled]="studentSaving"
+                        class="px-4 py-2 bg-primary-600 text-white font-bold text-xs rounded-lg shadow cursor-pointer">
+                        {{ studentSaving ? 'Saving...' : 'Next →' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: Course Enrollment -->
+            <div class="w-1/2 pl-2 space-y-3 text-xs">
+                <!-- Student Banner -->
+                <div class="p-3 bg-primary-50/50 dark:bg-primary-900/10 rounded-xl border border-primary-100 dark:border-primary-900/30 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-primary-100 text-primary-600 font-black flex items-center justify-center text-sm shrink-0">
+                            {{ createdStudent?.name?.charAt(0) || '🎓' }}
+                        </div>
+                        <div>
+                            <h4 class="font-black text-xs text-slate-800 dark:text-white">{{ createdStudent?.name || newStudent.name }}</h4>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                                {{ createdStudent?.regNumber || newStudent.regNumber || 'AUTO' }} • {{ createdStudent?.mobile || newStudent.mobile }}
+                            </p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-bold rounded-full">✅</span>
+                </div>
+
+                <!-- Courses -->
+                <div class="p-4 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-1">
+                            📚 COURSES
+                            <span class="px-1.5 py-0.5 bg-primary-100 text-primary-600 rounded text-[9px] font-black">{{ studentCourses.length }}</span>
+                        </h4>
+                        <button type="button" (click)="openAdditionalCourseModal()"
+                            class="flex items-center gap-1 px-2.5 py-1 bg-primary-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg shadow cursor-pointer">
+                            + Add
+                        </button>
+                    </div>
+
+                    <div *ngIf="studentCourses.length === 0" class="text-center py-6 bg-white dark:bg-slate-900 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
+                        <p class="text-[10px] font-bold text-slate-400">No enrollments yet. Tap "+ Add" to enroll.</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div *ngFor="let sc of studentCourses"
+                            class="bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 p-2.5 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span>📖</span>
+                                <span class="text-[10px] font-black text-slate-800 dark:text-slate-200">{{ sc.course_name }}</span>
+                            </div>
+                            <button type="button" (click)="unenrollFromCourse(sc.course_id)"
+                                class="text-[10px] font-bold text-rose-500 px-1.5 py-0.5 rounded hover:bg-rose-50 cursor-pointer">Remove</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" (click)="studentCurrentStep = 1"
+                        class="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 font-bold text-xs rounded-lg cursor-pointer">← Back</button>
+                    <button type="button" (click)="finishStudentWizard()"
+                        class="px-4 py-2 bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-lg shadow cursor-pointer">
+                        Done 🎉
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Add Course Modal -->
+<app-modal [isOpen]="isAddCourseModalOpen" title="Add Course" [actionLabel]="'Enroll'"
+    (onClose)="closeAdditionalCourseModal()" (onSubmit)="enrollAdditionalCourse()" size="lg">
+    <div class="space-y-3 text-xs">
+        <div>
+            <label class="font-bold text-slate-600 text-[10px] uppercase tracking-wider">Select Course *</label>
+            <select [(ngModel)]="newCourseEnrollment.courseId" (change)="onAdditionalCourseChange()"
+                class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+                <option value="">— Select Course —</option>
+                <ng-container *ngFor="let c of courses">
+                    <option [value]="c.id" [disabled]="isCourseAlreadyEnrolled(c.id)">
+                        {{ c.name }} {{ isCourseAlreadyEnrolled(c.id) ? '(Already Enrolled)' : '' }}
+                    </option>
+                </ng-container>
+            </select>
+        </div>
+        <div *ngIf="newCourseEnrollment.courseId">
+            <label class="font-bold text-slate-600 text-[10px] uppercase tracking-wider">Select Batch</label>
+            <select [(ngModel)]="newCourseEnrollment.batchId"
+                class="w-full p-2.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 font-bold mt-1">
+                <option value="0">One-to-One (No Batch)</option>
+                <option *ngFor="let b of getAdditionalCourseFilteredBatches(batches$ | async)" [value]="b.id">{{ b.batchName }}</option>
+            </select>
+        </div>
+        <div *ngIf="newCourseEnrollment.courseId">
+            <label class="font-bold text-slate-600 text-[10px] uppercase tracking-wider">Joining Date</label>
+            <app-date-picker [(ngModel)]="newCourseEnrollment.joiningDate"></app-date-picker>
+        </div>
+    </div>
+</app-modal>
+
+<!-- Success Celebration -->
+<div *ngIf="showStudentSuccess" class="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none px-4">
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-500"></div>
+    <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-2xl relative text-center max-w-sm w-full animate-in zoom-in slide-in-from-bottom duration-500 pointer-events-auto border border-white/20 dark:border-slate-800">
+        <div class="relative z-10">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 animate-bounce">🎉</div>
+            <h2 class="text-xl font-black text-slate-800 dark:text-white mb-3">Congratulations!</h2>
+            <p class="text-slate-500 text-sm font-medium mb-4">
+                <span class="text-primary-600 font-black">{{ successStudentName }}</span> has been enrolled as a student.
+            </p>
+            <button (click)="showStudentSuccess = false"
+                class="w-full py-3 bg-slate-900 dark:bg-primary-600 text-white font-black rounded-xl uppercase tracking-widest text-xs">
+                Awesome!
+            </button>
+        </div>
+    </div>
+</div>

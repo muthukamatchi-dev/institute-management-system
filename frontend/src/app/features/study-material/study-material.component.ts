@@ -11,11 +11,12 @@ import { ToastService } from '../../services/toast.service';
 
 import { CustomFieldsRendererComponent } from '../../shared/ui/custom-fields-renderer.component';
 import { ViewChild } from '@angular/core';
+import { GDriveEmbedPipe } from '../../shared/pipes/gdrive.pipe';
 
 @Component({
   selector: 'app-study-material',
   standalone: true,
-  imports: [CommonModule, FormsModule, BadgeComponent, ModalComponent, CustomFieldsRendererComponent],
+  imports: [CommonModule, FormsModule, BadgeComponent, ModalComponent, CustomFieldsRendererComponent, GDriveEmbedPipe],
   templateUrl: './study-material.component.html'
 })
 export class StudyMaterialComponent implements OnInit {
@@ -99,7 +100,8 @@ export class StudyMaterialComponent implements OnInit {
       courseId: this.selectedCourse?.id || '',
       subject: '',
       targetType: 'all',
-      targetIds: []
+      targetIds: [],
+      file_url: ''
     };
   }
 
@@ -158,8 +160,9 @@ export class StudyMaterialComponent implements OnInit {
   }
 
   saveMaterial() {
-    if (!this.selectedFile) {
-      this.toastService.warning('Please select a file to upload');
+    const driveLink = (this.newMaterial.file_url || '').trim();
+    if (!driveLink) {
+      this.toastService.warning('Please paste a Google Drive link for this study material');
       return;
     }
 
@@ -168,50 +171,36 @@ export class StudyMaterialComponent implements OnInit {
       return;
     }
 
+    // Validate custom fields
+    if (this.customFieldsRenderer && !this.customFieldsRenderer.isValid()) {
+      this.toastService.warning('Please fill all required custom fields.');
+      return;
+    }
+
     this.isUploading = true;
 
-    this.dataService.uploadStudyMaterial(this.selectedFile).subscribe({
-      next: (res) => {
-        if (res.status === 'success') {
-          // Validate custom fields
-          if (this.customFieldsRenderer && !this.customFieldsRenderer.isValid()) {
-            this.isUploading = false;
-            this.toastService.warning('Please fill all required custom fields.');
-            return;
-          }
+    const payload = {
+      ...this.newMaterial,
+      file_url: driveLink,
+      file_name: this.newMaterial.title,
+      file_type: 'application/pdf',
+      target_ids: JSON.stringify([]),
+      target_type: 'none',
+      course_id: this.newMaterial.courseId || this.selectedCourse?.id,
+      custom_fields: this.customFieldsRenderer ? this.customFieldsRenderer.getValues() : null
+    };
 
-          const payload = {
-            ...this.newMaterial,
-            file_url: res.file_path,
-            file_name: this.selectedFile!.name,
-            file_type: this.selectedFile!.type,
-            target_ids: JSON.stringify([]),
-            target_type: 'none',
-            course_id: this.newMaterial.courseId || this.selectedCourse?.id,
-            custom_fields: this.customFieldsRenderer ? this.customFieldsRenderer.getValues() : null
-          };
-
-          this.dataService.saveStudyMaterial(payload).subscribe({
-            next: () => {
-              this.isUploading = false;
-              this.isAddModalOpen = false;
-              this.loadMaterials();
-              this.toastService.success('Study material saved successfully!');
-            },
-            error: (err: any) => {
-              this.isUploading = false;
-              const msg = err?.error?.message || 'Failed to save material record';
-              this.toastService.error(msg);
-            }
-          });
-        } else {
-          this.isUploading = false;
-          this.toastService.error('Upload failed: ' + (res.message || 'Unknown error'));
-        }
-      },
-      error: () => {
+    this.dataService.saveStudyMaterial(payload).subscribe({
+      next: () => {
         this.isUploading = false;
-        this.toastService.error('File upload error');
+        this.isAddModalOpen = false;
+        this.loadMaterials();
+        this.toastService.success('Study material saved successfully!');
+      },
+      error: (err: any) => {
+        this.isUploading = false;
+        const msg = err?.error?.message || 'Failed to save material record';
+        this.toastService.error(msg);
       }
     });
   }
@@ -389,8 +378,50 @@ export class StudyMaterialComponent implements OnInit {
   }
 
   openFile(url: string) {
-    const normalizedUrl = url.startsWith('/') ? url.slice(1) : url;
-    const fullUrl = url.startsWith('http') ? url : `http://localhost:8081/${normalizedUrl}`;
+    if (!url) return;
+    const clean = url.trim();
+
+    // Check if this was a mock/placeholder link from older attempts before storage fix
+    if (clean.includes('gdrive_17') || clean.startsWith('gdrive_')) {
+      this.toastService.warning('This file was uploaded before the storage fix. Please delete and re-upload it.');
+      return;
+    }
+
+    // If it's a Google Drive direct download or lh3 URL, convert to preview URL
+    if (clean.includes('googleusercontent.com')) {
+      const idMatch = clean.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (idMatch) {
+        if (idMatch[1].startsWith('gdrive_')) {
+          this.toastService.warning('This file was uploaded before the storage fix. Please delete and re-upload it.');
+          return;
+        }
+        window.open(`https://drive.google.com/file/d/${idMatch[1]}/view`, '_blank');
+        return;
+      }
+    }
+
+    // If it's a Google Drive file URL or ID, open in Google Drive viewer
+    if (clean.includes('drive.google.com')) {
+      window.open(clean, '_blank');
+      return;
+    }
+
+    // If it looks like a Google Drive download URL (?id=xxx), convert to viewer
+    const ucMatch = clean.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (ucMatch && clean.includes('drive.google.com')) {
+      window.open(`https://drive.google.com/file/d/${ucMatch[1]}/view`, '_blank');
+      return;
+    }
+
+    // If it's a raw Google Drive file ID (no URL prefix, just alphanumeric 15-100 chars)
+    if (/^[a-zA-Z0-9_-]{15,100}$/.test(clean) && !clean.startsWith('uploads/')) {
+      window.open(`https://drive.google.com/file/d/${clean}/view`, '_blank');
+      return;
+    }
+
+    // Local file path — open from backend server
+    const normalizedUrl = clean.startsWith('/') ? clean.slice(1) : clean;
+    const fullUrl = clean.startsWith('http') ? clean : `http://localhost:8081/${normalizedUrl}`;
     window.open(fullUrl, '_blank');
   }
 }

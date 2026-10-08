@@ -1,0 +1,126 @@
+<!-- Mobile External Results Template -->
+<div class="m-external-results p-4 pb-28 space-y-5 bg-slate-900 min-h-screen text-slate-100">
+  <!-- Header -->
+  <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+    <button (click)="goBack()" class="flex items-center gap-1.5 text-xs text-rose-400 font-bold">
+      <span>←</span> Back to Exams
+    </button>
+    <div class="flex items-center gap-2">
+      <button *ngIf="isReadOnly()" (click)="mode = 'edit'"
+        class="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+        ✏️ Edit Marks
+      </button>
+      <button *ngIf="!isReadOnly()" (click)="mode = 'view'"
+        class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-[10px] font-black uppercase tracking-wider">
+        View Only
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Card -->
+  <div class="bg-slate-800 p-5 rounded-3xl border border-slate-700/80 space-y-3">
+    <div class="flex items-start justify-between">
+      <div>
+        <h2 class="text-lg font-black text-white leading-tight">{{ submission?.title }}</h2>
+        <p class="text-xs font-bold text-slate-400 mt-1">👤 {{ submission?.name }}</p>
+        <p class="text-[11px] text-slate-400">📧 {{ submission?.email }}</p>
+      </div>
+      <div class="text-right">
+        <div class="text-2xl font-black text-rose-400">
+          {{ submission?.score || 0 }}<span class="text-xs text-slate-400">/{{ submission?.total_marks }}</span>
+        </div>
+        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Score</span>
+      </div>
+    </div>
+    <div class="flex gap-2 pt-1">
+      <app-badge [label]="submission?.is_evaluated == 1 ? 'Evaluated' : 'Pending Review'" [type]="submission?.is_evaluated == 1 ? 'success' : 'warning'"></app-badge>
+      <app-badge [label]="getVerdict()" [type]="getVerdict() === 'PASSED' ? 'success' : 'danger'"></app-badge>
+    </div>
+  </div>
+
+  <!-- Answers Feed -->
+  <div class="space-y-4">
+    <div *ngFor="let ans of submission?.answers; let i = index">
+      <!-- Section Header -->
+      <div *ngIf="isSectionItem(ans)"
+        class="p-4 bg-slate-800/90 rounded-2xl border-2 border-amber-500/40 text-center space-y-1">
+        <span class="px-2.5 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-[9px] font-black uppercase tracking-wider">SECTION</span>
+        <h3 class="text-sm font-black text-white uppercase">{{ ans.question_text }}</h3>
+      </div>
+
+      <!-- Question Item -->
+      <div *ngIf="!isSectionItem(ans)"
+        class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-3">
+        <div class="flex items-center justify-between text-xs font-bold">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-lg bg-slate-900 text-white flex items-center justify-center text-[11px] font-black">
+              {{ getQuestionNumberForList(submission?.answers, i) }}
+            </span>
+            <span class="text-primary-400 uppercase tracking-wider text-[10px]">{{ ans.question_type }}</span>
+            <span *ngIf="isStaffInterventionQuestion(ans)" class="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded text-[9px]">Staff Review</span>
+          </div>
+
+          <!-- Marks Control -->
+          <div class="flex items-center gap-1.5">
+            <div *ngIf="isStaffInterventionQuestion(ans) && !isReadOnly()" class="flex items-center gap-1">
+              <button type="button" (click)="adjustMarks(ans, -0.5)" [disabled]="(ans.marks_obtained || 0) <= 0"
+                class="w-6 h-6 rounded bg-slate-700 text-xs font-bold flex items-center justify-center">-½</button>
+              <input type="number" [(ngModel)]="ans.marks_obtained" (ngModelChange)="onMarksChange(ans)"
+                class="w-12 p-1 bg-slate-900 border border-slate-600 rounded text-center text-xs font-black text-white" min="0" [max]="ans.question_marks" step="0.5">
+              <button type="button" (click)="adjustMarks(ans, 0.5)" [disabled]="(ans.marks_obtained || 0) >= (ans.question_marks || 0)"
+                class="w-6 h-6 rounded bg-slate-700 text-xs font-bold flex items-center justify-center">+½</button>
+            </div>
+            <span *ngIf="!isStaffInterventionQuestion(ans) || isReadOnly()" class="px-2 py-0.5 bg-slate-900 rounded font-black text-xs text-white">
+              {{ ans.marks_obtained ?? 0 }}
+            </span>
+            <span class="text-[10px] text-slate-400">/ {{ ans.question_marks }}M</span>
+          </div>
+        </div>
+
+        <p class="text-xs font-bold text-white">{{ ans.question_text }}</p>
+
+        <!-- Candidate Response -->
+        <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-700/60 space-y-1.5">
+          <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Candidate Response:</span>
+
+          <!-- Fillups -->
+          <div *ngIf="isFillupQuestion(ans)" class="space-y-1">
+            <p class="text-xs font-bold" [class.text-emerald-400]="isFillupCorrect(ans)" [class.text-rose-400]="!isFillupCorrect(ans)">
+              Typed: "{{ ans.answer_text || '(Empty)' }}" {{ isFillupCorrect(ans) ? '✓' : '✕' }}
+            </p>
+            <p class="text-[11px] text-emerald-400">Key: {{ ans.correct_answer }}</p>
+          </div>
+
+          <!-- Descriptive / Text -->
+          <p *ngIf="ans.question_type === 'text' || ans.question_type === 'task' || ans.question_type === 'descriptive' || ans.question_type === 'either_or'"
+            class="text-xs text-slate-200 italic whitespace-pre-wrap">
+            "{{ ans.answer_text || 'No response provided.' }}"
+          </p>
+
+          <!-- MCQ -->
+          <div *ngIf="ans.question_type === 'mcq'" class="space-y-1">
+            <div *ngFor="let opt of ans.options" class="text-xs flex items-center gap-2"
+              [class.text-emerald-400]="opt.is_correct == 1"
+              [class.text-rose-400]="ans.selected_option_id == opt.id && opt.is_correct == 0"
+              [class.text-slate-400]="ans.selected_option_id != opt.id && opt.is_correct == 0">
+              <span>{{ ans.selected_option_id == opt.id ? '●' : '○' }}</span>
+              <span>{{ opt.option_text }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Action Button -->
+  <div class="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/95 border-t border-slate-800 backdrop-blur-md flex gap-2 z-30">
+    <button *ngIf="isReadOnly()" (click)="mode = 'edit'"
+      class="flex-1 py-3 bg-rose-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl">
+      ✏️ Edit Evaluation
+    </button>
+    <button *ngIf="!isReadOnly()" (click)="saveEvaluation()"
+      class="flex-1 py-3 bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl">
+      ✓ Finalize & Save Evaluation
+    </button>
+  </div>
+</div>

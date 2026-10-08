@@ -22,11 +22,12 @@ interface ReportItem {
 import { SearchableSelectComponent } from '../../shared/ui/searchable-select.component';
 import { ExportHelper } from '../../shared/utils/export-helper';
 import { BrandingHeaderComponent } from '../../shared/ui/branding-header.component';
+import { DatePickerComponent } from '../../shared/ui/date-picker.component';
 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [CommonModule, FormsModule, SearchableSelectComponent],
+  imports: [CommonModule, FormsModule, SearchableSelectComponent, DatePickerComponent],
   templateUrl: 'reports.component.html',
   styles: [`
     .fade-in {
@@ -135,6 +136,14 @@ export class ReportsComponent implements OnInit {
   batches: any[] = [];
   allStudents: any[] = [];
   courses: any[] = [];
+  courseOptionsForFilter: { id: string | number; name: string }[] = [{ id: 'all', name: 'All Courses' }];
+
+  updateCourseOptionsForFilter() {
+    this.courseOptionsForFilter = [
+      { id: 'all', name: 'All Courses' },
+      ...(this.courses || []).map((c: any) => ({ id: c.id, name: c.name }))
+    ];
+  }
 
   profitLossData: any = null;
   expensesData: any[] = [];
@@ -183,6 +192,7 @@ export class ReportsComponent implements OnInit {
       this.batches = batches;
       this.allStudents = students;
       this.courses = courses;
+      this.updateCourseOptionsForFilter();
       this.settings = settings;
       
       if (stats && (stats as any).growthInsight) {

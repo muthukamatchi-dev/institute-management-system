@@ -73,9 +73,23 @@ public class Tenant {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * Pricing plan for this tenant.
+     * Controls which features are enabled in the client application.
+     * Valid values: basic | growth | professional | enterprise
+     */
+    @Builder.Default
+    @Column(name = "plan", nullable = false, length = 20, columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'basic'")
+    private String plan = "basic";
+
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.updatedAt == null) {
+            this.updatedAt = LocalDateTime.now();
+        }
     }
 
     @PreUpdate

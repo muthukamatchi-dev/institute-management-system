@@ -20,11 +20,20 @@ public class ExamQuestion {
     @Column(name = "exam_id", nullable = false)
     private Long examId;
 
-    @Column(name = "question_type", length = 10)
+    @Column(name = "question_type", length = 50)
     private String questionType = "mcq";
 
     @Column(name = "question_text", columnDefinition = "TEXT", nullable = false)
     private String questionText;
+
+    @Column(name = "correct_answer", columnDefinition = "TEXT")
+    private String correctAnswer;
+
+    @Column(name = "is_section_title")
+    private Boolean isSectionTitle = false;
+
+    @Column(name = "match_pairs_json", columnDefinition = "TEXT")
+    private String matchPairsJson;
 
     @Column
     private Integer marks = 1;

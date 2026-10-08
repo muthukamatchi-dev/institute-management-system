@@ -10,9 +10,6 @@ import { ToastComponent } from './shared/ui/toast.component';
     standalone: true,
     imports: [RouterOutlet, ToastComponent],
     template: `
-        <div style="background: #2563eb; color: white; padding: 4px 12px; font-size: 10px; position: fixed; top: 0; left: 0; z-index: 99999; border-bottom-right-radius: 8px;">
-            CMS PRO ACTIVE
-        </div>
         <app-toast></app-toast>
         <router-outlet></router-outlet>
     `,

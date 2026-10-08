@@ -112,24 +112,25 @@
             *ngIf="timeframe === 'custom' && ['profit-loss', 'expenses', 'course-index'].includes(activeReport)">
             <div class="flex-1 space-y-2">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Starts</label>
-                <input type="date" [(ngModel)]="customStartDate" (change)="loadCurrentReport()"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                <app-date-picker [(ngModel)]="customStartDate" (change)="loadCurrentReport()"></app-date-picker>
             </div>
             <div class="flex-1 space-y-2">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ends</label>
-                <input type="date" [(ngModel)]="customEndDate" (change)="loadCurrentReport()"
-                    class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
+                <app-date-picker [(ngModel)]="customEndDate" (change)="loadCurrentReport()"></app-date-picker>
             </div>
         </ng-container>
 
         <!-- Academic Filters -->
         <div *ngIf="['batch-performance', 'student-demographics'].includes(activeReport)" class="flex-1 space-y-2">
             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Filter by Course</label>
-            <select [(ngModel)]="selectedCourseId" (change)="loadCurrentReport()"
-                class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-primary-500/10 transition-all">
-                <option value="all">All Courses</option>
-                <option *ngFor="let c of courses" [value]="c.id">{{c.name}}</option>
-            </select>
+            <app-searchable-select [(modelValue)]="selectedCourseId"
+                [options]="courseOptionsForFilter"
+                placeholder="All Courses"
+                searchPlaceholder="Search courses..."
+                labelKey="name"
+                valueKey="id"
+                (modelValueChange)="selectedCourseId = $event; loadCurrentReport()">
+            </app-searchable-select>
         </div>
 
         <button (click)="loadCurrentReport()"
@@ -293,13 +294,11 @@
                 <div *ngIf="timeframe === 'custom'" class="lg:col-span-2 grid grid-cols-2 gap-2 animate-in slide-in-from-left-2">
                     <div class="space-y-2">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">From</label>
-                        <input type="date" [(ngModel)]="customStartDate" (change)="loadAttendanceReport()"
-                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                        <app-date-picker [(ngModel)]="customStartDate" (change)="loadAttendanceReport()"></app-date-picker>
                     </div>
                     <div class="space-y-2">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">To</label>
-                        <input type="date" [(ngModel)]="customEndDate" (change)="loadAttendanceReport()"
-                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
+                        <app-date-picker [(ngModel)]="customEndDate" (change)="loadAttendanceReport()"></app-date-picker>
                     </div>
                 </div>
 
@@ -326,7 +325,11 @@
                 <div class="space-y-2">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Course Scope</label>
                     <app-searchable-select [(modelValue)]="selectedCourseId"
-                        [options]="[{id: 'all', name: 'All Courses'}, ...courses]" labelKey="name"
+                        [options]="courseOptionsForFilter"
+                        placeholder="All Courses"
+                        searchPlaceholder="Search courses..."
+                        labelKey="name"
+                        valueKey="id"
                         (onChange)="loadAttendanceReport()"></app-searchable-select>
                 </div>
 

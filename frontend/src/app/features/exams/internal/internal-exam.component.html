@@ -22,7 +22,7 @@
     <div class="flex flex-wrap items-center gap-3 mb-8">
         <!-- Search Box -->
         <div class="relative flex-1 min-w-[280px]">
-            <input type="text" [(ngModel)]="examSearchQuery" (input)="loadExams()"
+            <input type="text" [(ngModel)]="examSearchQuery" (input)="onSearchChange()"
                 class="w-full pl-10 pr-4 py-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-white outline-none focus:ring-4 focus:ring-primary-500/10 shadow-soft transition-all"
                 placeholder="Search by name...">
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
@@ -33,7 +33,7 @@
             class="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-soft">
             <label
                 class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Created</label>
-            <select [(ngModel)]="createdSort" (change)="loadExams()"
+            <select [(ngModel)]="createdSort" (change)="onCreatedSortChange()"
                 class="bg-transparent border-none text-[10px] font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer uppercase">
                 <option value="">All Time</option>
                 <option value="today">Today</option>
@@ -44,12 +44,13 @@
                 <option value="last_month">Last Month</option>
                 <option value="this_quarter">This Quarter</option>
                 <option value="this_year">This Current Year</option>
+                <option value="custom">Custom</option>
             </select>
         </div>
 
-        <!-- Date Filter -->
-        <div
-            class="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-soft">
+        <!-- Date Filter (Visible only when 'custom' is selected) -->
+        <div *ngIf="createdSort === 'custom'"
+            class="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-soft animate-in fade-in zoom-in-95 duration-200">
             <div class="flex items-center gap-2 pr-3 border-r border-slate-100 dark:border-slate-800">
                 <input type="checkbox" [(ngModel)]="useRange" id="useRange"
                     class="w-4 h-4 rounded-md accent-primary-600 cursor-pointer">
@@ -59,25 +60,27 @@
             <div *ngIf="!useRange" class="flex items-center gap-1">
                 <button (click)="changeDate(-1)"
                     class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-[10px] transition-all">◀</button>
-                <input type="date" [(ngModel)]="filterSpecificDate" (change)="applyFilters()"
-                    class="bg-transparent border-none text-[10px] font-bold text-slate-600 dark:text-slate-300 outline-none uppercase w-28 text-center">
+                <div class="w-32"><app-date-picker [(ngModel)]="filterSpecificDate"
+                        (change)="applyFilters()"></app-date-picker></div>
                 <button (click)="changeDate(1)"
                     class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-[10px] transition-all">▶</button>
             </div>
             <div *ngIf="useRange" class="flex items-center gap-2">
-                <input type="date" [(ngModel)]="filterDateFrom" (change)="applyFilters()"
-                    class="bg-transparent border-none text-[10px] font-bold text-slate-600 dark:text-slate-300 outline-none uppercase w-24">
+                <div class="w-32"><app-date-picker [(ngModel)]="filterDateFrom"
+                        (change)="applyFilters()"></app-date-picker></div>
                 <span class="text-slate-300">→</span>
-                <input type="date" [(ngModel)]="filterDateTo" (change)="applyFilters()"
-                    class="bg-transparent border-none text-[10px] font-bold text-slate-600 dark:text-slate-300 outline-none uppercase w-24">
+                <div class="w-32"><app-date-picker [(ngModel)]="filterDateTo"
+                        (change)="applyFilters()"></app-date-picker></div>
             </div>
-            <button *ngIf="filterSpecificDate || filterDateFrom || filterDateTo || createdSort || examSearchQuery"
-                (click)="filterSpecificDate=''; filterDateFrom=''; filterDateTo=''; createdSort=''; examSearchQuery=''; loadExams()"
-                class="ml-3 text-rose-500 hover:text-rose-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 transition-all">
-                <span>Clear Filters</span>
-                <i class="fas fa-times"></i>
-            </button>
         </div>
+
+        <!-- Clear Filters Button -->
+        <button *ngIf="createdSort || examSearchQuery || filterSpecificDate || filterDateFrom || filterDateTo"
+            (click)="clearFilters()"
+            class="text-rose-500 hover:text-rose-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 px-4 py-3 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer">
+            <span>Clear Filters</span>
+            <i class="fas fa-times text-xs"></i>
+        </button>
     </div>
 
     <!-- Tab Switcher -->
@@ -209,6 +212,31 @@
         </div>
     </div>
 
+    <!-- Pagination -->
+    <div *ngIf="activeTab === 'exams' && totalElements > 0"
+        class="mt-10 p-6 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-soft flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
+            Showing {{ getStartCount() }} to {{ getEndCount() }} of {{ totalElements }} assessments
+        </p>
+        <div class="flex items-center gap-3">
+            <button (click)="prevPage()" [disabled]="currentPage === 1"
+                class="px-5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center gap-1.5 cursor-pointer">
+                <i class="fas fa-chevron-left text-[10px]"></i>
+                <span>Prev</span>
+            </button>
+            <div class="flex items-center gap-1.5 px-3">
+                <span class="text-primary-600 dark:text-primary-400 font-black text-sm">{{ currentPage }}</span>
+                <span class="text-slate-300 dark:text-slate-700 text-xs font-bold">/</span>
+                <span class="text-slate-400 dark:text-slate-500 font-bold text-sm">{{ totalPages }}</span>
+            </div>
+            <button (click)="nextPage()" [disabled]="currentPage >= totalPages"
+                class="px-5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center gap-1.5 cursor-pointer">
+                <span>Next</span>
+                <i class="fas fa-chevron-right text-[10px]"></i>
+            </button>
+        </div>
+    </div>
+
     <!-- Empty State -->
     <div *ngIf="activeTab === 'exams' && exams.length === 0"
         class="flex flex-col items-center justify-center py-24 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl border border-dashed border-slate-200 dark:border-slate-800 rounded-[3rem] mt-10">
@@ -222,7 +250,7 @@
             <span *ngIf="createdSort === 'today'">for <b>today</b></span>.
             Try searching across a different timeframe.
         </p>
-        <button (click)="createdSort=''; examSearchQuery=''; loadExams()"
+        <button (click)="clearFilters()"
             class="px-10 py-5 bg-gradient-to-r from-primary-600 to-primary-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary-500/30 hover:-translate-y-1 transition-all active:scale-95 flex items-center gap-3">
             <i class="fas fa-globe"></i>
             <span>View All Time Repository</span>
@@ -318,134 +346,291 @@
     </div>
 </div>
 
-<!-- Builder Modal -->
-<app-modal [isOpen]="isModalOpen" title="Assessment Strategy Builder" actionLabel="Finalize & Save"
-    (onClose)="isModalOpen = false" (onSubmit)="saveExam()" size="huge">
-    <div class="space-y-10 max-h-[85vh] overflow-y-auto px-6 py-4">
-        <!-- Core Config -->
-        <div class="space-y-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                    <label
-                        class="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">Associated
-                        Course</label>
+<!-- Builder Modal: Oral / Performance Test & Standard Assessment -->
+<app-modal [isOpen]="isModalOpen"
+    [title]="newExam.id ? 'Edit Assessment' : (newExam.exam_type === 'performance' ? 'Create Oral / Performance Test' : 'Create Assessment')"
+    [actionLabel]="newExam.id ? 'Update Assessment' : 'Finalize & Save'" (onClose)="isModalOpen = false"
+    (onSubmit)="saveExam()" size="7xl">
+    <div class="space-y-3.5">
+        <!-- Header inputs: 2 rows of 3 big fields -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <!-- Row 1: Title, Course, Date -->
+            <div class="space-y-1 md:col-span-5">
+                <label class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                    {{ newExam.exam_type === 'performance' ? 'Assessment / Test Title' : 'Assessment Title' }}
+                </label>
+                <input type="text" [(ngModel)]="newExam.title"
+                    [placeholder]="newExam.exam_type === 'performance' ? 'e.g., English Oral Reading, Viva Voce...' : 'e.g., Full Stack Final Examination...'"
+                    class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/10 transition-all">
+            </div>
+
+            <div class="space-y-1 md:col-span-4">
+                <label class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                    Associated Course
+                </label>
+                <div class="relative">
                     <select [(ngModel)]="newExam.course_id"
-                        class="w-full px-8 py-6 bg-slate-50 dark:bg-slate-800 border-none rounded-[2rem] text-lg text-slate-800 dark:text-white font-black outline-none focus:ring-4 focus:ring-primary-500/10 transition-all shadow-inner cursor-pointer">
+                        class="w-full appearance-none px-4 py-2 pr-8 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/10 transition-all cursor-pointer">
                         <option value="">Select a Course...</option>
-                        <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+                        <option *ngFor="let course of courses" [value]="course.id"
+                            class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-bold py-2">
+                            {{ course.name }}
+                        </option>
                     </select>
-                </div>
-                <div>
-                    <label
-                        class="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">Assessment
-                        Title</label>
-                    <input type="text" [(ngModel)]="newExam.title"
-                        class="w-full px-8 py-6 bg-slate-50 dark:bg-slate-800 border-none rounded-[2rem] text-lg text-slate-800 dark:text-white font-black outline-none focus:ring-4 focus:ring-primary-500/10 transition-all shadow-inner"
-                        placeholder="e.g. Full Stack Final Examination">
+                    <span
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">▼</span>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-                <div *ngIf="newExam.exam_type !== 'performance'"
-                    class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-32">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Timer
-                        (Mins)</label>
-                    <input type="number" [(ngModel)]="newExam.duration_minutes"
-                        class="w-full bg-transparent border-none text-xl text-slate-800 dark:text-white font-black outline-none"
-                        placeholder="60">
-                </div>
+            <div class="space-y-1 md:col-span-3">
+                <label class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                    Scheduling Date
+                </label>
+                <app-date-picker [(ngModel)]="newExam.exam_date"></app-date-picker>
+            </div>
 
+            <!-- Row 2: Assessment Type, Pass (%), Status (Big fields like Row 1) -->
+            <div class="space-y-1 md:col-span-5">
+                <label class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                    Assessment Type
+                </label>
                 <div
-                    class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-32">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pass
-                        (%)</label>
-                    <input type="number" [(ngModel)]="newExam.pass_percentage"
-                        class="w-full bg-transparent border-none text-xl text-slate-800 dark:text-white font-black outline-none"
-                        placeholder="40">
+                    class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm font-bold text-slate-800 dark:text-white flex items-center justify-between border border-slate-200/60 dark:border-slate-700/60">
+                    <span class="flex items-center gap-2">
+                        <span>{{ newExam.exam_type === 'performance' ? '🎭' : '📝' }}</span>
+                        <span class="font-black uppercase tracking-wider text-xs text-indigo-600 dark:text-indigo-400">
+                            {{ newExam.exam_type === 'performance' ? 'Oral / Performance Test' : 'Standard Assessment'
+                            }}
+                        </span>
+                    </span>
+                    <span
+                        class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                        {{ newExam.exam_type === 'performance' ? 'Performance' : 'Written' }}
+                    </span>
                 </div>
+            </div>
 
-                <div
-                    class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-32">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Assessment
-                        Type</label>
-                    <div class="text-lg text-slate-800 dark:text-white font-black uppercase tracking-widest py-1">
-                        {{ newExam.exam_type === 'performance' ? '🎭 PERFORMANCE' : '📝 STANDARD' }}
+            <div class="space-y-1 md:col-span-4">
+                <label class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                    Pass Percentage (%)
+                </label>
+                <input type="number" [(ngModel)]="newExam.pass_percentage" placeholder="40" min="0" max="100"
+                    class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/10 transition-all">
+            </div>
+
+            <div class="space-y-1 md:col-span-3">
+                <label class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                    Status
+                </label>
+                <div class="relative">
+                    <select [(ngModel)]="newExam.status"
+                        class="w-full appearance-none px-4 py-2 pr-8 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/10 transition-all cursor-pointer">
+                        <option value="active"
+                            class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-bold py-2">Live
+                            (Active)</option>
+                        <option value="draft"
+                            class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-bold py-2">Review
+                            (Draft)</option>
+                    </select>
+                    <span
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">▼</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Fields (if any) -->
+        <div *ngIf="customFieldsRenderer?.fields?.length"
+            class="px-3 py-2 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-slate-800/50">
+            <app-custom-fields-renderer location="internal_exam" [entityId]="newExam.id"></app-custom-fields-renderer>
+        </div>
+
+        <!-- 2-Column Split Body: Question Form (Left) & Added Questions (Right) -->
+        <div *ngIf="!newExam.id || newExam.exam_type === 'performance'"
+            class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start pt-1">
+            <!-- LEFT COLUMN: Question / Task Creation Form -->
+            <div class="lg:col-span-7 space-y-2">
+                <div class="flex items-center justify-between px-1">
+                    <h4
+                        class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <span>✍️</span> {{ (builder && builder.editIndex !== null) ? 'Edit ' + (newExam.exam_type ===
+                        'performance' ? 'Task' : 'Question') : 'Create ' + (newExam.exam_type === 'performance' ? 'Task'
+                        : 'Question') }}
+                    </h4>
+                </div><br>
+                <app-question-builder #builder [examType]="newExam.exam_type" (onQuestionAdd)="onQuestionAdded($event)"
+                    (onQuestionUpdate)="onQuestionUpdated($event)"></app-question-builder>
+            </div>
+
+            <!-- RIGHT COLUMN: List of Added Questions / Tasks -->
+            <div class="lg:col-span-5 space-y-2">
+                <div class="flex items-center justify-between px-1">
+                    <h4
+                        class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <span>📋</span> {{ newExam.exam_type === 'performance' ? 'Tasks List' : 'Questions List' }} ({{
+                        getQuestionsOnlyCount() }})
+                    </h4>
+                    <div class="flex items-center gap-2">
+                        <button type="button" (click)="addSectionTitle()"
+                            class="px-2.5 py-1 bg-primary-500/10 hover:bg-primary-500/20 text-primary-600 dark:text-primary-400 border border-primary-500/30 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer"
+                            title="Add Title / Header Text">
+                            <span>+</span> Title
+                        </button>
+                        <button type="button" (click)="addSectionBreak()"
+                            class="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer"
+                            title="Add Section Split (e.g. SECTION - A)">
+                            <span>+</span> Section
+                        </button>
+                        <span class="text-xs font-extrabold text-primary-500 ml-1">
+                            Total Marks: {{ newExam.total_marks || 0 }}
+                        </span>
                     </div>
                 </div>
 
                 <div
-                    class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-32">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current
-                        State</label>
-                    <select [(ngModel)]="newExam.status"
-                        class="w-full bg-transparent border-none text-lg text-slate-800 dark:text-white font-black outline-none cursor-pointer">
-                        <option value="draft">Review (Draft)</option>
-                        <option value="active">Live (Active)</option>
-                    </select>
-                </div>
-
-                <div
-                    class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-32">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Scheduling
-                        Date</label>
-                    <input type="date" [(ngModel)]="newExam.exam_date"
-                        class="w-full bg-transparent border-none text-lg text-slate-800 dark:text-white font-black outline-none cursor-pointer">
-                </div>
-
-                <div
-                    class="bg-primary-50 dark:bg-primary-900/10 p-6 rounded-3xl border border-primary-100 dark:border-primary-800/50 flex flex-col justify-between h-32">
-                    <label class="block text-[10px] font-black text-primary-500 uppercase tracking-widest mb-1">Total
-                        Marks</label>
-                    <div class="text-2xl font-black text-primary-600 dark:text-primary-400">{{ newExam.total_marks || 0
-                        }}</div>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="px-8 py-6 bg-slate-50/50 dark:bg-slate-800/20 rounded-[2rem] border border-slate-100 dark:border-slate-800/50">
-            <app-custom-fields-renderer location="internal_exam" [entityId]="newExam.id"></app-custom-fields-renderer>
-        </div>
-
-        <!-- Question Composition (Show always for performance, only for new for standard) -->
-        <div *ngIf="!newExam.id || newExam.exam_type === 'performance'"
-            class="border-t border-slate-100 dark:border-slate-800 pt-10">
-            <div class="flex items-center gap-4 mb-8">
-                <div class="w-10 h-1 object-cover bg-primary-500 rounded-full"></div>
-                <h3 class="text-lg font-black text-slate-800 dark:text-white uppercase tracking-[0.3em]">Strategy
-                    Composition</h3>
-            </div>
-
-            <app-question-builder #builder [examType]="newExam.exam_type" (onQuestionAdd)="onQuestionAdded($event)"
-                (onQuestionUpdate)="onQuestionUpdated($event)"></app-question-builder>
-
-            <!-- Sequence Preview -->
-            <div *ngIf="newExam.questions.length > 0" class="mt-12 space-y-6">
-                <div class="flex items-center justify-between px-2">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Question Sequence Preview
-                        ({{newExam.questions.length}})</p>
-                    <p class="text-xs font-black text-primary-500">Total Marks: {{newExam.total_marks}}</p>
-                </div>
-
-                <div *ngFor="let q of newExam.questions; let i = index"
-                    class="group relative p-8 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] shadow-soft hover:border-primary-500/20 transition-all">
-                    <div class="flex items-start justify-between gap-6">
-                        <div class="flex-1">
-                            <div class="flex items-center gap-3 mb-3">
-                                <span
-                                    class="bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg text-[10px] font-black text-slate-500">Q{{
-                                    i+1 }}</span>
-                                <span class="text-[10px] font-black uppercase tracking-widest text-primary-500">{{
-                                    q.question_type }} • {{ q.marks }} Marks</span>
-                            </div>
-                            <h4 class="text-lg font-bold text-slate-800 dark:text-white leading-relaxed">{{
-                                q.question_text }}</h4>
+                    class="bg-slate-50/60 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 min-h-[380px] max-h-[460px] overflow-y-auto custom-scrollbar space-y-2.5">
+                    <!-- Empty State -->
+                    <div *ngIf="newExam.questions.length === 0"
+                        class="flex flex-col items-center justify-center text-center py-16 space-y-3">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-slate-200/60 dark:bg-slate-700/50 flex items-center justify-center text-xl">
+                            📝
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button (click)="builder.editQuestion(i, q)"
-                                class="p-4 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-2xl transition-all opacity-0 group-hover:opacity-100">✏️</button>
-                            <button (click)="removeQuestion(i)"
-                                class="p-4 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-2xl transition-all opacity-0 group-hover:opacity-100">🗑️</button>
+                        <p class="text-xs font-bold text-slate-400 dark:text-slate-500 max-w-xs">
+                            No {{ newExam.exam_type === 'performance' ? 'tasks' : 'questions' }} added yet. Use the form
+                            on the left or click "+ Title" or "+ Section" to organize your assessment.
+                        </p>
+                    </div>
+
+                    <!-- Items List -->
+                    <div *ngFor="let q of newExam.questions; let i = index" class="space-y-1.5 transition-all">
+                        <!-- SECTION BREAK ITEM (e.g. SECTION - A) -->
+                        <div *ngIf="q.question_type === 'section_break' || q.is_section_break"
+                            class="bg-amber-50/80 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800/60 shadow-xs flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                <span
+                                    class="text-xs font-black px-2 py-0.5 bg-amber-500 text-white rounded-md uppercase tracking-wider shrink-0">SECTION</span>
+                                <input type="text" [(ngModel)]="q.question_text"
+                                    placeholder="Enter Section Name (e.g. SECTION - A, PART B)..."
+                                    class="w-full bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700/80 px-3 py-1.5 rounded-lg text-xs font-black uppercase text-amber-900 dark:text-amber-200 outline-none focus:ring-2 focus:ring-amber-500/30">
+                            </div>
+                            <div class="flex items-center gap-0.5 shrink-0">
+                                <button type="button" (click)="moveExamQuestionUp(i); $event.stopPropagation()"
+                                    [disabled]="i === 0" title="Move Up"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all active:scale-90 cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                            d="M5 15l7-7 7 7" />
+                                    </svg>
+                                </button>
+                                <button type="button" (click)="moveExamQuestionDown(i); $event.stopPropagation()"
+                                    [disabled]="i === newExam.questions.length - 1" title="Move Down"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all active:scale-90 cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                            d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                <button type="button" (click)="removeQuestion(i); $event.stopPropagation()"
+                                    title="Delete Section Break"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all shrink-0 cursor-pointer">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- SECTION TITLE ITEM (e.g. Instructions / Part Header) -->
+                        <div *ngIf="(q.is_section_title || q.question_type === 'section_header') && q.question_type !== 'section_break' && !q.is_section_break"
+                            class="bg-slate-100 dark:bg-slate-800/90 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                <span class="text-xs">📌</span>
+                                <input type="text" [(ngModel)]="q.question_text"
+                                    placeholder="Enter Section Title (e.g. PART A - MCQs, ORAL EVALUATION)..."
+                                    class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-xs font-black uppercase text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/20">
+                            </div>
+                            <div class="flex items-center gap-0.5 shrink-0">
+                                <button type="button" (click)="moveExamQuestionUp(i); $event.stopPropagation()"
+                                    [disabled]="i === 0" title="Move Up"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all active:scale-90 cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                            d="M5 15l7-7 7 7" />
+                                    </svg>
+                                </button>
+                                <button type="button" (click)="moveExamQuestionDown(i); $event.stopPropagation()"
+                                    [disabled]="i === newExam.questions.length - 1" title="Move Down"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all active:scale-90 cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                            d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                <button type="button" (click)="removeQuestion(i); $event.stopPropagation()"
+                                    title="Delete Section Title"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all shrink-0 cursor-pointer">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- REGULAR QUESTION / TASK ITEM -->
+                        <div *ngIf="!isSectionItem(q)"
+                            class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1.5 transition-all">
+                            <div class="flex items-start justify-between gap-2.5">
+                                <div class="flex items-start gap-2.5 flex-1 min-w-0">
+                                    <span
+                                        class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500 shrink-0 mt-0.5">
+                                        Q{{ getQuestionNumberForList(newExam.questions, i) }}
+                                    </span>
+                                    <div class="flex-1 min-w-0">
+                                        <p
+                                            class="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-2 leading-relaxed">
+                                            {{ q.question_text }}
+                                        </p>
+                                        <div class="flex items-center gap-2 mt-1.5">
+                                            <span
+                                                class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                                                {{ q.question_type === 'task' ? 'Exam Task' : q.question_type }}
+                                            </span>
+                                            <span
+                                                class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">
+                                                {{ q.marks }} Marks
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-0.5 shrink-0">
+                                    <!-- Move Up -->
+                                    <button type="button" (click)="moveExamQuestionUp(i); $event.stopPropagation()"
+                                        [disabled]="i === 0" title="Move Up"
+                                        class="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all active:scale-90 cursor-pointer">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                d="M5 15l7-7 7 7" />
+                                        </svg>
+                                    </button>
+                                    <!-- Move Down -->
+                                    <button type="button" (click)="moveExamQuestionDown(i); $event.stopPropagation()"
+                                        [disabled]="i === newExam.questions.length - 1" title="Move Down"
+                                        class="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all active:scale-90 cursor-pointer">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+                                    <!-- Edit -->
+                                    <button type="button" (click)="builder.editQuestion(i, q); $event.stopPropagation()"
+                                        title="Edit"
+                                        class="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-all active:scale-95 cursor-pointer">
+                                        ✏️
+                                    </button>
+                                    <!-- Delete -->
+                                    <button type="button" (click)="removeQuestion(i); $event.stopPropagation()"
+                                        title="Delete"
+                                        class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all active:scale-95 cursor-pointer">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -454,19 +639,15 @@
 
         <!-- Info for Edit mode (Only for Standard Exams) -->
         <div *ngIf="newExam.id && newExam.exam_type !== 'performance'"
-            class="p-8 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-[2rem] flex items-center gap-6">
-            <div
-                class="w-12 h-12 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-xl shadow-sm">
-                ℹ️</div>
-            <div>
-                <h4 class="font-black text-amber-800 dark:text-amber-400 uppercase tracking-widest text-[10px]">Editing
-                    Assigned Assessment</h4>
-                <p class="text-amber-700/70 dark:text-amber-400/50 text-xs font-bold">Questions cannot be modified once
-                    an assessment is live. You can only update administrative details.</p>
-            </div>
+            class="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl text-center border border-slate-100 dark:border-slate-800">
+            <p class="text-xs text-slate-500 font-bold">
+                🔒 Question structure is locked during basic edit. Modify title, date, passing percentage, and status
+                above.
+            </p>
         </div>
     </div>
 </app-modal>
+
 
 
 
@@ -546,29 +727,37 @@
 
 <!-- Question Paper Preview Modal -->
 <app-modal [isOpen]="isPaperModalOpen" title="Question Paper Preview" (onClose)="isPaperModalOpen = false"
-    [showFooter]="false" size="huge">
+    [showFooter]="false" size="xlarge">
     <div
-        class="bg-white dark:bg-slate-950 p-12 lg:p-16 min-h-[80vh] font-serif shadow-inner rounded-3xl overflow-y-auto max-h-[85vh]">
+        class="bg-white dark:bg-slate-950 p-10 lg:p-14 min-h-[80vh] font-paper-sans shadow-inner rounded-3xl overflow-y-auto max-h-[85vh]">
         <!-- Branding Header -->
         <app-branding-header [settings]="settings"></app-branding-header>
 
         <!-- Paper Header -->
-        <div class="text-center border-b-4 border-double border-slate-900 dark:border-white pb-10 mb-12 mt-8">
-            <h2 class="text-4xl font-serif font-black text-slate-900 dark:text-white uppercase tracking-widest mb-4">{{
+        <div class="text-center border-b-2 border-slate-300 dark:border-slate-700 pb-6 mb-8 mt-4">
+            <h2
+                class="text-2xl sm:text-3xl font-academic font-bold text-slate-900 dark:text-white uppercase tracking-widest mb-3 leading-snug">
+                {{
                 selectedExam?.title }}</h2>
             <div
-                class="flex items-center justify-center gap-12 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-sm">
-                <span *ngIf="selectedExam?.exam_type !== 'performance'">Time: {{ selectedExam?.duration_minutes }}
-                    Minutes</span>
-                <span>Maximum Marks: {{ selectedExam?.total_marks }}</span>
+                class="flex items-center justify-center gap-6 sm:gap-10 text-slate-600 dark:text-slate-300 font-paper-sans font-semibold uppercase tracking-wider text-xs sm:text-sm">
+                <span *ngIf="selectedExam?.exam_type !== 'performance'">TIME: {{ selectedExam?.duration_minutes }}
+                    MINUTES</span>
+                <span *ngIf="selectedExam?.exam_type !== 'performance'"
+                    class="text-slate-300 dark:text-slate-600 font-bold">•</span>
+                <span>MAXIMUM MARKS: {{ selectedExam?.total_marks }}</span>
             </div>
         </div>
 
         <!-- Instructions -->
-        <div class="mb-12">
-            <h4 class="font-black text-slate-800 dark:text-white uppercase tracking-widest text-xs mb-4">Instructions:
+        <div
+            class="mb-10 p-5 bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+            <h4
+                class="font-paper-sans font-bold text-slate-800 dark:text-white uppercase tracking-wider text-xs mb-2.5">
+                Instructions:
             </h4>
-            <ul class="list-disc pl-6 space-y-2 text-slate-600 dark:text-slate-400 text-sm font-medium leading-relaxed">
+            <ul
+                class="list-disc pl-5 space-y-1 text-slate-600 dark:text-slate-300 text-xs sm:text-sm font-paper-sans leading-relaxed">
                 <li>Attempt all questions. Every question is mandatory.</li>
                 <li>Each question carries marks as indicated against it.</li>
                 <li>Do not refresh the portal during the examination.</li>
@@ -576,43 +765,59 @@
         </div>
 
         <!-- Questions Section -->
-        <div class="space-y-16">
-            <div *ngFor="let q of selectedExam?.questions; let i = index" class="relative group">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="flex gap-6 flex-1">
-                        <span class="text-2xl font-black text-slate-900 dark:text-white min-w-[3rem]">{{ i + 1
-                            }}.</span>
-                        <div class="flex-1">
-                            <p class="text-xl text-slate-800 dark:text-slate-200 leading-relaxed font-semibold mb-6">
-                                {{ q.question_text }}
-                            </p>
+        <div class="space-y-10">
+            <div *ngFor="let q of selectedExam?.questions; let i = index">
+                <!-- Section Header / Break Item -->
+                <div *ngIf="q.is_section_title || q.is_section_break || q.question_type === 'section_header' || q.question_type === 'section_break'"
+                    class="pt-6 pb-2 border-b-2 border-slate-900 dark:border-slate-200 mb-6">
+                    <h3
+                        class="text-lg sm:text-xl font-academic font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                        {{ q.question_text }}
+                    </h3>
+                </div>
 
-                            <!-- Options for MCQ -->
-                            <div *ngIf="q.question_type === 'mcq'"
-                                class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-                                <div *ngFor="let opt of q.options; let oi = index"
-                                    class="flex items-center gap-4 text-slate-600 dark:text-slate-400">
-                                    <span
-                                        class="w-8 h-8 rounded-full border-2 border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs font-black uppercase">
-                                        {{ ['A', 'B', 'C', 'D'][oi] }}
-                                    </span>
-                                    <span class="text-lg">{{ opt.option_text }}</span>
+                <!-- Regular Question Item -->
+                <div *ngIf="!q.is_section_title && !q.is_section_break && q.question_type !== 'section_header' && q.question_type !== 'section_break'"
+                    class="relative group">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="flex gap-4 sm:gap-6 flex-1">
+                            <span
+                                class="text-lg sm:text-xl font-bold font-paper-sans text-slate-900 dark:text-white min-w-[2.5rem]">{{
+                                getQuestionNumberForList(selectedExam?.questions, i) }}.</span>
+                            <div class="flex-1">
+                                <p
+                                    class="text-xl text-slate-800 dark:text-slate-200 leading-relaxed font-semibold mb-6">
+                                    {{ q.question_text }}
+                                </p>
+
+                                <!-- Options for MCQ -->
+                                <div *ngIf="q.question_type === 'mcq'"
+                                    class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                                    <div *ngFor="let opt of q.options; let oi = index"
+                                        class="flex items-center gap-4 text-slate-600 dark:text-slate-400">
+                                        <span
+                                            class="w-8 h-8 rounded-full border-2 border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs font-black uppercase">
+                                            {{ ['A', 'B', 'C', 'D'][oi] }}
+                                        </span>
+                                        <span class="text-lg">{{ opt.option_text }}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Blank for Descriptive -->
+                                <div *ngIf="q.question_type === 'text' || q.question_type === 'descriptive'"
+                                    class="h-32 w-full border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-center mt-4">
+                                    <span class="text-slate-300 dark:text-slate-700 font-serif italic">Descriptive
+                                        Answer
+                                        Zone</span>
                                 </div>
                             </div>
-
-                            <!-- Blank for Descriptive -->
-                            <div *ngIf="q.question_type === 'text'"
-                                class="h-32 w-full border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-center mt-4">
-                                <span class="text-slate-300 dark:text-slate-700 font-serif italic">Descriptive Answer
-                                    Zone</span>
-                            </div>
                         </div>
-                    </div>
-                    <div class="text-right ml-4">
-                        <span
-                            class="text-sm font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
-                            [{{ q.marks }} Marks]
-                        </span>
+                        <div class="text-right ml-4">
+                            <span
+                                class="text-sm font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                                [{{ q.marks }} Marks]
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -628,7 +833,7 @@
 
 <!-- Assessment Results Modal -->
 <app-modal [isOpen]="isResultsListModalOpen" [title]="'Historical Results - ' + selectedExam?.title"
-    (onClose)="isResultsListModalOpen = false" [showFooter]="false" size="huge">
+    (onClose)="isResultsListModalOpen = false" [showFooter]="false" size="xlarge">
     <div class="p-10 space-y-8">
         <div class="flex items-center justify-between">
             <div>
@@ -771,7 +976,7 @@
 
 <!-- Conduct Performance Modal -->
 <app-modal [isOpen]="isConductModalOpen" [title]="'Conduct: ' + selectedExam?.title"
-    (onClose)="isConductModalOpen = false" [showFooter]="false" size="huge">
+    (onClose)="isConductModalOpen = false" [showFooter]="false" size="xlarge">
     <div class="flex h-[80vh] overflow-hidden">
         <!-- Sidebar: Candidate List -->
         <div
@@ -829,6 +1034,11 @@
                             class="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-soft">
                             <div class="flex justify-between items-start mb-8">
                                 <div class="flex-1" *ngIf="activeSubmission.tasks?.[activeTaskIndex]">
+                                    <div *ngIf="activeSubmission.tasks?.[activeTaskIndex]?.section_title"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-lg text-[10px] font-black uppercase tracking-widest mb-3">
+                                        <span>📁</span>
+                                        <span>{{ activeSubmission.tasks?.[activeTaskIndex]?.section_title }}</span>
+                                    </div>
                                     <span
                                         class="text-[10px] font-black uppercase tracking-widest text-primary-500 mb-2 block">Current
                                         Task Description</span>
@@ -857,10 +1067,15 @@
                                             Obtained</label>
                                         <input type="number"
                                             [(ngModel)]="performanceMarks[activeSubmission.tasks?.[activeTaskIndex]?.id || 0]"
+                                            (input)="onPerformanceMarkInput(activeSubmission.tasks?.[activeTaskIndex])"
                                             class="w-full px-6 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-2xl font-black text-slate-800 dark:text-white outline-none focus:ring-4 focus:ring-primary-500/10 transition-all shadow-inner"
+                                            [class.ring-2]="isCurrentTaskMarkInvalid()"
+                                            [class.ring-rose-500]="isCurrentTaskMarkInvalid()"
                                             [placeholder]="'Max ' + (activeSubmission.tasks?.[activeTaskIndex]?.marks || 0)"
-                                            [max]="activeSubmission.tasks?.[activeTaskIndex]?.marks || 0"
-                                            min="0">
+                                            [max]="activeSubmission.tasks?.[activeTaskIndex]?.marks || 0" min="0">
+                                        <p *ngIf="isCurrentTaskMarkInvalid()" class="text-rose-500 text-[11px] font-bold mt-2 flex items-center gap-1">
+                                            ⚠️ Marks cannot exceed {{ activeSubmission.tasks?.[activeTaskIndex]?.marks }} or be negative.
+                                        </p>
                                     </div>
                                     <div>
                                         <label
@@ -882,9 +1097,10 @@
                                 ← Previous Task
                             </button>
 
-                            <div class="flex gap-2">
+                            <div class="flex gap-2 items-center">
                                 <div *ngFor="let t of activeSubmission.tasks || []; let i = index"
-                                    class="w-2.5 h-2.5 rounded-full transition-all"
+                                    (click)="goToTask(i)"
+                                    class="w-2.5 h-2.5 rounded-full transition-all cursor-pointer hover:scale-125"
                                     [class.bg-primary-500]="activeTaskIndex === i"
                                     [class.bg-slate-200]="activeTaskIndex !== i"
                                     [class.dark:bg-slate-800]="activeTaskIndex !== i"></div>
@@ -907,16 +1123,14 @@
 <app-modal [isOpen]="isEvaluationModalOpen" [title]="'Reviewing: ' + (activeReport?.student_name || 'Candidate')"
     [actionLabel]="activeReport?.status === 'evaluated' ? '' : 'Submit Final Evaluation'"
     [showFooter]="activeReport?.status !== 'evaluated'" (onClose)="closeEvaluationModal()"
-    (onSubmit)="submitEvaluation()" size="huge">
-    <div class="space-y-8 max-h-[80vh] overflow-y-auto p-10 bg-slate-50 dark:bg-slate-950">
+    (onSubmit)="submitEvaluation()" size="xlarge">
+    <div class=" space-y-8 max-h-[80vh] overflow-y-auto p-10 bg-slate-50 dark:bg-slate-950">
         <div
             class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl mb-10">
             <div class="flex items-center justify-between">
                 <div>
                     <h3 class="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">{{
                         activeReport?.exam_title }}</h3>
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Candidate ID: {{
-                        activeReport?.reg_number }}</p>
                 </div>
                 <div class="text-right">
                     <p class="text-[10px] font-black text-primary-500 uppercase tracking-widest">Aggregate Performance
@@ -928,89 +1142,373 @@
             </div>
         </div>
 
-        <div class="space-y-10">
-            <div *ngFor="let ans of activeReport?.answers; let i = index"
-                class="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-soft relative overflow-hidden">
+        <div class="space-y-8">
+            <div *ngFor="let ans of activeReport?.answers; let i = index">
 
-                <!-- Grade Accent -->
-                <div class="absolute top-0 left-0 w-2 h-full" [class.bg-emerald-500]="ans.is_correct == 1"
-                    [class.bg-rose-500]="ans.is_correct == 0" [class.bg-amber-500]="ans.is_correct == null"></div>
+                <!-- Section Break Item: No numbering, no marks entry field (Requirement 1) -->
+                <div *ngIf="isSectionItem(ans)"
+                    class="bg-gradient-to-r from-slate-100 via-white to-slate-100 dark:from-slate-900/90 dark:via-slate-800/80 dark:to-slate-900/90 rounded-[2rem] p-6 lg:p-8 border-2 border-slate-200 dark:border-slate-700/70 shadow-sm relative overflow-hidden">
+                    <div class="flex items-center gap-3">
+                        <span
+                            class="px-3 py-1 bg-primary-500/10 dark:bg-primary-400/20 text-primary-600 dark:text-primary-400 border border-primary-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                            SECTION
+                        </span>
+                        <h4
+                            class="text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-wide uppercase">
+                            {{ ans.question_text }}
+                        </h4>
+                    </div>
+                </div>
 
-                <div class="flex items-start justify-between mb-8">
-                    <div class="flex items-center gap-4">
+                <!-- Regular Question Item (MCQ, Fillups, Descriptive, Either-Or) -->
+                <div *ngIf="!isSectionItem(ans)"
+                    class="bg-white dark:bg-slate-900 rounded-[3rem] p-8 lg:p-10 border border-slate-100 dark:border-slate-800 shadow-soft relative overflow-hidden">
+
+                    <!-- Grade Accent Strip -->
+                    <div class="absolute top-0 left-0 w-2 h-full" [class.bg-emerald-500]="ans.is_correct == 1"
+                        [class.bg-rose-500]="ans.is_correct == 0" [class.bg-amber-500]="ans.is_correct == null"></div>
+
+                    <!-- Question Header & Marks -->
+                    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                        <div class="flex items-start gap-4 flex-1">
+                            <!-- Question Numbering: Section breaks are not counted (Requirement 1) -->
+                            <div
+                                class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-slate-700 dark:text-slate-300 shrink-0">
+                                {{ getQuestionNumberForList(activeReport?.answers, i) }}
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-[10px] font-black uppercase tracking-widest text-primary-500">
+                                        {{ ans.question_type }}
+                                    </span>
+                                    <span *ngIf="!isStaffInterventionQuestion(ans)"
+                                        class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400">
+                                        Auto-Graded
+                                    </span>
+                                    <span *ngIf="isStaffInterventionQuestion(ans)"
+                                        class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                        Staff Review
+                                    </span>
+                                </div>
+                                <h4 class="text-lg font-bold text-slate-800 dark:text-white leading-relaxed">
+                                    {{ ans.question_text }}
+                                </h4>
+                            </div>
+                        </div>
+
+                        <!-- Marks Allotted: Locked for MCQ/Fillups; Editable only for Descriptive/Either-Or (Requirement 2) -->
+                        <div class="flex flex-col items-end shrink-0 self-end sm:self-auto">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                Marks Allotted
+                            </span>
+                            <div class="flex items-center gap-1.5">
+                                <!-- Staff Intervention Questions: Stepper + Input + Max -->
+                                <div *ngIf="isStaffInterventionQuestion(ans)" class="flex items-center gap-1">
+                                    <!-- Minus half mark button -->
+                                    <button type="button"
+                                        [disabled]="activeReport?.status === 'evaluated' || (ans.marks_obtained || 0) <= 0"
+                                        (click)="adjustMarks(ans, -0.5)" title="Subtract ½ mark (-0.5)"
+                                        class="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none font-black text-xs text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all active:scale-95 shadow-sm">
+                                        -½
+                                    </button>
+                                    <input type="text" [(ngModel)]="ans.marks_display"
+                                        [disabled]="activeReport?.status === 'evaluated'" (input)="onMarksInput(ans)"
+                                        (blur)="onMarksBlur(ans)" placeholder="0"
+                                        title="Enter marks (e.g., 1.5, 1 1/2, or 2)"
+                                        class="w-16 px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-center font-black text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/30">
+                                    <!-- Plus half mark button -->
+                                    <button type="button"
+                                        [disabled]="activeReport?.status === 'evaluated' || (ans.marks_obtained || 0) >= (ans.question_marks || 0)"
+                                        (click)="adjustMarks(ans, 0.5)" title="Add ½ mark (+0.5)"
+                                        class="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-30 disabled:pointer-events-none font-black text-xs text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all active:scale-95 shadow-sm">
+                                        +½
+                                    </button>
+                                </div>
+
+                                <!-- Auto-graded Questions (MCQ, Fillups): Read-only Display (Requirement 2) -->
+                                <span *ngIf="!isStaffInterventionQuestion(ans)"
+                                    class="w-16 px-2 py-1 bg-slate-100 dark:bg-slate-800/80 rounded-lg text-center font-black text-slate-800 dark:text-white inline-block border border-transparent">
+                                    {{ ans.marks_obtained ?? 0 }}
+                                </span>
+                                <span class="font-black text-slate-400">/ {{ ans.question_marks }}</span>
+                            </div>
+                            <!-- Fractional mark indicator helper (e.g. 1½ marks) -->
+                            <div *ngIf="isStaffInterventionQuestion(ans)" class="h-3.5 mt-0.5 text-right">
+                                <span *ngIf="ans.marks_obtained == 1.5"
+                                    class="text-[10px] font-bold text-primary-500 tracking-wide">
+                                    (1½ marks)
+                                </span>
+                                <span *ngIf="ans.marks_obtained == 0.5"
+                                    class="text-[10px] font-bold text-primary-500 tracking-wide">
+                                    (½ mark)
+                                </span>
+                                <span *ngIf="ans.marks_obtained == 2.5"
+                                    class="text-[10px] font-bold text-primary-500 tracking-wide">
+                                    (2½ marks)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MCQ Response -->
+                    <div *ngIf="ans.question_type === 'mcq'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div *ngFor="let opt of ans.options" [class.border-emerald-500]="opt.is_correct == 1"
+                            [class.bg-emerald-500/10]="opt.is_correct == 1"
+                            [class.border-rose-500]="ans.selected_option_id == opt.id && opt.is_correct == 0"
+                            [class.bg-rose-500/10]="ans.selected_option_id == opt.id && opt.is_correct == 0"
+                            class="p-4 border-2 border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-between transition-all">
+                            <span class="text-sm font-bold" [class.text-emerald-600]="opt.is_correct == 1"
+                                [class.dark:text-emerald-400]="opt.is_correct == 1"
+                                [class.text-rose-600]="ans.selected_option_id == opt.id && opt.is_correct == 0"
+                                [class.dark:text-rose-400]="ans.selected_option_id == opt.id && opt.is_correct == 0">
+                                {{ opt.option_text }}
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <span *ngIf="ans.selected_option_id == opt.id"
+                                    class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-slate-900 dark:bg-slate-700 text-white rounded-md">
+                                    Candidate Selection
+                                </span>
+                                <span *ngIf="opt.is_correct == 1" class="text-xl">✅</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fillups Response: Both Student Typed and Correct Answer shown (Requirement 2) -->
+                    <div *ngIf="isFillupQuestion(ans)" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Student Typed Answer -->
+                            <div class="p-5 rounded-2xl border-2" [class.border-emerald-500/40]="isFillupCorrect(ans)"
+                                [class.bg-emerald-500/5]="isFillupCorrect(ans)"
+                                [class.border-rose-500/40]="!isFillupCorrect(ans)"
+                                [class.bg-rose-500/5]="!isFillupCorrect(ans)">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                        ✍️ Student's Typed Answer
+                                    </span>
+                                    <span *ngIf="isFillupCorrect(ans)"
+                                        class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                        ✓ Matches Expected
+                                    </span>
+                                    <span *ngIf="!isFillupCorrect(ans)"
+                                        class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                        ✕ Incorrect
+                                    </span>
+                                </div>
+                                <p class="text-base font-bold text-slate-800 dark:text-white break-words">
+                                    {{ ans.answer_text ? ans.answer_text : '(No response typed)' }}
+                                </p>
+                            </div>
+
+                            <!-- Expected / Correct Answer Key -->
+                            <div class="p-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                                        🎯 Correct Answer (Key)
+                                    </span>
+                                    <span class="text-xs">🔑</span>
+                                </div>
+                                <p class="text-base font-bold text-emerald-700 dark:text-emerald-300 break-words">
+                                    {{ ans.correct_answer || '(No answer key recorded)' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <p class="text-[11px] text-slate-400 font-medium italic flex items-center gap-1.5">
+                            <span>ℹ️</span> Automatically evaluated via case-insensitive matching. Marks cannot be
+                            manually
+                            modified.
+                        </p>
+                    </div>
+
+                    <!-- Descriptive / Subjective Response (Requirement 3) -->
+                    <div *ngIf="ans.question_type === 'text' || ans.question_type === 'descriptive' || ans.question_type === 'task'"
+                        class="space-y-4">
                         <div
-                            class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-slate-500">
-                            {{ i + 1 }}
-                        </div>
-                        <div>
-                            <span class="text-[10px] font-black uppercase tracking-widest text-primary-500">{{
-                                ans.question_type }}</span>
-                            <h4 class="text-lg font-bold text-slate-800 dark:text-white">{{ ans.question_text }}</h4>
-                        </div>
-                    </div>
-                    <div class="flex flex-col items-end">
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Marks
-                            Allotted</span>
-                        <div class="flex items-center gap-2">
-                            <input type="number" [(ngModel)]="ans.marks_obtained"
-                                [disabled]="ans.question_type === 'mcq' || activeReport?.status === 'evaluated'"
-                                [max]="ans.question_marks"
-                                min="0"
-                                (change)="recalculateActiveReportTotal()"
-                                class="w-16 px-2 py-1 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-center font-black text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/20">
-                            <span class="font-black text-slate-300">/ {{ ans.question_marks }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- MCQ Response -->
-                <div *ngIf="ans.question_type === 'mcq'" class="grid grid-cols-2 gap-4">
-                    <div *ngFor="let opt of ans.options" [class.border-emerald-500]="opt.is_correct == 1"
-                        [class.bg-emerald-50/10]="opt.is_correct == 1"
-                        [class.border-rose-500]="ans.selected_option_id == opt.id && opt.is_correct == 0"
-                        [class.bg-rose-50/10]="ans.selected_option_id == opt.id && opt.is_correct == 0"
-                        class="p-4 border-2 border-slate-50 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-                        <span class="text-sm font-bold" [class.text-emerald-500]="opt.is_correct == 1"
-                            [class.text-rose-500]="ans.selected_option_id == opt.id && opt.is_correct == 0">{{
-                            opt.option_text }}</span>
-                        <span *ngIf="ans.selected_option_id == opt.id"
-                            class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-slate-900 text-white rounded-md">Candidate
-                            Selection</span>
-                        <span *ngIf="opt.is_correct == 1" class="text-xl">✅</span>
-                    </div>
-                </div>
-
-                <!-- Descriptive/Performance Task Response -->
-                <div *ngIf="ans.question_type === 'text' || ans.question_type === 'task'" class="mt-4">
-                    <div
-                        class="p-8 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-700 italic text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-                        "{{ ans.answer_text || (ans.question_type === 'task' ? 'No remarks provided.' : 'No response
-                        provided.') }}"
-                    </div>
-                    <div class="flex items-center gap-6 mt-6" *ngIf="ans.question_type === 'text'">
-                        <label class="flex items-center gap-3 cursor-pointer group">
-                            <input type="radio" [name]="'ans_'+ans.id" [value]="1" [(ngModel)]="ans.is_correct"
-                                class="hidden">
-                            <div class="w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center group-hover:border-emerald-500 transition-all"
-                                [class.bg-emerald-500]="ans.is_correct == 1"
-                                [class.border-emerald-500]="ans.is_correct == 1">
-                                <span *ngIf="ans.is_correct == 1" class="text-[10px] text-white">✓</span>
+                            class="p-6 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    📝 Student's Submitted Response
+                                </span>
+                                <span class="text-[10px] font-bold text-primary-500 uppercase tracking-widest">
+                                    Requires Staff Evaluation
+                                </span>
                             </div>
-                            <span
-                                class="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-500 transition-all">Mark
-                                Correct</span>
-                        </label>
-                        <label class="flex items-center gap-3 cursor-pointer group">
-                            <input type="radio" [name]="'ans_'+ans.id" [value]="0" [(ngModel)]="ans.is_correct"
-                                class="hidden">
-                            <div class="w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center group-hover:border-rose-500 transition-all"
-                                [class.bg-rose-500]="ans.is_correct == 0" [class.border-rose-500]="ans.is_correct == 0">
-                                <span *ngIf="ans.is_correct == 0" class="text-[10px] text-white">✕</span>
+                            <p
+                                class="text-base font-medium text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                                {{ ans.answer_text || 'No response provided.' }}
+                            </p>
+                        </div>
+
+                        <!-- Quick Evaluation Controls for Staff -->
+                        <div *ngIf="activeReport?.status !== 'evaluated'"
+                            class="flex items-center flex-wrap gap-2 pt-1">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-1">Quick
+                                Mark:</span>
+
+                            <!-- Full Marks Button: ONLY highlights when marks_obtained == question_marks -->
+                            <button type="button" (click)="setManualExactMarks(ans, ans.question_marks)"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm cursor-pointer"
+                                [class.bg-emerald-500]="isFullMarks(ans)" [class.text-white]="isFullMarks(ans)"
+                                [class.border-emerald-500]="isFullMarks(ans)" [class.bg-slate-100]="!isFullMarks(ans)"
+                                [class.dark:bg-slate-800]="!isFullMarks(ans)" [class.text-slate-600]="!isFullMarks(ans)"
+                                [class.dark:text-slate-300]="!isFullMarks(ans)"
+                                [class.border-slate-200]="!isFullMarks(ans)"
+                                [class.dark:border-slate-700]="!isFullMarks(ans)">
+                                <span>✓</span> Full Marks ({{ ans.question_marks }})
+                            </button>
+
+                            <!-- 1½ Marks (1.5) Button: If question is 2 marks -->
+                            <button *ngIf="ans.question_marks == 2" type="button"
+                                (click)="setManualExactMarks(ans, 1.5)"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm cursor-pointer"
+                                [class.bg-blue-600]="isExactMarks(ans, 1.5)" [class.text-white]="isExactMarks(ans, 1.5)"
+                                [class.border-blue-600]="isExactMarks(ans, 1.5)"
+                                [class.bg-slate-100]="!isExactMarks(ans, 1.5)"
+                                [class.dark:bg-slate-800]="!isExactMarks(ans, 1.5)"
+                                [class.text-slate-600]="!isExactMarks(ans, 1.5)"
+                                [class.dark:text-slate-300]="!isExactMarks(ans, 1.5)"
+                                [class.border-slate-200]="!isExactMarks(ans, 1.5)"
+                                [class.dark:border-slate-700]="!isExactMarks(ans, 1.5)">
+                                <span>⭐</span> 1½ Marks (1.5)
+                            </button>
+
+                            <!-- Half Marks Button: If question > 1 marks -->
+                            <button *ngIf="ans.question_marks > 1" type="button"
+                                (click)="setManualExactMarks(ans, ans.question_marks / 2)"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm cursor-pointer"
+                                [class.bg-amber-500]="isExactMarks(ans, ans.question_marks / 2)"
+                                [class.text-white]="isExactMarks(ans, ans.question_marks / 2)"
+                                [class.border-amber-500]="isExactMarks(ans, ans.question_marks / 2)"
+                                [class.bg-slate-100]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.dark:bg-slate-800]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.text-slate-600]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.dark:text-slate-300]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.border-slate-200]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.dark:border-slate-700]="!isExactMarks(ans, ans.question_marks / 2)">
+                                <span>½</span> Half Marks ({{ ans.question_marks / 2 }})
+                            </button>
+
+                            <!-- Zero Marks Button: ONLY highlights when marks_obtained == 0 -->
+                            <button type="button" (click)="setManualExactMarks(ans, 0)"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm cursor-pointer"
+                                [class.bg-rose-500]="isZeroMarks(ans)" [class.text-white]="isZeroMarks(ans)"
+                                [class.border-rose-500]="isZeroMarks(ans)" [class.bg-slate-100]="!isZeroMarks(ans)"
+                                [class.dark:bg-slate-800]="!isZeroMarks(ans)" [class.text-slate-600]="!isZeroMarks(ans)"
+                                [class.dark:text-slate-300]="!isZeroMarks(ans)"
+                                [class.border-slate-200]="!isZeroMarks(ans)"
+                                [class.dark:border-slate-700]="!isZeroMarks(ans)">
+                                <span>✕</span> Zero Marks (0)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Either / Or Response (Requirement 3) -->
+                    <div *ngIf="ans.question_type === 'either_or'" class="space-y-4">
+                        <!-- Either / Or Question Choices Overview -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="p-4 bg-primary-500/5 border border-primary-500/20 rounded-2xl">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span
+                                        class="w-6 h-6 rounded-lg bg-primary-600 text-white flex items-center justify-center text-xs font-black">A</span>
+                                    <span class="text-xs font-black text-primary-500 uppercase tracking-wider">Option
+                                        A</span>
+                                </div>
+                                <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    {{ getEitherOrA(ans) }}
+                                </p>
                             </div>
-                            <span
-                                class="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-rose-500 transition-all">Mark
-                                Incorrect</span>
-                        </label>
+                            <div class="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-2xl">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span
+                                        class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black">B</span>
+                                    <span class="text-xs font-black text-indigo-500 uppercase tracking-wider">Option
+                                        B</span>
+                                </div>
+                                <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    {{ getEitherOrB(ans) }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Student's Typed / Selected Response -->
+                        <div
+                            class="p-6 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    ⚖️ Candidate's Choice & Submitted Answer
+                                </span>
+                                <span class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">
+                                    Requires Staff Evaluation
+                                </span>
+                            </div>
+                            <p
+                                class="text-base font-medium text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                                {{ ans.answer_text || 'No response provided.' }}
+                            </p>
+                        </div>
+
+                        <!-- Quick Evaluation Controls for Staff -->
+                        <div *ngIf="activeReport?.status !== 'evaluated'"
+                            class="flex items-center flex-wrap gap-2 pt-1">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-1">Quick
+                                Mark:</span>
+
+                            <!-- Full Marks Button: ONLY highlights when marks_obtained == question_marks -->
+                            <button type="button" (click)="setManualExactMarks(ans, ans.question_marks)"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm cursor-pointer"
+                                [class.bg-emerald-500]="isFullMarks(ans)" [class.text-white]="isFullMarks(ans)"
+                                [class.border-emerald-500]="isFullMarks(ans)" [class.bg-slate-100]="!isFullMarks(ans)"
+                                [class.dark:bg-slate-800]="!isFullMarks(ans)" [class.text-slate-600]="!isFullMarks(ans)"
+                                [class.dark:text-slate-300]="!isFullMarks(ans)"
+                                [class.border-slate-200]="!isFullMarks(ans)"
+                                [class.dark:border-slate-700]="!isFullMarks(ans)">
+                                <span>✓</span> Full Marks ({{ ans.question_marks }})
+                            </button>
+
+                            <!-- 1½ Marks (1.5) Button: If question is 2 marks -->
+                            <button *ngIf="ans.question_marks == 2" type="button"
+                                (click)="setManualExactMarks(ans, 1.5)"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm cursor-pointer"
+                                [class.bg-blue-600]="isExactMarks(ans, 1.5)" [class.text-white]="isExactMarks(ans, 1.5)"
+                                [class.border-blue-600]="isExactMarks(ans, 1.5)"
+                                [class.bg-slate-100]="!isExactMarks(ans, 1.5)"
+                                [class.dark:bg-slate-800]="!isExactMarks(ans, 1.5)"
+                                [class.text-slate-600]="!isExactMarks(ans, 1.5)"
+                                [class.dark:text-slate-300]="!isExactMarks(ans, 1.5)"
+                                [class.border-slate-200]="!isExactMarks(ans, 1.5)"
+                                [class.dark:border-slate-700]="!isExactMarks(ans, 1.5)">
+                                <span>⭐</span> 1½ Marks (1.5)
+                            </button>
+
+                            <!-- Half Marks Button: If question > 1 marks -->
+                            <button *ngIf="ans.question_marks > 1" type="button"
+                                (click)="setManualExactMarks(ans, ans.question_marks / 2)"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm cursor-pointer"
+                                [class.bg-amber-500]="isExactMarks(ans, ans.question_marks / 2)"
+                                [class.text-white]="isExactMarks(ans, ans.question_marks / 2)"
+                                [class.border-amber-500]="isExactMarks(ans, ans.question_marks / 2)"
+                                [class.bg-slate-100]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.dark:bg-slate-800]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.text-slate-600]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.dark:text-slate-300]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.border-slate-200]="!isExactMarks(ans, ans.question_marks / 2)"
+                                [class.dark:border-slate-700]="!isExactMarks(ans, ans.question_marks / 2)">
+                                <span>½</span> Half Marks ({{ ans.question_marks / 2 }})
+                            </button>
+
+                            <!-- Zero Marks Button: ONLY highlights when marks_obtained == 0 -->
+                            <button type="button" (click)="setManualExactMarks(ans, 0)"
+                                class="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm cursor-pointer"
+                                [class.bg-rose-500]="isZeroMarks(ans)" [class.text-white]="isZeroMarks(ans)"
+                                [class.border-rose-500]="isZeroMarks(ans)" [class.bg-slate-100]="!isZeroMarks(ans)"
+                                [class.dark:bg-slate-800]="!isZeroMarks(ans)" [class.text-slate-600]="!isZeroMarks(ans)"
+                                [class.dark:text-slate-300]="!isZeroMarks(ans)"
+                                [class.border-slate-200]="!isZeroMarks(ans)"
+                                [class.dark:border-slate-700]="!isZeroMarks(ans)">
+                                <span>✕</span> Zero Marks (0)
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

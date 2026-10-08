@@ -11,5 +11,9 @@ public interface ExternalParticipantRepository extends JpaRepository<ExternalPar
     List<ExternalParticipant> findByExamId(Long examId);
     Optional<ExternalParticipant> findByExamIdAndEmail(Long examId, String email);
     Optional<ExternalParticipant> findByExamIdAndEmailAndPassword(Long examId, String email, String password);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM ExternalParticipant p WHERE p.examId = :examId AND (LOWER(TRIM(p.email)) = LOWER(TRIM(:identifier)) OR LOWER(TRIM(p.name)) = LOWER(TRIM(:identifier))) AND TRIM(p.password) = TRIM(:password)")
+    Optional<ExternalParticipant> findByExamIdAndIdentifierAndPassword(@org.springframework.data.repository.query.Param("examId") Long examId, @org.springframework.data.repository.query.Param("identifier") String identifier, @org.springframework.data.repository.query.Param("password") String password);
+
     void deleteByExamId(Long examId);
 }

@@ -8,11 +8,12 @@ import { QuestionBuilderComponent } from '../shared/question-builder.component';
 import { ToastService } from '../../../services/toast.service';
 import { CustomFieldsRendererComponent } from '../../../shared/ui/custom-fields-renderer.component';
 import { BrandingHeaderComponent } from '../../../shared/ui/branding-header.component';
+import { DatePickerComponent } from '../../../shared/ui/date-picker.component';
 
 @Component({
     selector: 'app-internal-exam',
     standalone: true,
-    imports: [CommonModule, FormsModule, ModalComponent, BadgeComponent, QuestionBuilderComponent, CustomFieldsRendererComponent, BrandingHeaderComponent],
+    imports: [CommonModule, FormsModule, ModalComponent, BadgeComponent, QuestionBuilderComponent, CustomFieldsRendererComponent, BrandingHeaderComponent, DatePickerComponent],
     templateUrl: './internal-exam.component.html'
 })
 export class InternalExamComponent implements OnInit {
@@ -57,8 +58,15 @@ export class InternalExamComponent implements OnInit {
     filterDateFrom: string = '';
     filterDateTo: string = '';
     useRange: boolean = false;
-    createdSort: string = 'today';
+    createdSort: string = '';
     examSearchQuery: string = '';
+
+    // Pagination
+    currentPage: number = 1;
+    pageSize: number = 10;
+    totalElements: number = 0;
+    totalPages: number = 1;
+    loading: boolean = false;
 
     get filteredSubmissions() {
         if (!this.submissionSearchQuery.trim()) return this.allSubmissions;
@@ -127,20 +135,45 @@ export class InternalExamComponent implements OnInit {
         };
     }
 
+    onCreatedSortChange() {
+        if (this.createdSort !== 'custom') {
+            this.filterSpecificDate = '';
+            this.filterDateFrom = '';
+            this.filterDateTo = '';
+        }
+        this.currentPage = 1;
+        this.loadExams();
+    }
+
+    onSearchChange() {
+        this.currentPage = 1;
+        this.loadExams();
+    }
+
+    clearFilters() {
+        this.filterSpecificDate = '';
+        this.filterDateFrom = '';
+        this.filterDateTo = '';
+        this.createdSort = '';
+        this.examSearchQuery = '';
+        this.currentPage = 1;
+        this.loadExams();
+    }
+
     loadExams() {
-        const filters: any = {};
-        if (this.useRange) {
-            if (this.filterDateFrom) filters.date_from = this.filterDateFrom;
-            if (this.filterDateTo) filters.date_to = this.filterDateTo;
-        } else {
-            if (this.filterSpecificDate) filters.exam_date = this.filterSpecificDate;
-        }
+        const filters: any = {
+            page: this.currentPage - 1,
+            size: this.pageSize
+        };
 
-        if (this.examSearchQuery) {
-            filters.q = this.examSearchQuery;
-        }
-
-        if (this.createdSort) {
+        if (this.createdSort === 'custom') {
+            if (this.useRange) {
+                if (this.filterDateFrom) filters.date_from = this.filterDateFrom;
+                if (this.filterDateTo) filters.date_to = this.filterDateTo;
+            } else {
+                if (this.filterSpecificDate) filters.exam_date = this.filterSpecificDate;
+            }
+        } else if (this.createdSort) {
             const range = this.getDateRangeForSort(this.createdSort);
             if (range) {
                 filters.created_from = range.from;
@@ -148,7 +181,32 @@ export class InternalExamComponent implements OnInit {
             }
         }
 
-        this.dataService.getInternalExams(filters).subscribe((res: any[]) => this.exams = res);
+        if (this.examSearchQuery) {
+            filters.q = this.examSearchQuery;
+        }
+
+        this.loading = true;
+        this.dataService.getInternalExams(filters).subscribe({
+            next: (res: any) => {
+                if (res && res.content) {
+                    this.exams = res.content;
+                    this.totalElements = res.totalElements || 0;
+                    this.totalPages = res.totalPages || 1;
+                } else if (Array.isArray(res)) {
+                    this.exams = res;
+                    this.totalElements = res.length;
+                    this.totalPages = Math.ceil(res.length / this.pageSize) || 1;
+                } else {
+                    this.exams = [];
+                    this.totalElements = 0;
+                    this.totalPages = 1;
+                }
+                this.loading = false;
+            },
+            error: () => {
+                this.loading = false;
+            }
+        });
     }
 
     private getDateRangeForSort(sort: string) {
@@ -187,13 +245,14 @@ export class InternalExamComponent implements OnInit {
             default:
                 return null;
         }
-        return { 
-            from: from.toLocaleDateString('sv-SE'), 
-            to: to.toLocaleDateString('sv-SE') 
+        return {
+            from: from.toLocaleDateString('sv-SE'),
+            to: to.toLocaleDateString('sv-SE')
         };
     }
 
     applyFilters() {
+        this.currentPage = 1;
         this.loadExams();
     }
 
@@ -202,7 +261,38 @@ export class InternalExamComponent implements OnInit {
         const d = new Date(current);
         d.setDate(d.getDate() + days);
         this.filterSpecificDate = d.toLocaleDateString('sv-SE');
+        this.currentPage = 1;
         this.loadExams();
+    }
+
+    getStartCount(): number {
+        if (this.totalElements === 0) return 0;
+        return (this.currentPage - 1) * this.pageSize + 1;
+    }
+
+    getEndCount(): number {
+        return Math.min(this.currentPage * this.pageSize, this.totalElements);
+    }
+
+    prevPage() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.loadExams();
+        }
+    }
+
+    nextPage() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage++;
+            this.loadExams();
+        }
+    }
+
+    goToPage(page: number) {
+        if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+            this.currentPage = page;
+            this.loadExams();
+        }
     }
 
     canModify(exam: any): boolean {
@@ -228,6 +318,180 @@ export class InternalExamComponent implements OnInit {
             this.selectedExam = res;
             this.isPaperModalOpen = true;
         });
+    }
+
+    isSectionItem(q: any): boolean {
+        if (!q) return false;
+        if (q.is_section_title || q.is_section_break) return true;
+        const type = (q.question_type || '').toLowerCase();
+        if (type === 'section_header' || type === 'section_break' || type === 'section') return true;
+        const text = (q.question_text || '').trim();
+        const marks = Number(q.marks || q.question_marks || q.max_marks) || 0;
+        if (marks === 0 && (
+            /^section\b/i.test(text) || 
+            /^part\b/i.test(text) || 
+            /^[ivxlcdm]+\.\s*(answer|choose|fill|match)/i.test(text)
+        )) {
+            return true;
+        }
+        return false;
+    }
+
+    getQuestionNumberForList(questions: any[] | undefined, targetIndex: number): number {
+        if (!questions) return 1;
+        let count = 0;
+        for (let i = 0; i <= targetIndex; i++) {
+            const q = questions[i];
+            if (q && !this.isSectionItem(q)) {
+                count++;
+            }
+        }
+        return count || 1;
+    }
+
+    isStaffInterventionQuestion(ans: any): boolean {
+        if (!ans || this.isSectionItem(ans)) return false;
+        const type = (ans.question_type || '').toLowerCase();
+        return type === 'descriptive' || type === 'either_or' || type === 'text' || type === 'task';
+    }
+
+    isFillupQuestion(ans: any): boolean {
+        if (!ans) return false;
+        const type = (ans.question_type || '').toLowerCase();
+        return type === 'fillups' || type === 'fill_in_the_blanks' || type === 'fill';
+    }
+
+    isFillupCorrect(ans: any): boolean {
+        if (!ans) return false;
+        const student = (ans.answer_text || '').trim().toLowerCase();
+        const expected = (ans.correct_answer || '').trim().toLowerCase();
+        return student.length > 0 && expected.length > 0 && student === expected;
+    }
+
+    isFullMarks(ans: any): boolean {
+        if (!ans) return false;
+        const maxMarks = Number(ans.question_marks) || Number(ans.max_marks) || 0;
+        return maxMarks > 0 && Number(ans.marks_obtained) === maxMarks;
+    }
+
+    isZeroMarks(ans: any): boolean {
+        if (!ans) return false;
+        return Number(ans.marks_obtained) === 0;
+    }
+
+    isExactMarks(ans: any, val: number): boolean {
+        if (!ans) return false;
+        return Number(ans.marks_obtained) === Number(val);
+    }
+
+    setManualExactMarks(ans: any, marks: number) {
+        const maxMarks = Number(ans.question_marks) || Number(ans.max_marks) || 0;
+        let target = Number(marks) || 0;
+        if (target < 0) target = 0;
+        if (target > maxMarks) target = maxMarks;
+        ans.marks_obtained = target;
+        ans.marks_display = String(target);
+        ans.is_correct = (maxMarks > 0 && target === maxMarks) ? 1 : (target > 0 ? 1 : 0);
+        this.recalculateActiveReportTotal();
+    }
+
+    setManualGrade(ans: any, isCorrect: boolean) {
+        const maxMarks = Number(ans.question_marks) || Number(ans.max_marks) || 0;
+        this.setManualExactMarks(ans, isCorrect ? maxMarks : 0);
+    }
+
+    adjustMarks(ans: any, delta: number) {
+        const maxMarks = Number(ans.question_marks) || Number(ans.max_marks) || 0;
+        let current = Number(ans.marks_obtained) || 0;
+        let next = Math.round((current + delta) * 10) / 10;
+        if (next < 0) next = 0;
+        if (next > maxMarks) next = maxMarks;
+        ans.marks_obtained = next;
+        ans.marks_display = String(next);
+        ans.is_correct = (maxMarks > 0 && next === maxMarks) ? 1 : (next > 0 ? 1 : 0);
+        this.recalculateActiveReportTotal();
+    }
+
+    parseFractionOrNumber(val: any): number {
+        if (val === null || val === undefined || val === '') return 0;
+        const str = String(val).trim();
+        const mixedMatch = str.match(/^(\d+)\s*[\s\-\+]\s*(\d+)\/(\d+)$/);
+        if (mixedMatch) {
+            const whole = Number(mixedMatch[1]);
+            const num = Number(mixedMatch[2]);
+            const den = Number(mixedMatch[3]);
+            if (den !== 0) return Math.round((whole + (num / den)) * 100) / 100;
+        }
+        const fracMatch = str.match(/^(\d+)\/(\d+)$/);
+        if (fracMatch) {
+            const num = Number(fracMatch[1]);
+            const den = Number(fracMatch[2]);
+            if (den !== 0) return Math.round((num / den) * 100) / 100;
+        }
+        const parsed = parseFloat(str.replace(',', '.'));
+        return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100;
+    }
+
+    onMarksInput(ans: any) {
+        const maxMarks = Number(ans.question_marks) || Number(ans.max_marks) || 0;
+        let marks = this.parseFractionOrNumber(ans.marks_display);
+        if (marks < 0) marks = 0;
+        if (marks > maxMarks) marks = maxMarks;
+        ans.marks_obtained = marks;
+        ans.is_correct = (maxMarks > 0 && marks === maxMarks) ? 1 : (marks > 0 ? 1 : 0);
+        this.recalculateActiveReportTotal();
+    }
+
+    onMarksBlur(ans: any) {
+        this.onMarksInput(ans);
+        ans.marks_display = String(ans.marks_obtained ?? 0);
+    }
+
+    onMarksChange(ans: any) {
+        const maxMarks = Number(ans.question_marks) || Number(ans.max_marks) || 0;
+        let marks = Number(ans.marks_obtained) || 0;
+        if (marks < 0) marks = 0;
+        if (marks > maxMarks) marks = maxMarks;
+        ans.marks_obtained = marks;
+        ans.marks_display = String(marks);
+        ans.is_correct = (maxMarks > 0 && marks === maxMarks) ? 1 : (marks > 0 ? 1 : 0);
+        this.recalculateActiveReportTotal();
+    }
+
+    moveExamQuestionUp(index: number) {
+        if (index <= 0 || !this.newExam?.questions) return;
+        const temp = this.newExam.questions[index];
+        this.newExam.questions[index] = this.newExam.questions[index - 1];
+        this.newExam.questions[index - 1] = temp;
+    }
+
+    moveExamQuestionDown(index: number) {
+        if (!this.newExam?.questions || index >= this.newExam.questions.length - 1) return;
+        const temp = this.newExam.questions[index];
+        this.newExam.questions[index] = this.newExam.questions[index + 1];
+        this.newExam.questions[index + 1] = temp;
+    }
+
+    getEitherOrA(q: any): string {
+        if (!q) return '';
+        if (q.question_a) return q.question_a;
+        if (q.options && q.options.length > 0 && q.options[0]?.option_text) return q.options[0].option_text;
+        if (q.question_text) {
+            const parts = q.question_text.split(/\n?\(or\)\n?/i);
+            return parts[0].replace(/^[Aa][\.\)]\s*/, '').trim();
+        }
+        return '';
+    }
+
+    getEitherOrB(q: any): string {
+        if (!q) return '';
+        if (q.question_b) return q.question_b;
+        if (q.options && q.options.length > 1 && q.options[1]?.option_text) return q.options[1].option_text;
+        if (q.question_text) {
+            const parts = q.question_text.split(/\n?\(or\)\n?/i);
+            if (parts.length > 1) return parts[1].replace(/^[Bb][\.\)]\s*/, '').trim();
+        }
+        return '';
     }
 
     openCreateModal(type: 'standard' | 'performance' = 'standard') {
@@ -280,8 +544,55 @@ export class InternalExamComponent implements OnInit {
         this.calculateTotalMarks();
     }
 
+    addSectionTitle() {
+        if (!this.newExam.questions) {
+            this.newExam.questions = [];
+        }
+        const newTitleItem = {
+            is_section_title: true,
+            question_type: 'section_header',
+            question_text: 'I. ANSWER THE FOLLOWING :',
+            marks: 0
+        };
+        this.newExam.questions.push(newTitleItem);
+    }
+
+    addSectionBreak() {
+        if (!this.newExam.questions) {
+            this.newExam.questions = [];
+        }
+        const nextSectionLabel = this.getNextSectionLabel();
+        const newSectionItem = {
+            is_section_break: true,
+            is_section_title: true,
+            question_type: 'section_break',
+            question_text: `SECTION - ${nextSectionLabel}`,
+            marks: 0
+        };
+        this.newExam.questions.push(newSectionItem);
+    }
+
+    getNextSectionLabel(): string {
+        if (!this.newExam?.questions) return 'A';
+        const sectionBreaks = this.newExam.questions.filter((q: any) => q.question_type === 'section_break' || q.is_section_break);
+        const count = sectionBreaks.length;
+        const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        return letters[count] || `${count + 1}`;
+    }
+
+    getQuestionsOnlyCount(): number {
+        if (!this.newExam?.questions) return 0;
+        return this.newExam.questions.filter((q: any) => !this.isSectionItem(q)).length;
+    }
+
     calculateTotalMarks() {
-        this.newExam.total_marks = this.newExam.questions.reduce((acc: number, q: any) => acc + (Number(q.marks) || 0), 0);
+        if (!this.newExam?.questions) {
+            this.newExam.total_marks = 0;
+            return;
+        }
+        this.newExam.total_marks = this.newExam.questions
+            .filter((q: any) => !this.isSectionItem(q))
+            .reduce((acc: number, q: any) => acc + (Number(q.marks) || 0), 0);
     }
 
     saveExam() {
@@ -394,13 +705,28 @@ export class InternalExamComponent implements OnInit {
     evaluate(submission: any) {
         this.dataService.getSubmissionDetails(submission.id).subscribe((res: any) => {
             this.activeReport = res;
+            if (this.activeReport && this.activeReport.answers) {
+                this.activeReport.answers.forEach((ans: any) => {
+                    if (this.isSectionItem(ans)) {
+                        ans.marks_obtained = 0;
+                        ans.is_correct = null;
+                    } else if (this.isFillupQuestion(ans)) {
+                        const correct = this.isFillupCorrect(ans);
+                        ans.is_correct = correct ? 1 : 0;
+                        const qMarks = Number(ans.question_marks) || Number(ans.max_marks) || 1;
+                        ans.marks_obtained = correct ? qMarks : 0;
+                    }
+                    ans.marks_display = String(ans.marks_obtained != null ? ans.marks_obtained : 0);
+                });
+                this.recalculateActiveReportTotal();
+            }
             this.isEvaluationModalOpen = true;
         });
     }
 
     submitEvaluation() {
-        const invalid = this.activeReport.answers.find((a: any) => 
-            Number(a.marks_obtained) > (Number(a.question_marks) || 0) || Number(a.marks_obtained) < 0
+        const invalid = this.activeReport?.answers?.find((a: any) =>
+            !this.isSectionItem(a) && (Number(a.marks_obtained) > (Number(a.question_marks) || 0) || Number(a.marks_obtained) < 0)
         );
 
         if (invalid) {
@@ -408,11 +734,21 @@ export class InternalExamComponent implements OnInit {
             return;
         }
 
-        const evaluations = this.activeReport.answers.map((a: any) => ({
-            answer_id: a.id,
-            marks: a.marks_obtained,
-            is_correct: a.is_correct
-        }));
+        const evaluations = this.activeReport.answers.map((a: any) => {
+            if (this.isSectionItem(a)) {
+                return { answer_id: a.id, marks: 0, is_correct: null };
+            }
+            if (this.isFillupQuestion(a)) {
+                const correct = this.isFillupCorrect(a);
+                const qMarks = Number(a.question_marks) || Number(a.max_marks) || 1;
+                return { answer_id: a.id, marks: correct ? qMarks : 0, is_correct: correct ? 1 : 0 };
+            }
+            return {
+                answer_id: a.id,
+                marks: a.marks_obtained,
+                is_correct: a.is_correct
+            };
+        });
         this.dataService.evaluateSubmission(this.activeReport.id, evaluations).subscribe((res: any) => {
             this.isEvaluationModalOpen = false;
             this.activeReport = null;
@@ -427,8 +763,8 @@ export class InternalExamComponent implements OnInit {
 
     recalculateActiveReportTotal() {
         if (!this.activeReport) return;
-        this.activeReport.total_score = this.activeReport.answers.reduce((acc: number, a: any) => 
-            acc + (Number(a.marks_obtained) || 0), 0);
+        this.activeReport.total_score = this.activeReport.answers.reduce((acc: number, a: any) =>
+            acc + (this.isSectionItem(a) ? 0 : (Number(a.marks_obtained) || 0)), 0);
     }
 
     closeEvaluationModal() {
@@ -476,6 +812,22 @@ export class InternalExamComponent implements OnInit {
     }
 
     startEvaluation(student: any) {
+        const allQuestions = this.selectedExam.questions || [];
+        let currentSection = '';
+        const evaluatableTasks: any[] = [];
+        for (const q of allQuestions) {
+            if (this.isSectionItem(q)) {
+                if (q.question_text) {
+                    currentSection = q.question_text;
+                }
+            } else {
+                evaluatableTasks.push({
+                    ...JSON.parse(JSON.stringify(q)),
+                    section_title: currentSection
+                });
+            }
+        }
+
         this.activeSubmission = {
             student_id: student.student_id || student.id,
             student_name: student.student_name || student.name,
@@ -483,27 +835,100 @@ export class InternalExamComponent implements OnInit {
             exam_id: this.selectedExam.id,
             total_marks: this.selectedExam.total_marks,
             pass_percentage: this.selectedExam.pass_percentage,
-            tasks: JSON.parse(JSON.stringify(this.selectedExam.questions || []))
+            tasks: evaluatableTasks
         };
         this.activeTaskIndex = 0;
         this.performanceMarks = {};
     }
 
+    validateCurrentTask(): boolean {
+        if (!this.activeSubmission || !this.activeSubmission.tasks) return true;
+        const currentTask = this.activeSubmission.tasks[this.activeTaskIndex];
+        if (!currentTask) return true;
+        const raw = this.performanceMarks[currentTask.id];
+        if (raw !== undefined && raw !== null && raw !== '') {
+            const entered = Number(raw);
+            const max = Number(currentTask.marks) || 0;
+            if (isNaN(entered)) {
+                this.toastService.warning('Please enter a valid number for marks.');
+                return false;
+            }
+            if (entered > max) {
+                this.toastService.warning(`Marks for this task cannot exceed maximum marks (${max})!`);
+                return false;
+            }
+            if (entered < 0) {
+                this.toastService.warning('Marks cannot be less than 0.');
+                return false;
+            }
+        }
+        return true;
+    }
+
+    onPerformanceMarkInput(task: any) {
+        if (!task) return;
+        const raw = this.performanceMarks[task.id];
+        if (raw !== undefined && raw !== null && raw !== '') {
+            const entered = Number(raw);
+            const max = Number(task.marks) || 0;
+            if (entered > max) {
+                this.toastService.warning(`Entered marks (${entered}) exceed maximum allowable marks of ${max}.`);
+            } else if (entered < 0) {
+                this.toastService.warning('Marks cannot be less than 0.');
+            }
+        }
+    }
+
+    isCurrentTaskMarkInvalid(): boolean {
+        if (!this.activeSubmission || !this.activeSubmission.tasks) return false;
+        const currentTask = this.activeSubmission.tasks[this.activeTaskIndex];
+        if (!currentTask) return false;
+        const raw = this.performanceMarks[currentTask.id];
+        if (raw !== undefined && raw !== null && raw !== '') {
+            const entered = Number(raw);
+            const max = Number(currentTask.marks) || 0;
+            return entered > max || entered < 0;
+        }
+        return false;
+    }
+
     nextTask() {
+        if (!this.validateCurrentTask()) {
+            return;
+        }
         if (this.activeTaskIndex < this.activeSubmission.tasks.length - 1) {
             this.activeTaskIndex++;
         }
     }
 
     prevTask() {
+        if (!this.validateCurrentTask()) {
+            return;
+        }
         if (this.activeTaskIndex > 0) {
             this.activeTaskIndex--;
         }
     }
+
+    goToTask(index: number) {
+        if (!this.validateCurrentTask()) {
+            return;
+        }
+        if (index >= 0 && index < (this.activeSubmission?.tasks?.length || 0)) {
+            this.activeTaskIndex = index;
+        }
+    }
+
     savePerformance() {
-        const invalid = this.activeSubmission.tasks.find((t: any) => 
-            (Number(this.performanceMarks[t.id]) || 0) > (Number(t.marks) || 0) || (Number(this.performanceMarks[t.id]) || 0) < 0
-        );
+        if (!this.validateCurrentTask()) {
+            return;
+        }
+        const invalid = this.activeSubmission.tasks.find((t: any) => {
+            const raw = this.performanceMarks[t.id];
+            if (raw === undefined || raw === null || raw === '') return false;
+            const val = Number(raw);
+            return val > (Number(t.marks) || 0) || val < 0;
+        });
 
         if (invalid) {
             this.toastService.warning(`Marks for task "${invalid.question_text}" cannot exceed ${invalid.marks} or be less than 0.`);
@@ -520,12 +945,16 @@ export class InternalExamComponent implements OnInit {
                 remarks: t.remarks || ''
             }))
         };
+        const studentName = this.activeSubmission.student_name;
         this.dataService.savePerformanceSubmission(payload).subscribe(() => {
-            const studentName = this.activeSubmission.student_name;
             this.activeSubmission = null;
             this.toastService.success(`Evaluation finalized for ${studentName}. Score: ${totalObtained}/${this.selectedExam.total_marks}`);
+            this.loadExams();
             if (this.activeTab === 'evaluations') {
                 this.loadAllSubmissions();
+            }
+            if (this.isResultsListModalOpen && this.selectedExam) {
+                this.viewResults(this.selectedExam);
             }
             this.openConductModal(this.selectedExam);
         });

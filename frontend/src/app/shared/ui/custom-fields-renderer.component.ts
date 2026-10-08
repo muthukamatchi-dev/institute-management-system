@@ -2,11 +2,12 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
+import { DatePickerComponent } from './date-picker.component';
 
 @Component({
   selector: 'app-custom-fields-renderer',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DatePickerComponent],
   template: `
     <div *ngIf="fields.length > 0" class="pt-3">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -22,9 +23,7 @@ import { DataService } from '../../services/data.service';
             placeholder="{{ f.field_label }}">
 
           <!-- Date -->
-          <input *ngIf="f.field_type === 'date'" 
-            type="date" [(ngModel)]="values[f.id]"
-            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 transition-all font-semibold text-sm">
+          <app-date-picker *ngIf="f.field_type === 'date'" [(ngModel)]="values[f.id]"></app-date-picker>
 
           <!-- Dropdown -->
           <select *ngIf="f.field_type === 'dropdown'" 

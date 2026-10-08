@@ -44,16 +44,11 @@
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-500 text-lg">🔍</span>
         </div>
         <div class="flex flex-col sm:flex-row gap-3">
-            <div class="relative w-full sm:w-auto">
-                <select [(ngModel)]="filterCourse" (change)="onFilterChange()"
-                    class="appearance-none w-full sm:w-auto pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-slate-800 dark:text-white font-bold tracking-tight text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 hover:border-slate-300 dark:hover:border-slate-600 transition-all outline-none cursor-pointer shadow-sm">
-                    <option value="" class="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">All Courses
-                    </option>
-                    <option *ngFor="let course of courses$ | async" [value]="course.id"
-                        class="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">{{ course.name }}</option>
-                </select>
-                <span
-                    class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs text-slate-400 dark:text-slate-500">▼</span>
+            <div class="w-full sm:w-64 min-w-[200px]">
+                <app-searchable-select [options]="courseOptionsForFilter" placeholder="All Courses"
+                    searchPlaceholder="Search courses..." labelKey="name" valueKey="id" [modelValue]="filterCourse"
+                    (modelValueChange)="filterCourse = $event; onFilterChange()">
+                </app-searchable-select>
             </div>
             <div class="relative w-full sm:w-auto">
                 <select [(ngModel)]="filterStatus" (change)="onFilterChange()"
@@ -140,7 +135,7 @@
                             <div class="flex items-center gap-3">
                                 <div *ngIf="student.photo"
                                     class="w-10 h-10 rounded-xl overflow-hidden shadow-sm shrink-0 border border-slate-100 dark:border-slate-800">
-                                    <img [src]="student.photo" class="w-full h-full object-cover">
+                                    <img [src]="student.photo | gdriveImage" class="w-full h-full object-cover">
                                 </div>
                                 <div *ngIf="!student.photo"
                                     class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 font-bold flex items-center justify-center shrink-0">
@@ -154,7 +149,19 @@
                             </div>
                         </td>
                         <td class="px-6 py-4">
-                            <p class="text-sm font-bold text-slate-700 dark:text-slate-300">{{ student.courseName }}</p>
+                            <div class="flex flex-col gap-1">
+                                <!-- Primary course always shown -->
+                                <p class="text-sm font-bold text-slate-700 dark:text-slate-300">{{ student.courseName }}
+                                </p>
+                                <!-- Additional courses if enrolled in more than one -->
+                                <ng-container
+                                    *ngIf="student.enrolledCourseNames && student.enrolledCourseNames.length > 1">
+                                    <span *ngFor="let cn of student.enrolledCourseNames; let first = first"
+                                        class="text-[10px] font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 px-1.5 py-0.5 rounded-md w-fit">
+                                        {{ cn }}
+                                    </span>
+                                </ng-container>
+                            </div>
                         </td>
                         <td class="px-6 py-4">
                             <p class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ student.joiningDate |
@@ -205,6 +212,25 @@
                                     </button>
                                 </div>
                             </div>
+                    </tr>
+                    <tr *ngIf="paginatedStudents().length === 0">
+                        <td colspan="6" class="px-6 py-16 text-center">
+                            <div class="flex flex-col items-center justify-center gap-3 max-w-sm mx-auto">
+                                <div
+                                    class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-3xl flex items-center justify-center shadow-inner text-slate-400 dark:text-slate-500">
+                                    🎓
+                                </div>
+                                <div>
+                                    <p class="text-base font-bold text-slate-700 dark:text-slate-200">No student records
+                                        found</p>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">There are no
+                                        students registered yet or matching your search filter.</p>
+                                </div>
+                                <button (click)="openAddModal()"
+                                    class="mt-2 px-4 py-2 bg-primary-600 text-white text-xs font-bold rounded-xl hover:bg-primary-700 transition-all flex items-center gap-1.5 shadow-md">
+                                    <span>+</span> Add Student
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
@@ -239,60 +265,197 @@
 </div>
 
 <!-- Import Modal with Guidance -->
-<app-modal [isOpen]="isImportModalOpen" title="Student Bulk Import (XLS)" actionLabel="Execute Import"
+<app-modal [isOpen]="isImportModalOpen" title="Student Bulk Import (XLS / CSV)" actionLabel="Execute Import"
     (onClose)="isImportModalOpen = false" (onSubmit)="processImport()" size="4xl">
     <div class="space-y-6">
         <div
             class="p-6 bg-primary-50 dark:bg-primary-900/10 rounded-3xl border border-primary-100 dark:border-primary-900/30">
-            <h4 class="text-base font-black text-slate-800 dark:text-white uppercase tracking-widest mb-2">Column Header
-                Requirements</h4>
-            <p class="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
-                To ensure a successful bridge, your Excel file must contain these exact column headers in the first row:
-            </p>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
-                <div *ngFor="let col of ['Reg Number', 'Name', 'Mobile', 'Date of Birth', 'Joining Date', 'Email', 'Father Name', 'Qualification', 'Course', 'Batch', 'Status']"
-                    class="px-3 py-2 bg-white dark:bg-slate-900 rounded-xl text-xs font-black text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-800 text-center">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h4 class="text-base font-black text-slate-800 dark:text-white uppercase tracking-widest mb-1">
+                        Column Header Requirements</h4>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                        Upload an Excel (.xlsx, .xls) or CSV file with student details. Mandatory fields are
+                        <b>Name*</b> and <b>Mobile*</b>.
+                    </p>
+                </div>
+                <button type="button" (click)="downloadSampleXls()"
+                    class="px-4 py-2.5 bg-white dark:bg-slate-800 text-primary-700 dark:text-primary-300 font-bold text-xs rounded-xl border border-primary-200 dark:border-primary-800 hover:bg-primary-50 transition-all shadow-sm flex items-center gap-2 flex-shrink-0">
+                    <span>📥</span> Download Sample (.xlsx)
+                </button>
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-2">
+                <span *ngFor="let col of ['Name*', 'Mobile*']"
+                    class="px-3 py-1.5 bg-primary-600 text-white rounded-xl text-xs font-black shadow-sm">
                     {{ col }}
-                </div>
-                <div *ngFor="let cf of customFields"
-                    class="px-3 py-2 bg-primary-100/50 dark:bg-primary-900/40 rounded-xl text-xs font-bold text-primary-700 dark:text-primary-300 border border-primary-200/50 dark:border-primary-800/50 text-center">
+                </span>
+                <span
+                    *ngFor="let col of ['Reg Number', 'Email', 'Father Name', 'Parent Mobile', 'Gender', 'Date of Birth', 'Qualification', 'Address', 'Joining Date', 'Course Name', 'Subjects', 'Status']"
+                    class="px-3 py-1.5 bg-white dark:bg-slate-900 rounded-xl text-xs font-bold text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-800">
+                    {{ col }}
+                </span>
+                <span *ngFor="let cf of customFields"
+                    class="px-3 py-1.5 bg-primary-100/50 dark:bg-primary-900/40 rounded-xl text-xs font-bold text-primary-700 dark:text-primary-300 border border-primary-200/50 dark:border-primary-800/50">
                     {{ cf.field_label }}
-                </div>
+                </span>
             </div>
             <p class="text-xs text-slate-400 mt-3 italic font-medium">
-                * If 'Reg Number' is provided and exists, the student record will be updated. If missing, a new ID will
-                be generated.
+                * 'Course Name' and 'Batch Name' are optional. If provided, they will enroll the student into that
+                course & batch automatically.
             </p>
-            <p class="text-xs text-slate-400 mt-2 italic font-medium">
-                * 'Course' is required and must match an existing course name. 'Batch' is optional, but if provided it
-                must match an existing batch name.
-            </p>
+            <button (click)="isGuidanceOpen = !isGuidanceOpen"
+                class="mt-3 text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer">
+                {{ isGuidanceOpen ? 'Hide' : 'View' }} Column Mapping Guide
+            </button>
+        </div>
+
+        <div *ngIf="isGuidanceOpen"
+            class="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-4 md:p-5 border border-primary-200/60 dark:border-primary-900/40 space-y-4 shadow-sm animate-in fade-in duration-200">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
+                <div>
+                    <h5
+                        class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                        <span>📋</span> Student Column Mapping & Format Guide
+                    </h5>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Accepted spreadsheet headers and expected format values for student bulk import.
+                    </p>
+                </div>
+                <span
+                    class="text-[10px] font-black px-2.5 py-1 bg-primary-100 dark:bg-primary-950/80 text-primary-800 dark:text-primary-300 rounded-lg uppercase tracking-wider">
+                    Excel / CSV Guide
+                </span>
+            </div>
+
+            <div
+                class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900">
+                <table class="w-full text-xs text-left border-collapse">
+                    <thead
+                        class="bg-slate-100 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold uppercase text-[10px] tracking-wider">
+                        <tr>
+                            <th class="px-3 py-2.5">Column Header</th>
+                            <th class="px-3 py-2.5">Type</th>
+                            <th class="px-3 py-2.5">Description & Mapping</th>
+                            <th class="px-3 py-2.5">Values to Enter in File</th>
+                            <th class="px-3 py-2.5">Sample Value</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                        <tr class="bg-primary-50/30 dark:bg-primary-950/20">
+                            <td class="px-3 py-2.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">Name</td>
+                            <td class="px-3 py-2.5"><span
+                                    class="px-1.5 py-0.5 bg-primary-600 text-white text-[9px] font-bold rounded">Mandatory</span>
+                            </td>
+                            <td class="px-3 py-2.5 font-medium text-[11px]">Full name of student</td>
+                            <td class="px-3 py-2.5 font-mono text-[11px]">Any valid name string</td>
+                            <td class="px-3 py-2.5 font-bold text-primary-600">John Doe</td>
+                        </tr>
+                        <tr class="bg-primary-50/30 dark:bg-primary-950/20">
+                            <td class="px-3 py-2.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">Mobile
+                            </td>
+                            <td class="px-3 py-2.5"><span
+                                    class="px-1.5 py-0.5 bg-primary-600 text-white text-[9px] font-bold rounded">Mandatory</span>
+                            </td>
+                            <td class="px-3 py-2.5 font-medium text-[11px]">10-digit mobile number</td>
+                            <td class="px-3 py-2.5 font-mono text-[11px]">Digits only (no spaces)</td>
+                            <td class="px-3 py-2.5 font-mono font-bold text-slate-600 dark:text-slate-400">9876543210
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">Gender
+                            </td>
+                            <td class="px-3 py-2.5"><span
+                                    class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[9px] font-bold rounded">Optional</span>
+                            </td>
+                            <td class="px-3 py-2.5 font-medium text-[11px]">Student gender</td>
+                            <td class="px-3 py-2.5 font-mono text-[11px]"><code
+                                    class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">male</code>,
+                                <code
+                                    class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">female</code>,
+                                <code class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">others</code>
+                            </td>
+                            <td class="px-3 py-2.5 font-mono">male</td>
+                        </tr>
+                        <tr class="bg-slate-50/50 dark:bg-slate-800/30">
+                            <td class="px-3 py-2.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">Date of
+                                Birth / Joining Date</td>
+                            <td class="px-3 py-2.5"><span
+                                    class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[9px] font-bold rounded">Optional</span>
+                            </td>
+                            <td class="px-3 py-2.5 font-medium text-[11px]">Date format</td>
+                            <td class="px-3 py-2.5 font-mono text-[11px]"><code
+                                    class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">YYYY-MM-DD</code>
+                                or <code
+                                    class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">DD-MM-YYYY</code>
+                            </td>
+                            <td class="px-3 py-2.5 font-mono">2026-01-10</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">Course
+                                Name</td>
+                            <td class="px-3 py-2.5"><span
+                                    class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[9px] font-bold rounded">Optional</span>
+                            </td>
+                            <td class="px-3 py-2.5 font-medium text-[11px]">Auto-enroll student into matching course
+                            </td>
+                            <td class="px-3 py-2.5 font-mono text-[11px]">Exact Course title in catalog</td>
+                            <td class="px-3 py-2.5 font-bold text-primary-600">Full Stack Web Development</td>
+                        </tr>
+                        <tr class="bg-slate-50/50 dark:bg-slate-800/30">
+                            <td class="px-3 py-2.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">Status
+                            </td>
+                            <td class="px-3 py-2.5"><span
+                                    class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[9px] font-bold rounded">Optional</span>
+                            </td>
+                            <td class="px-3 py-2.5 font-medium text-[11px]">Enrollment status</td>
+                            <td class="px-3 py-2.5 font-mono text-[11px]"><code
+                                    class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">active</code>,
+                                <code
+                                    class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">completed</code>,
+                                <code
+                                    class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">inactive</code>,
+                                <code
+                                    class="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-bold">suspended</code>
+                            </td>
+                            <td class="px-3 py-2.5 font-mono text-emerald-600 font-bold">active</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div>
-            <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Sample Data Format</h4>
+            <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Sample Data Format</h4>
             <div class="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
                 <table class="w-full text-xs text-left border-collapse">
                     <thead class="bg-slate-50 dark:bg-slate-800">
                         <tr>
-                            <th class="px-4 py-2 font-black text-slate-500 uppercase tracking-widest">Name</th>
-                            <th class="px-4 py-2 font-black text-slate-500 uppercase tracking-widest">Mobile</th>
-                            <th class="px-4 py-2 font-black text-slate-500 uppercase tracking-widest">Joining Date</th>
-                            <th class="px-4 py-2 font-black text-slate-500 uppercase tracking-widest">Email</th>
+                            <th class="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest">Reg Number</th>
+                            <th class="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest">Name</th>
+                            <th class="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest">Mobile</th>
+                            <th class="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest">Father Name</th>
+                            <th class="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest">Course Name</th>
+                            <th class="px-4 py-2.5 font-black text-slate-500 uppercase tracking-widest">Joining Date
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         <tr>
-                            <td class="px-4 py-3 text-slate-500 font-medium">John Doe</td>
-                            <td class="px-4 py-3 text-slate-500 font-medium font-mono">9876543210</td>
-                            <td class="px-4 py-3 text-slate-500 font-medium">2024-04-01</td>
-                            <td class="px-4 py-3 text-slate-500 font-medium">john@example.com</td>
+                            <td class="px-4 py-3 text-slate-400 font-mono">STU-2026-001</td>
+                            <td class="px-4 py-3 text-slate-800 dark:text-slate-200 font-bold">John Doe</td>
+                            <td class="px-4 py-3 text-slate-500 font-mono">9876543210</td>
+                            <td class="px-4 py-3 text-slate-500">Robert Doe</td>
+                            <td class="px-4 py-3 text-primary-600 font-medium">Full Stack Web Development</td>
+                            <td class="px-4 py-3 text-slate-500">2026-01-10</td>
                         </tr>
                         <tr>
-                            <td class="px-4 py-3 text-slate-500 font-medium">Jane Smith</td>
-                            <td class="px-4 py-3 text-slate-500 font-medium font-mono">9000011122</td>
-                            <td class="px-4 py-3 text-slate-500 font-medium">2024-04-01</td>
-                            <td class="px-4 py-3 text-slate-500 font-medium">jane@example.com</td>
+                            <td class="px-4 py-3 text-slate-400 font-mono">STU-2026-002</td>
+                            <td class="px-4 py-3 text-slate-800 dark:text-slate-200 font-bold">Jane Smith</td>
+                            <td class="px-4 py-3 text-slate-500 font-mono">9123456780</td>
+                            <td class="px-4 py-3 text-slate-500">David Smith</td>
+                            <td class="px-4 py-3 text-primary-600 font-medium">UI/UX Design Masterclass</td>
+                            <td class="px-4 py-3 text-slate-500">2026-01-15</td>
                         </tr>
                     </tbody>
                 </table>
@@ -301,281 +464,394 @@
 
         <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
             <label class="block text-sm font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Select
-                Spreadsheet File</label>
+                Spreadsheet File (.xlsx, .xls, .csv)</label>
             <label
                 class="relative block w-full aspect-[4/1] border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl hover:border-primary-500 transition-all cursor-pointer group overflow-hidden bg-white dark:bg-slate-900">
                 <input type="file" (change)="onFileChange($event)"
-                    class="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".xlsx, .xls">
+                    class="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".xlsx, .xls, .csv">
                 <div class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
                     <span class="text-3xl mb-2 group-hover:scale-125 transition-all">📄</span>
                     <span class="text-sm font-black text-slate-500 uppercase tracking-widest">{{ importFile ?
                         importFile.name : 'Drop file here or click to browse' }}</span>
-                    <p class="text-xs text-slate-400 mt-1 font-medium italic">Supports .XLS and .XLSX formats</p>
+                    <p class="text-xs text-slate-400 mt-1 font-medium italic">Supports .XLS, .XLSX, and .CSV formats</p>
                 </div>
             </label>
         </div>
     </div>
 </app-modal>
 
-<!-- Student Add/Edit Modal -->
+<!-- Student Add/Edit Modal (Slider Wizard) -->
 <app-modal [isOpen]="isModalOpen" [size]="'4xl'" [title]="newStudent.id ? 'Edit Student Details' : 'Enroll New Student'"
-    actionLabel="Confirm Enrollment" (onClose)="closeModal()" (onSubmit)="saveStudent()">
-    <div class="space-y-6 py-1">
+    [showFooter]="false" (onClose)="closeModal()">
 
-        <!-- Section 1: Identity & Registration -->
-        <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-3 mb-4">
-                <span
-                    class="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center text-[10px] font-black">01</span>
-                <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Identity &
-                    Registration</h4>
+    <!-- Ultra-Sleek Modern Stepper Bar -->
+    <div
+        class="mb-5 p-1.5 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-inner flex items-center justify-between gap-2 sm:gap-4 relative">
+
+        <!-- STEP 1 BTN -->
+        <button type="button" (click)="currentStep = 1"
+            class="flex-1 flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all duration-300 relative z-10 cursor-pointer"
+            [class.bg-gradient-to-r]="currentStep === 1" [class.from-primary-600]="currentStep === 1"
+            [class.to-indigo-600]="currentStep === 1" [class.text-white]="currentStep === 1"
+            [class.shadow-md]="currentStep === 1" [class.shadow-primary-500/25]="currentStep === 1"
+            [class.text-slate-600]="currentStep !== 1" [class.dark:text-slate-400]="currentStep !== 1"
+            [class.hover:bg-slate-200/60]="currentStep !== 1" [class.dark:hover:bg-slate-700/50]="currentStep !== 1">
+
+            <span class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black transition-transform"
+                [class.bg-white/20]="currentStep === 1" [class.text-white]="currentStep === 1"
+                [class.bg-slate-200]="currentStep !== 1" [class.dark:bg-slate-700]="currentStep !== 1"
+                [class.text-slate-700]="currentStep !== 1" [class.dark:text-slate-300]="currentStep !== 1">
+                <span *ngIf="createdStudent && currentStep === 2">✓</span>
+                <span *ngIf="!createdStudent || currentStep === 1">1</span>
+            </span>
+
+            <span class="tracking-wider uppercase text-[11px] font-black">
+                Identity & Profile
+            </span>
+        </button>
+
+        <!-- STEP PROGRESS CONNECTOR LINE -->
+        <div
+            class="flex-1 max-w-[80px] sm:max-w-[140px] h-2 bg-slate-200 dark:bg-slate-700/80 rounded-full overflow-hidden p-0.5 hidden sm:block shadow-inner">
+            <div class="h-full bg-gradient-to-r from-primary-500 to-indigo-500 rounded-full transition-all duration-500"
+                [style.width]="currentStep === 2 ? '100%' : (createdStudent ? '50%' : '0%')">
+            </div>
+        </div>
+
+        <!-- STEP 2 BTN -->
+        <button type="button" (click)="createdStudent ? currentStep = 2 : null" [disabled]="!createdStudent"
+            class="flex-1 flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all duration-300 relative z-10"
+            [class.cursor-pointer]="!!createdStudent" [class.cursor-not-allowed]="!createdStudent"
+            [class.opacity-60]="!createdStudent" [class.bg-gradient-to-r]="currentStep === 2"
+            [class.from-indigo-600]="currentStep === 2" [class.to-primary-600]="currentStep === 2"
+            [class.text-white]="currentStep === 2" [class.shadow-md]="currentStep === 2"
+            [class.shadow-indigo-500/25]="currentStep === 2" [class.text-slate-600]="currentStep !== 2"
+            [class.dark:text-slate-400]="currentStep !== 2"
+            [class.hover:bg-slate-200/60]="currentStep !== 2 && createdStudent"
+            [class.dark:hover:bg-slate-700/50]="currentStep !== 2 && createdStudent">
+
+            <span class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black transition-transform"
+                [class.bg-white/20]="currentStep === 2" [class.text-white]="currentStep === 2"
+                [class.bg-slate-200]="currentStep !== 2" [class.dark:bg-slate-700]="currentStep !== 2"
+                [class.text-slate-700]="currentStep !== 2" [class.dark:text-slate-300]="currentStep !== 2">
+                2
+            </span>
+
+            <span class="tracking-wider uppercase text-[11px] font-black">
+                Course Enrollment
+            </span>
+        </button>
+
+    </div>
+
+    <!-- Sliding Container -->
+    <div class="overflow-hidden relative w-full">
+        <div class="flex transition-transform duration-500 ease-in-out w-[200%]"
+            [style.transform]="currentStep === 1 ? 'translateX(0%)' : 'translateX(-50%)'">
+
+            <!-- STEP 1: Student Details Form -->
+            <div class="w-1/2 pr-4 space-y-6">
+                <!-- Section 1: Identity & Registration -->
+                <div
+                    class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span
+                            class="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center text-[10px] font-black">01</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Identity
+                            &
+                            Registration</h4>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                        <!-- Profile Photo (Upload or Google Drive Link) -->
+                        <div class="flex flex-col items-center space-y-2 mt-1 shrink-0 w-full sm:w-auto">
+                            <div
+                                class="relative group w-24 h-24 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex items-center justify-center transition-all hover:border-primary-500"
+                                [class.cursor-pointer]="!isGdriveImageMode"
+                                (click)="!isGdriveImageMode && photoInput.click()">
+                                <img *ngIf="newStudent.photo" [src]="newStudent.photo | gdriveImage"
+                                    class="w-full h-full object-cover">
+                                <div *ngIf="!newStudent.photo" class="text-center p-2">
+                                    <span class="text-2xl block">{{ isGdriveImageMode ? '☁️' : '📷' }}</span>
+                                    <span
+                                        class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-1">
+                                        {{ isGdriveImageMode ? 'Drive Image' : 'Add Photo' }}
+                                    </span>
+                                </div>
+                                <div *ngIf="!isGdriveImageMode"
+                                    class="absolute inset-0 bg-slate-950/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span
+                                        class="text-white text-[9px] font-black uppercase tracking-wider">Change</span>
+                                </div>
+                            </div>
+
+                            <!-- File Upload Input -->
+                            <input #photoInput type="file" (change)="onPhotoChange($event)" accept="image/*"
+                                class="hidden">
+
+                            <!-- Google Drive Link Input (when Google Drive Link mode) -->
+                            <div *ngIf="isGdriveImageMode" class="w-full max-w-[200px]">
+                                <input type="text" [(ngModel)]="newStudent.photo"
+                                    placeholder="Paste Drive image link..."
+                                    class="w-full px-2.5 py-1.5 text-[11px] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded-xl text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/20">
+                            </div>
+
+                            <button *ngIf="newStudent.photo" (click)="removePhoto()" type="button"
+                                class="text-[9px] font-bold text-rose-500 hover:text-rose-600 transition-colors uppercase tracking-wider">Remove
+                                Photo</button>
+                        </div>
+
+                        <!-- Registration Fields -->
+                        <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+                            <div class="md:col-span-1">
+                                <label
+                                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Reg
+                                    #
+                                    <span class="text-primary-500 text-[8px] font-black uppercase ml-1">{{
+                                        regSettings?.reg_mode
+                                        ===
+                                        'auto' ? '(Auto)' : '(Manual)' }}</span>
+                                </label>
+                                <input type="text" [(ngModel)]="newStudent.regNumber"
+                                    [readonly]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
+                                    [class.bg-white]="regSettings?.reg_mode === 'manual'"
+                                    [class.dark:bg-slate-900]="regSettings?.reg_mode === 'manual'"
+                                    [class.bg-slate-100]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
+                                    [class.dark:bg-slate-800/80]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
+                                    class="w-full px-3 py-2.5 border-2 border-transparent bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 focus:bg-white dark:focus:bg-slate-900 font-mono font-bold text-sm transition-all outline-none"
+                                    placeholder="STU-001">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label
+                                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Full
+                                    Student Name <span class="text-rose-500">*</span></label>
+                                <input type="text" [(ngModel)]="newStudent.name"
+                                    class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
+                                    placeholder="e.g. Alex Johnson">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label
+                                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Date
+                                    of Birth</label>
+                                <app-date-picker [(ngModel)]="newStudent.dob"></app-date-picker>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label
+                                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Father's
+                                    Name</label>
+                                <input type="text" [(ngModel)]="newStudent.fatherName"
+                                    class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
+                                    placeholder="Parent name">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label
+                                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Highest
+                                    Qualification</label>
+                                <input type="text" [(ngModel)]="newStudent.qualification"
+                                    class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
+                                    placeholder="e.g. B.Tech Graduate">
+                            </div>
+                            <div class="md:col-span-1">
+                                <label
+                                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Gender</label>
+                                <select [(ngModel)]="newStudent.gender"
+                                    class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-primary-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="others">Others</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Contact Details -->
+                <div
+                    class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span
+                            class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-black">02</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Contact
+                            Details
+                        </h4>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label
+                                class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Personal
+                                Mobile <span class="text-rose-500">*</span></label>
+                            <input type="text" [(ngModel)]="newStudent.mobile"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Student phone">
+                        </div>
+                        <div>
+                            <label
+                                class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Parent
+                                Mobile</label>
+                            <input type="text" [(ngModel)]="newStudent.parentMobile"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Parent phone">
+                        </div>
+                        <div>
+                            <label
+                                class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Email
+                                Address</label>
+                            <input type="email" [(ngModel)]="newStudent.email"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Email">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label
+                            class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Student
+                            Address</label>
+                        <textarea [(ngModel)]="newStudent.address" rows="2"
+                            class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none resize-none"
+                            placeholder="Door No, Street, Area, City, Pincode"></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 3: Referral Info -->
+                <div
+                    class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span
+                            class="w-7 h-7 rounded-lg bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 flex items-center justify-center text-[10px] font-black">03</span>
+                        <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Referral
+                            Information & Customization Fields</h4>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Referred
+                                By</label>
+                            <input type="text" [(ngModel)]="newStudent.referredBy"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-pink-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Name of referrer">
+                        </div>
+                        <div>
+                            <label
+                                class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Referral
+                                Profession</label>
+                            <input type="text" [(ngModel)]="newStudent.referralProfession"
+                                class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-pink-500/20 font-bold text-sm transition-all outline-none"
+                                placeholder="Profession">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <app-custom-fields-renderer location="student"
+                            [entityId]="newStudent.id"></app-custom-fields-renderer>
+                    </div>
+                </div>
+
+                <!-- Footer Buttons for Step 1 -->
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" (click)="closeModal()"
+                        class="px-4 py-2.5 text-slate-600 dark:text-slate-400 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="button" (click)="goToStep2()" [disabled]="saving"
+                        class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-lg shadow-primary-200 dark:shadow-none transition-all flex items-center gap-2 cursor-pointer">
+                        <span>{{ saving ? 'Saving Profile...' : 'Next' }}</span>
+                        <span *ngIf="!saving">→</span>
+                    </button>
+                </div>
             </div>
 
-            <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
-                <!-- Profile Photo Upload -->
-                <div class="flex flex-col items-center space-y-2 mt-1 shrink-0">
-                    <div
-                        class="relative group w-24 h-24 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden flex items-center justify-center cursor-pointer transition-all hover:border-primary-500">
-                        <img *ngIf="newStudent.photo" [src]="newStudent.photo" class="w-full h-full object-cover">
-                        <div *ngIf="!newStudent.photo" class="text-center p-2" (click)="photoInput.click()">
-                            <span class="text-2xl block">📷</span>
+            <!-- STEP 2: Course Enrollment (Multiple Courses Facility) -->
+            <div class="w-1/2 pl-4 space-y-6">
+                <!-- Created Student Profile Summary Banner -->
+                <div
+                    class="p-4 bg-primary-50/50 dark:bg-primary-900/10 rounded-2xl border border-primary-100 dark:border-primary-900/30 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-600 font-black flex items-center justify-center text-lg shrink-0">
+                            {{ createdStudent?.name?.charAt(0) || '🎓' }}
+                        </div>
+                        <div>
+                            <h4 class="font-black text-sm text-slate-800 dark:text-white">{{ createdStudent?.name ||
+                                newStudent.name }}</h4>
+                            <p
+                                class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                                {{ createdStudent?.regNumber || newStudent.regNumber || 'STU-AUTO' }} • {{
+                                createdStudent?.mobile || newStudent.mobile }}
+                            </p>
+                        </div>
+                    </div>
+                    <span
+                        class="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full">
+                        Profile Created ✅
+                    </span>
+                </div>
+
+                <!-- Enrolled Courses Box (Matches requested UI!) -->
+                <div
+                    class="p-5 bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h4
+                            class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                            <span>📚 ENROLLED COURSES</span>
                             <span
-                                class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-1">Add
-                                Photo</span>
-                        </div>
-                        <div (click)="photoInput.click()"
-                            class="absolute inset-0 bg-slate-950/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span class="text-white text-[9px] font-black uppercase tracking-wider">Change</span>
-                        </div>
+                                class="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-md text-[10px] font-black">
+                                {{ studentCourses.length }}
+                            </span>
+                        </h4>
+                        <button type="button" (click)="openAdditionalCourseModal()"
+                            class="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer">
+                            <span class="text-sm leading-none">+</span> ADD COURSE
+                        </button>
                     </div>
-                    <input #photoInput type="file" (change)="onPhotoChange($event)" accept="image/*" class="hidden">
-                    <button *ngIf="newStudent.photo" (click)="removePhoto()" type="button"
-                        class="text-[9px] font-bold text-rose-500 hover:text-rose-600 transition-colors uppercase tracking-wider">Delete
-                        Photo</button>
-                </div>
 
-                <!-- Registration Fields -->
-                <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
-                    <div class="md:col-span-1">
-                        <label
-                            class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Reg
-                            #
-                            <span class="text-primary-500 text-[8px] font-black uppercase ml-1">{{ regSettings?.reg_mode
-                                ===
-                                'auto' ? '(Auto)' : '(Manual)' }}</span>
-                        </label>
-                        <input type="text" [(ngModel)]="newStudent.regNumber"
-                            [readonly]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
-                            [class.bg-white]="regSettings?.reg_mode === 'manual'"
-                            [class.dark:bg-slate-900]="regSettings?.reg_mode === 'manual'"
-                            [class.bg-slate-100]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
-                            [class.dark:bg-slate-800/80]="!regSettings?.reg_mode || regSettings?.reg_mode === 'auto'"
-                            class="w-full px-3 py-2.5 border-2 border-transparent bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 focus:bg-white dark:focus:bg-slate-900 font-mono font-bold text-sm transition-all outline-none"
-                            placeholder="STU-001">
+                    <!-- Empty State -->
+                    <div *ngIf="studentCourses.length === 0"
+                        class="text-center py-8 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-1">
+                        <p class="text-xs font-bold text-slate-400">No enrollments found.</p>
+                        <p class="text-[10px] text-slate-400">Click "+ ADD COURSE" to enroll.</p>
                     </div>
-                    <div class="md:col-span-2">
-                        <label
-                            class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Full
-                            Student Name <span class="text-rose-500">*</span></label>
-                        <input type="text" [(ngModel)]="newStudent.name"
-                            class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
-                            placeholder="e.g. Alex Johnson">
-                    </div>
-                    <div class="md:col-span-1">
-                        <label
-                            class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Date
-                            of Birth</label>
-                        <input type="date" lang="en-IN" [(ngModel)]="newStudent.dob"
-                            class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm transition-all outline-none">
-                        <span *ngIf="newStudent.dob"
-                            class="text-[9px] font-bold text-primary-600 dark:text-primary-400 mt-1 block">Selected: {{
-                            newStudent.dob | date:'dd-MM-yyyy' }}</span>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label
-                            class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Father's
-                            Name</label>
-                        <input type="text" [(ngModel)]="newStudent.fatherName"
-                            class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
-                            placeholder="Parent name">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label
-                            class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Highest
-                            Qualification</label>
-                        <input type="text" [(ngModel)]="newStudent.qualification"
-                            class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-primary-500/20 font-bold text-sm transition-all outline-none"
-                            placeholder="e.g. B.Tech Graduate">
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Section 2: Contact Details -->
-        <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-3 mb-4">
-                <span
-                    class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-black">02</span>
-                <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Contact Details
-                </h4>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Personal
-                        Mobile <span class="text-rose-500">*</span></label>
-                    <input type="text" [(ngModel)]="newStudent.mobile"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
-                        placeholder="Student phone">
-                </div>
-                <div>
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Parent
-                        Mobile</label>
-                    <input type="text" [(ngModel)]="newStudent.parentMobile"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
-                        placeholder="Parent phone">
-                </div>
-                <div>
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Email
-                        Address</label>
-                    <input type="email" [(ngModel)]="newStudent.email"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-emerald-500/20 font-bold text-sm transition-all outline-none"
-                        placeholder="Email">
-                </div>
-            </div>
-        </div>
-
-        <!-- Section 3: Enrollment & Academic -->
-        <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-3 mb-4">
-                <span
-                    class="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-black">03</span>
-                <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Enrollment
-                    Details</h4>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Batch
-                        / One : One Student :</label>
-                    <select [(ngModel)]="enrollmentType" (change)="onEnrollmentTypeChange()"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-amber-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
-                        <option value="batch">Batch</option>
-                        <option value="one-to-one">One-to-One</option>
-                    </select>
-                </div>
-                <div>
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Course
-                        <span class="text-rose-500">*</span></label>
-                    <select [(ngModel)]="newStudent.courseId" (change)="onCourseChange()"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-amber-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
-                        <option *ngFor="let c of courses$ | async" [value]="c.id">{{ c.name }} </option>
-                    </select>
-                </div>
-
-                <div *ngIf="isCurrentCourseStandard()" class="md:col-span-2 lg:col-span-3">
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
-                        Select Subjects to Learn <span class="text-rose-500">*</span>
-                    </label>
-                    <div
-                        class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-100/30 dark:bg-slate-800/20 rounded-2xl border border-slate-100 dark:border-slate-800/50">
-                        <!-- Select All Option -->
-                        <label *ngIf="getSubjectsForCurrentCourse().length > 0"
-                            class="flex items-center gap-3 p-3 bg-primary-500/10 dark:bg-primary-500/20 border-2 border-primary-500 rounded-xl cursor-pointer hover:bg-primary-500/20 dark:hover:bg-primary-500/30 transition-all group">
-                            <input type="checkbox" [checked]="areAllSubjectsSelected()"
-                                (change)="toggleSelectAllSubjects()"
-                                class="rounded text-primary-600 focus:ring-primary-500/20 w-4 h-4 cursor-pointer">
-                            <div class="flex flex-col">
-                                <span
-                                    class="text-xs font-black text-slate-900 dark:text-white transition-colors">All</span>
-                                <span class="text-[10px] text-primary-600 dark:text-primary-400 font-bold">Select
-                                    All</span>
+                    <!-- List of Enrolled Courses -->
+                    <div class="space-y-2">
+                        <div *ngFor="let sc of studentCourses"
+                            class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-3 flex items-center justify-between shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <span class="text-lg">📖</span>
+                                <div>
+                                    <p class="text-xs font-black text-slate-800 dark:text-slate-200">
+                                        {{ sc.course_name }} - <span
+                                            class="capitalize text-emerald-600 dark:text-emerald-400 font-bold">{{
+                                            sc.status }}</span>
+                                    </p>
+                                </div>
                             </div>
-                        </label>
-
-                        <label *ngFor="let subject of getSubjectsForCurrentCourse()"
-                            class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
-                            <input type="checkbox" [checked]="isSubjectSelected(subject.name)"
-                                (change)="toggleSubjectSelection(subject.name)"
-                                class="rounded text-primary-600 focus:ring-primary-500/20 w-4 h-4 cursor-pointer">
-                            <div class="flex flex-col">
-                                <span
-                                    class="text-xs font-black text-slate-700 dark:text-slate-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{{
-                                    subject.name }}</span>
-                                <span class="text-[10px] text-slate-400 dark:text-slate-500 font-bold">₹{{ subject.fees
-                                    | number }}</span>
+                            <div class="flex items-center gap-2">
+                                <button type="button" (click)="editCourseEnrollment(sc)" title="Edit course enrollment"
+                                    class="text-xs font-bold text-primary-600 hover:text-primary-700 px-2 py-1 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 flex items-center gap-1 cursor-pointer">
+                                    ✏️ Edit
+                                </button>
+                                <button type="button" (click)="unenrollFromCourse(sc.course_id)"
+                                    class="text-xs font-bold text-rose-500 hover:text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer">
+                                    Remove
+                                </button>
                             </div>
-                        </label>
-                    </div>
-                    <div
-                        class="flex items-center justify-between mt-2.5 px-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                        <span>Selected Subjects Sum:</span>
-                        <span class="text-primary-600 dark:text-primary-400 text-xs font-extrabold">₹{{
-                            getSelectedSubjectsSum() | number }}</span>
+                        </div>
                     </div>
                 </div>
 
-                <div>
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Joining
-                        Date <span class="text-rose-500">*</span></label>
-                    <input type="date" lang="en-IN" [(ngModel)]="newStudent.joiningDate"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white font-bold text-sm transition-all outline-none">
-                    <span *ngIf="newStudent.joiningDate"
-                        class="text-[9px] font-bold text-primary-600 dark:text-primary-400 mt-1 block">Selected: {{
-                        newStudent.joiningDate | date:'dd-MM-yyyy' }}</span>
+                <!-- Step 2 Footer Buttons -->
+                <div class="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" (click)="currentStep = 1"
+                        class="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-200 cursor-pointer">
+                        ← Back to Profile
+                    </button>
+                    <button type="button" (click)="finishWizard()"
+                        class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all cursor-pointer">
+                        Complete Enrollment 🎉
+                    </button>
                 </div>
-                <div class="md:col-span-3">
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Enrollment
-                        Status <span class="text-rose-500">*</span></label>
-                    <select [(ngModel)]="newStudent.status"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-primary-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="suspended">Suspended</option>
-                        <option value="discontinued">Discontinued</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- Section 4: Referral Info -->
-        <div class="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-3 mb-4">
-                <span
-                    class="w-7 h-7 rounded-lg bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 flex items-center justify-center text-[10px] font-black">04</span>
-                <h4 class="font-black text-slate-800 dark:text-white text-xs uppercase tracking-widest">Referral
-                    Information & Customization Fields</h4>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Referred
-                        By</label>
-                    <input type="text" [(ngModel)]="newStudent.referredBy"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-pink-500/20 font-bold text-sm transition-all outline-none"
-                        placeholder="Name of referrer">
-                </div>
-                <div>
-                    <label
-                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Referral
-                        Profession</label>
-                    <input type="text" [(ngModel)]="newStudent.referralProfession"
-                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:border-pink-500/20 font-bold text-sm transition-all outline-none"
-                        placeholder="Profession">
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <app-custom-fields-renderer location="student" [entityId]="newStudent.id"></app-custom-fields-renderer>
             </div>
         </div>
     </div>
@@ -635,7 +911,7 @@
 </div>
 
 <!-- Student Details ID Card Modal -->
-<app-modal [isOpen]="isDetailsModalOpen" title="Student Profile" (onClose)="closeDetailsModal()" size="md"
+<app-modal [isOpen]="isDetailsModalOpen" title="Student Profile" (onClose)="closeDetailsModal()" size="xl"
     [showFooter]="false">
     <div class="space-y-6 py-2 text-slate-800 dark:text-white">
         <!-- Card Wrapper -->
@@ -687,19 +963,15 @@
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Father's Name</span>
                     <span class="font-bold text-slate-200 text-right">{{ selectedStudentDetails?.fatherName }}</span>
                 </div>
-                <div *ngIf="selectedStudentDetails?.courseName" class="flex justify-between items-center py-1">
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Active Course</span>
-                    <span class="font-bold text-slate-200 text-right">{{ selectedStudentDetails?.courseName }}</span>
+                <div *ngIf="selectedStudentDetails?.qualification" class="flex justify-between items-center py-1">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Highest
+                        Qualification</span>
+                    <span class="font-bold text-slate-200 text-right">{{ selectedStudentDetails?.qualification }}</span>
                 </div>
                 <div *ngIf="selectedStudentDetails?.mobile" class="flex justify-between items-center py-1">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mobile</span>
                     <span class="font-bold text-slate-200 font-mono text-right">{{ selectedStudentDetails?.mobile
                         }}</span>
-                </div>
-                <div *ngIf="selectedStudentDetails?.email" class="flex justify-between items-center py-1">
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email</span>
-                    <span class="font-bold text-slate-200 text-right truncate max-w-[180px]">{{
-                        selectedStudentDetails?.email }}</span>
                 </div>
                 <div *ngIf="selectedStudentDetails?.joiningDate" class="flex justify-between items-center py-1">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Joining Date</span>
@@ -708,8 +980,7 @@
                 </div>
                 <div *ngIf="selectedStudentDetails?.status" class="flex justify-between items-center py-1">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</span>
-                    <span
-                        class="text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/40 border border-emerald-500/20"
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider"
                         [class.text-emerald-400]="selectedStudentDetails?.status === 'active'"
                         [class.bg-emerald-950/40]="selectedStudentDetails?.status === 'active'"
                         [class.border-emerald-500/20]="selectedStudentDetails?.status === 'active'"
@@ -719,35 +990,22 @@
                         {{ selectedStudentDetails?.status }}
                     </span>
                 </div>
-            </div>
-
-            <!-- Footer Decorative Element -->
-            <div class="mt-6 border-t border-white/5 pt-4 text-center">
-                <p class="text-[7px] text-slate-500 font-bold uppercase tracking-widest">{{ regSettings?.institute_name
-                    || 'Classivo' }} Management System</p>
-            </div>
-        </div>
-
-        <!-- Extra details if available (e.g. subjects, qualification) shown neatly below the ID card in the modal -->
-        <div *ngIf="selectedStudentDetails?.qualification || (selectedStudentDetails?.selectedSubjects && parseStudentSubjects(selectedStudentDetails.selectedSubjects).length > 0)"
-            class="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4 max-w-sm mx-auto">
-            <div *ngIf="selectedStudentDetails?.qualification">
-                <span
-                    class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Highest
-                    Qualification</span>
-                <span class="text-xs font-bold text-slate-700 dark:text-slate-300">{{
-                    selectedStudentDetails?.qualification }}</span>
-            </div>
-            <div
-                *ngIf="selectedStudentDetails?.selectedSubjects && parseStudentSubjects(selectedStudentDetails.selectedSubjects).length > 0">
-                <span
-                    class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Selected
-                    Subjects</span>
-                <div class="flex flex-wrap gap-1.5 mt-1">
-                    <span *ngFor="let sub of parseStudentSubjects(selectedStudentDetails.selectedSubjects)"
-                        class="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-black text-primary-600 dark:text-primary-400">
-                        {{ sub }}
-                    </span>
+                <!-- Active Courses List next to Status -->
+                <div class="flex justify-between items-center py-1 border-t border-white/5 pt-2">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Active Courses</span>
+                    <div class="flex flex-wrap justify-end gap-1.5 max-w-[260px]">
+                        <ng-container *ngIf="studentCourses && studentCourses.length > 0">
+                            <span *ngFor="let sc of studentCourses"
+                                class="px-2 py-0.5 bg-primary-950/50 text-primary-300 border border-primary-500/30 rounded-lg text-[10px] font-black flex items-center gap-1">
+                                <span>📖 {{ sc.course_name }}</span>
+                            </span>
+                        </ng-container>
+                        <span *ngIf="!studentCourses || studentCourses.length === 0"
+                            class="text-xs font-bold text-slate-200">
+                            {{ selectedStudentDetails?.courseName ? (selectedStudentDetails.courseName + ' - Active') :
+                            'None' }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -762,6 +1020,187 @@
                 class="px-6 py-2.5 bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-primary-700 transition-all shadow-md">
                 🖨️ Print ID Card
             </button>
+        </div>
+    </div>
+</app-modal>
+
+<!-- ====== Add Additional Course Modal ====== -->
+<app-modal [isOpen]="isAddCourseModalOpen" title="Enroll in Additional Course" actionLabel="Enroll Now"
+    (onClose)="closeAdditionalCourseModal()" (onSubmit)="enrollAdditionalCourse()" size="2xl">
+    <div class="space-y-5 py-1">
+
+        <!-- Student info banner -->
+        <div *ngIf="selectedStudentDetails"
+            class="flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/10 rounded-2xl border border-primary-100 dark:border-primary-900/30">
+            <div
+                class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center font-black text-lg shrink-0">
+                {{ selectedStudentDetails?.name?.charAt(0) }}
+            </div>
+            <div>
+                <p class="font-black text-sm text-slate-800 dark:text-white">{{ selectedStudentDetails?.name }}</p>
+                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{{
+                    selectedStudentDetails?.regNumber }}</p>
+            </div>
+        </div>
+
+        <!-- Course Selection -->
+        <div
+            class="bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Course Details</h4>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Course <span class="text-rose-500">*</span>
+                    </label>
+                    <select [(ngModel)]="newCourseEnrollment.courseId" (change)="onAdditionalCourseChange()"
+                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-primary-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
+                        <option value="">— Select Course —</option>
+                        <option *ngFor="let c of courses" [value]="c.id" [disabled]="isCourseAlreadyEnrolled(c.id)">
+                            {{ c.name }}{{ isCourseAlreadyEnrolled(c.id) ? ' (already enrolled)' : '' }}
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Batch
+                        (Optional)</label>
+                    <select [(ngModel)]="newCourseEnrollment.batchId"
+                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-primary-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
+                        <option value="0">— No Batch (One-to-One) —</option>
+                        <option *ngFor="let b of getAdditionalCourseFilteredBatches(batches$ | async)" [value]="b.id">
+                            {{ b.batchName }}
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Joining
+                        Date <span class="text-rose-500">*</span></label>
+                    <app-date-picker [(ngModel)]="newCourseEnrollment.joiningDate"></app-date-picker>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Status
+                        <span class="text-rose-500">*</span></label>
+                    <select [(ngModel)]="newCourseEnrollment.status"
+                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-primary-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Subject Selection (for Standard courses) -->
+            <div *ngIf="isAdditionalCourseStandard() && getSubjectsForAdditionalCourse().length > 0">
+                <label
+                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">
+                    Select Subjects <span class="text-rose-500">*</span>
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <label *ngFor="let subject of getSubjectsForAdditionalCourse()"
+                        class="flex items-center gap-2 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
+                        <input type="checkbox" [checked]="isAdditionalSubjectSelected(subject.name)"
+                            (change)="toggleAdditionalSubject(subject.name)"
+                            class="rounded text-primary-600 focus:ring-primary-500/20 w-4 h-4 cursor-pointer">
+                        <div>
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 block">{{ subject.name
+                                }}</span>
+                            <span class="text-[9px] text-slate-400 font-bold">₹{{ subject.fees | number }}</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info note -->
+        <div class="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30">
+            <p class="text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                📌 A separate fee record will be automatically created for this enrollment based on the course fee
+                structure.
+            </p>
+        </div>
+    </div>
+</app-modal>
+
+<!-- ====== Edit Course Enrollment Modal ====== -->
+<app-modal [isOpen]="isEditCourseModalOpen" [title]="'Edit Course Enrollment: ' + editingCourseEnrollment.courseName"
+    actionLabel="Save Changes" (onClose)="closeEditCourseModal()" (onSubmit)="saveEditedCourseEnrollment()" size="2xl">
+    <div class="space-y-5 py-1">
+
+        <!-- Course Details -->
+        <div
+            class="bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enrollment Details</h4>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">
+                        Course
+                    </label>
+                    <input type="text" [value]="editingCourseEnrollment.courseName" disabled
+                        class="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 font-bold text-sm cursor-not-allowed">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Batch
+                        (Optional)</label>
+                    <select [(ngModel)]="editingCourseEnrollment.batchId"
+                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-primary-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
+                        <option value="0">— No Batch (One-to-One) —</option>
+                        <option *ngFor="let b of getEditCourseFilteredBatches(batches$ | async)" [value]="b.id">
+                            {{ b.batchName }}
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Joining
+                        Date <span class="text-rose-500">*</span></label>
+                    <app-date-picker [(ngModel)]="editingCourseEnrollment.joiningDate"></app-date-picker>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 ml-1">Status
+                        <span class="text-rose-500">*</span></label>
+                    <select [(ngModel)]="editingCourseEnrollment.status"
+                        class="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white focus:border-primary-500/20 font-bold text-sm transition-all outline-none appearance-none cursor-pointer">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Subject Selection (for Standard courses) -->
+            <div *ngIf="isEditCourseStandard() && getSubjectsForEditCourse().length > 0">
+                <label
+                    class="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">
+                    Select Subjects
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <label *ngFor="let subject of getSubjectsForEditCourse()"
+                        class="flex items-center gap-2 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
+                        <input type="checkbox" [checked]="isEditSubjectSelected(subject.name)"
+                            (change)="toggleEditSubject(subject.name)"
+                            class="rounded text-primary-600 focus:ring-primary-500/20 w-4 h-4 cursor-pointer">
+                        <div>
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 block">{{ subject.name
+                                }}</span>
+                            <span class="text-[9px] text-slate-400 font-bold">₹{{ subject.fees | number }}</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
         </div>
     </div>
 </app-modal>

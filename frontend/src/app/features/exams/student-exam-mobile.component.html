@@ -1,0 +1,28 @@
+<!-- Mobile Student Exam Portal Template -->
+<div class="m-student-exam p-3 pb-24 space-y-4">
+  <div>
+    <h2 class="text-xl font-bold text-slate-800 dark:text-white">My Exams</h2>
+    <p class="text-xs text-slate-500">Online tests & assessments</p>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let ex of assignedExams" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-3">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ ex.title }}</h3>
+          <p class="text-xs text-slate-500">{{ ex.duration_minutes }} mins</p>
+        </div>
+        <span class="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold">
+          {{ ex.total_marks }} Marks
+        </span>
+      </div>
+
+      <button (click)="takeExam(ex)" [disabled]="!ex.can_take" class="w-full py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-50">
+        Start Test 🚀
+      </button>
+    </div>
+    <div *ngIf="assignedExams.length === 0" class="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No active tests assigned.
+    </div>
+  </div>
+</div>

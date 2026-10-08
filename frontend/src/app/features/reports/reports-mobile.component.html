@@ -1,0 +1,47 @@
+<!-- Mobile Reports Template -->
+<div class="m-reports p-3 pb-24 space-y-4">
+  <!-- Report Selector Header -->
+  <div class="m-report-selector">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">Reports</h2>
+      <button *ngIf="activeReport" (click)="activeReport = null" class="text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg font-medium">
+        ← All Reports
+      </button>
+    </div>
+
+    <!-- Category Grid / Report Cards when no active report -->
+    <div *ngIf="!activeReport" class="space-y-4">
+      <div *ngFor="let cat of categories" class="space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1">{{ cat }}</h3>
+        <div class="grid grid-cols-1 gap-2">
+          <div *ngFor="let r of reports" 
+               (click)="activeReport = r.id" 
+               class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 flex items-center justify-between active:scale-[0.99] transition-transform cursor-pointer">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">{{ r.icon }}</span>
+              <div>
+                <h4 class="font-semibold text-slate-800 dark:text-white text-sm">{{ r.title }}</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{{ r.description }}</p>
+              </div>
+            </div>
+            <span class="text-slate-400 text-lg">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Report View -->
+  <div *ngIf="activeReport" class="space-y-4">
+    <!-- Active Report Controls -->
+    <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 dark:text-white text-base">Active Report</h3>
+        <div class="flex items-center gap-2">
+          <button (click)="exportToPDF()" class="p-2 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-semibold">PDF</button>
+          <button (click)="exportToExcel()" class="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold">Excel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

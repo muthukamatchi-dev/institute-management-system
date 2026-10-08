@@ -1,0 +1,18 @@
+<!-- Mobile Staff Courses Template -->
+<div class="m-staff-courses p-3 pb-24 space-y-4">
+  <div>
+    <h2 class="text-xl font-bold text-slate-800 dark:text-white">Assigned Courses</h2>
+    <p class="text-xs text-slate-500">Courses assigned for teaching</p>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let course of courses" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2">
+      <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ course.name }}</h3>
+      <p class="text-xs text-slate-500 line-clamp-2">{{ course.description || 'No description' }}</p>
+      <div class="flex justify-between items-center pt-2 text-xs text-slate-600 dark:text-slate-400">
+        <span>Duration: <strong class="text-slate-800 dark:text-white">{{ course.duration || 'N/A' }}</strong></span>
+        <span>Code: <strong class="text-slate-800 dark:text-white">{{ course.code || 'N/A' }}</strong></span>
+      </div>
+    </div>
+  </div>
+</div>

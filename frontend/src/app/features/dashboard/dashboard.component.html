@@ -223,9 +223,9 @@
             </div>
 
             <!-- Real activities -->
-            <div class="divide-y divide-slate-50 dark:divide-slate-800/50 max-h-[570px] overflow-y-auto pr-2 custom-scrollbar"
+            <div class="divide-y divide-slate-50 dark:divide-slate-800/50"
                 *ngIf="!activitiesLoading">
-                <div *ngFor="let activity of activities"
+                <div *ngFor="let activity of activities | slice:0:15"
                     class="p-5 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                     <div [class]="getActivityIconClass(activity.type)">
                         {{ getActivityIcon(activity.type) }}
@@ -297,7 +297,12 @@
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-bold text-slate-700 dark:text-slate-200 leading-tight truncate">{{
                                 d.label }}</p>
-                            <p class="text-xs text-slate-500 dark:text-slate-500 mt-0.5 font-medium">{{ d.detail }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-500 mt-0.5 font-medium">
+                                {{ d.period_label || 'Pending Balance' }}: ₹{{ d.current_period_due | number:'1.2-2' }}
+                            </p>
+                            <p *ngIf="d.overdue > 0" class="text-xs text-rose-500 dark:text-rose-400 mt-0.5 font-semibold">
+                                Previous Pending Due: ₹{{ d.overdue | number:'1.2-2' }}
+                            </p>
                         </div>
                         <span class="text-base flex-shrink-0">{{ getDeadlineIcon(d.type) }}</span>
                     </div>

@@ -490,3 +490,6 @@ INSERT INTO `branches` (`name`, `code`, `is_main`, `status`)
   SELECT 'Main Branch', 'MAIN', 1, 'Active'
   WHERE NOT EXISTS (SELECT 1 FROM `branches` LIMIT 1);
 
+-- Add address and gender columns to students
+ALTER TABLE `students` ADD COLUMN IF NOT EXISTS `address` TEXT NULL;
+ALTER TABLE `students` ADD COLUMN IF NOT EXISTS `gender` VARCHAR(20) NULL;

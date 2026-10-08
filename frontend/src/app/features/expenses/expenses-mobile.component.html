@@ -1,0 +1,238 @@
+<!-- Mobile Expenses Template -->
+<div class="m-expenses p-3 pb-24 space-y-4">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">Expenses</h2>
+      <p class="text-xs text-slate-500">Track institute expenditures</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button (click)="triggerImport()" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs shadow-sm">
+        📥 Import
+      </button>
+      <button (click)="openAddModal()" class="px-3.5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md">
+        + New Expense
+      </button>
+    </div>
+  </div>
+
+  <!-- Total Summary Card -->
+  <div class="bg-gradient-to-r from-rose-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md flex justify-between items-center">
+    <div>
+      <p class="text-[10px] uppercase tracking-widest font-black opacity-80">Total Expenditure</p>
+      <h3 class="text-2xl font-black mt-0.5">₹{{ getTotalExpenses() | number }}</h3>
+    </div>
+    <span class="text-3xl opacity-80">💰</span>
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="flex gap-2">
+    <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()" placeholder="Search expenses..." 
+           class="flex-1 px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white shadow-sm outline-none">
+    <select [(ngModel)]="categoryFilter" (change)="applyFilters()" class="px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-bold shadow-sm outline-none max-w-[120px]">
+      <option value="all">All</option>
+      <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+    </select>
+  </div>
+
+  <!-- Expenses Cards List -->
+  <div class="space-y-3">
+    <div *ngFor="let e of filteredExpenses" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-3">
+      <div class="flex justify-between items-start cursor-pointer" (click)="viewExpense(e)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl shrink-0">
+            {{ e.category === 'Salary' ? '👨‍💼' : e.category === 'Rent' ? '🏠' : e.category === 'Utility' ? '💡' : '📄' }}
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ e.title }}</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ e.category }} • {{ e.expense_date | date:'dd-MM-yyyy' }}</p>
+            <p *ngIf="e.reference_no" class="text-[10px] font-mono text-slate-400">Ref: {{ e.reference_no }}</p>
+          </div>
+        </div>
+        <span class="px-2.5 py-1 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 rounded-full text-xs font-black shrink-0">
+          ₹{{ e.amount | number:'1.0-0' }}
+        </span>
+      </div>
+
+      <div *ngIf="e.description" class="text-xs text-slate-500 dark:text-slate-400 italic bg-slate-50 dark:bg-slate-700/30 p-2 rounded-lg">
+        "{{ e.description }}"
+      </div>
+
+      <div class="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/50 justify-end items-center">
+        <span *ngIf="e.payment_method" class="mr-auto px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-[10px] font-bold">
+          {{ e.payment_method }}
+        </span>
+        <button (click)="viewExpense(e)" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold">
+          👁️ Trace
+        </button>
+        <button (click)="editExpense(e)" class="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold">
+          ✏️ Edit
+        </button>
+        <button (click)="deleteExpense(e.id!)" class="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-bold">
+          🗑️
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="filteredExpenses.length === 0" class="text-center py-8 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No expenses found matching your criteria.
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Expense Modal -->
+<app-modal [isOpen]="isModalOpen" (onClose)="isModalOpen = false" [showFooter]="false" [title]="newExpense.id ? 'Modify Expense Entry' : 'New Financial Entry'" size="lg">
+    <div class="space-y-6 p-1">
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Title / Note <span class="text-rose-500">*</span></label>
+                <input type="text" [(ngModel)]="newExpense.title" placeholder="e.g., Office Rent"
+                       class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold outline-none text-sm focus:ring-4 focus:ring-indigo-500/10">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Category</label>
+                    <select [(ngModel)]="newExpense.category" 
+                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 cursor-pointer">
+                        <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Amount (₹) <span class="text-rose-500">*</span></label>
+                    <input type="number" [(ngModel)]="newExpense.amount" 
+                           class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl font-black text-rose-600 text-sm outline-none focus:ring-4 focus:ring-indigo-500/10">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Date <span class="text-rose-500">*</span></label>
+                    <app-date-picker [(ngModel)]="newExpense.expense_date"></app-date-picker>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Payment Method</label>
+                    <select [(ngModel)]="newExpense.payment_method" 
+                            class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 cursor-pointer">
+                        <option *ngFor="let pm of paymentMethods" [value]="pm">{{ pm }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Reference / Receipt No</label>
+                <input type="text" [(ngModel)]="newExpense.reference_no" placeholder="e.g. UPI-98765"
+                       class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10">
+            </div>
+
+            <div>
+                <label class="block text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Description / Notes</label>
+                <textarea [(ngModel)]="newExpense.description" rows="3" placeholder="Additional expense details..."
+                          class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 rounded-2xl text-slate-800 dark:text-white font-medium text-sm outline-none focus:ring-4 focus:ring-indigo-500/10"></textarea>
+            </div>
+        </div>
+
+        <app-custom-fields-renderer location="expense" [entityId]="newExpense.id"></app-custom-fields-renderer>
+
+        <div class="flex justify-end gap-2 pt-2">
+            <button (click)="isModalOpen = false" class="px-5 py-3 font-bold text-slate-400 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
+            <button (click)="saveExpense()" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold text-xs shadow-md">
+                {{ newExpense.id ? 'Save Changes' : 'Record Expense' }}
+            </button>
+        </div>
+    </div>
+</app-modal>
+
+<!-- View Audit Trace Modal -->
+<app-modal [isOpen]="isViewModalOpen" (onClose)="isViewModalOpen = false" [showFooter]="false" title="Transaction Audit Trace" size="md">
+    <div class="space-y-6 p-1 text-slate-800 dark:text-white" *ngIf="selectedExpense">
+        <div class="flex flex-col items-center text-center">
+            <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-3xl mb-3">
+                {{ selectedExpense.category === 'Salary' ? '👨‍💼' : '💰' }}
+            </div>
+            <h3 class="text-xl font-black text-slate-800 dark:text-white leading-tight mb-2">{{ selectedExpense.title }}</h3>
+            <span class="px-3 py-1 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 rounded-full text-xs font-bold">
+                {{ selectedExpense.category }}
+            </span>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+            <p class="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Details / Notes</p>
+            <p class="text-xs text-slate-600 dark:text-slate-300 font-medium italic">
+                "{{ selectedExpense.description || 'No additional details logged.' }}"
+            </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-0.5">Amount</p>
+                <p class="text-lg font-black text-rose-600">₹{{ selectedExpense.amount | number }}</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-0.5">Payment Method</p>
+                <p class="font-bold text-slate-700 dark:text-slate-200">{{ selectedExpense.payment_method }}</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-0.5">Reference No</p>
+                <p class="font-bold text-slate-700 dark:text-slate-200 truncate">{{ selectedExpense.reference_no || '—' }}</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest mb-0.5">Date</p>
+                <p class="font-bold text-slate-700 dark:text-slate-200 truncate">{{ selectedExpense.expense_date | date:'dd-MM-yyyy' }}</p>
+            </div>
+        </div>
+
+        <button (click)="isViewModalOpen = false" class="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl">
+            Close Trace
+        </button>
+    </div>
+</app-modal>
+
+<!-- Import Modal -->
+<app-modal [isOpen]="isImportModalOpen" title="Corporate Expense Bulk Import" (onClose)="isImportModalOpen = false" [showFooter]="false">
+    <div class="space-y-6">
+        <div class="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800/50">
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="font-black text-rose-900 dark:text-rose-100 flex items-center gap-2 text-xs">
+                    📄 Import Guidance
+                </h4>
+                <button (click)="toggleGuidance()" class="text-[10px] font-bold text-rose-600 uppercase tracking-widest hover:underline">
+                    {{ isGuidanceOpen ? 'Hide' : 'Show Columns' }}
+                </button>
+            </div>
+            
+            <div *ngIf="isGuidanceOpen" class="grid grid-cols-2 gap-2">
+                <div *ngFor="let col of ['Title*', 'Amount*', 'Category*', 'Date', 'Method', 'Reference', 'Description']" 
+                     class="px-2 py-1.5 bg-white dark:bg-slate-900 rounded-lg text-[9px] font-bold text-slate-600 dark:text-slate-400 border border-rose-100 dark:border-rose-800/30">
+                    {{ col }}
+                </div>
+            </div>
+            <p class="text-[10px] text-rose-700/70 dark:text-rose-300/50 mt-3 italic">
+                * Required fields. Categories: Salary, Rent, Utility, Marketing, Supplies, Maintenance, etc.
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest">Select File</label>
+            <div class="relative">
+                <input type="file" (change)="onFileChange($event)" accept=".xlsx, .xls, .csv"
+                       class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                <div class="p-6 bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center">
+                    <span class="text-3xl mb-2">{{ importFile ? '📄' : '📤' }}</span>
+                    <p class="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                        {{ importFile ? importFile.name : 'Drop .xlsx or .csv here' }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <button (click)="isImportModalOpen = false" class="flex-1 py-3 font-bold text-slate-400 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
+            <button (click)="processImport()" [disabled]="!importFile"
+                    class="flex-[2] bg-indigo-600 text-white py-3 rounded-xl font-bold text-xs shadow-md disabled:opacity-50">
+                🚀 Import Expenses
+            </button>
+        </div>
+    </div>
+</app-modal>
+

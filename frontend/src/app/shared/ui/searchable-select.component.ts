@@ -11,11 +11,11 @@ import { FormsModule } from '@angular/forms';
       <!-- Trigger -->
       <button type="button" 
               (click)="toggle()"
-              class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-slate-800 dark:text-white font-bold outline-none ring-2 ring-transparent focus:ring-primary-500/50 transition-all flex items-center justify-between group">
-        <span [class.text-slate-500]="selectedItems.length === 0" [class.dark:text-slate-400]="selectedItems.length === 0" class="truncate">
+              [class]="customClass || 'w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-slate-800 dark:text-white font-bold outline-none ring-2 ring-transparent focus:ring-primary-500/50 transition-all flex items-center justify-between group shadow-sm text-sm cursor-pointer'">
+        <span [class.text-slate-500]="selectedItems.length === 0" [class.dark:text-slate-400]="selectedItems.length === 0" class="truncate pr-2">
           {{ getDisplayLabel() }}
         </span>
-        <span class="text-[10px] transform transition-transform duration-200" [class.rotate-180]="isOpen">▼</span>
+        <span class="text-[10px] transform transition-transform duration-200 text-slate-400 dark:text-slate-500 shrink-0" [class.rotate-180]="isOpen">▼</span>
       </button>
 
       <!-- Dropdown -->
@@ -37,8 +37,9 @@ import { FormsModule } from '@angular/forms';
 
         <!-- Options list -->
         <div class="max-h-60 overflow-y-auto custom-scrollbar py-1">
-          <button *ngFor="let option of filteredOptions"
+          <button *ngFor="let option of filteredOptions; trackBy: trackByOption"
                   type="button"
+                  (mousedown)="$event.preventDefault()"
                   (click)="select(option)"
                   [class.bg-primary-50]="isSelected(option)"
                   [class.dark:bg-primary-900/20]="isSelected(option)"
@@ -83,6 +84,7 @@ export class SearchableSelectComponent implements OnInit, OnChanges {
   @Input() multiple: boolean = false;
   @Input() itemsLabel: string = 'items';
   @Input() modelValue: any = null;
+  @Input() customClass: string = '';
 
   @Output() modelValueChange = new EventEmitter<any>();
   @Output() onChange = new EventEmitter<any>();
@@ -101,12 +103,34 @@ export class SearchableSelectComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['options']) {
-      this.filterOptions();
-      this.updateSelectedItem();
+      const prev = changes['options'].previousValue;
+      const curr = changes['options'].currentValue;
+      if (!this.areOptionsEqual(prev, curr)) {
+        this.filterOptions();
+        this.updateSelectedItem();
+      }
     }
     if (changes['modelValue']) {
       this.updateSelectedItem();
     }
+  }
+
+  trackByOption = (index: number, option: any) => {
+    return option ? (option[this.valueKey] ?? index) : index;
+  };
+
+  private areOptionsEqual(a: any[], b: any[]): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      const valA = a[i]?.[this.valueKey] ?? a[i];
+      const valB = b[i]?.[this.valueKey] ?? b[i];
+      const labelA = a[i]?.[this.labelKey] ?? '';
+      const labelB = b[i]?.[this.labelKey] ?? '';
+      if (valA !== valB || labelA !== labelB) return false;
+    }
+    return true;
   }
 
   @HostListener('document:click', ['$event'])

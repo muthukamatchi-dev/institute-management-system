@@ -1,0 +1,90 @@
+<!-- Mobile Find Institute Template -->
+<div class="mobile-find-container">
+  <div class="mobile-find-bg">
+    <div class="mobile-find-orb-1"></div>
+    <div class="mobile-find-orb-2"></div>
+  </div>
+
+  <div class="mobile-find-content">
+    <div class="mobile-find-brand">
+      <div class="mobile-find-logo">C</div>
+      <h1 class="mobile-find-title">Classivo</h1>
+      <p class="mobile-find-subtitle">Find your institute to get started</p>
+    </div>
+
+    <div class="mobile-find-search-wrap">
+      <span class="mobile-find-search-icon">🔍</span>
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        (input)="onSearch()"
+        placeholder="Search by institute name..."
+        class="mobile-find-search-input"
+        autocomplete="off">
+    </div>
+
+    <div *ngIf="searching" class="mobile-find-loading">
+      <span class="mobile-find-spinner">⟳</span>
+      <span>Searching...</span>
+    </div>
+
+    <div *ngIf="searched && results.length === 0 && !searching" class="mobile-find-empty">
+      <span>🏫</span>
+      <p>No institutes found</p>
+      <p class="mobile-find-empty-sub">Try a different search term</p>
+    </div>
+
+    <div class="mobile-find-results">
+      <button *ngFor="let inst of results" (click)="goToInstitute(inst)" class="mobile-find-result-card">
+        <div class="mobile-find-result-avatar">{{ inst.name?.charAt(0)?.toUpperCase() }}</div>
+        <div class="mobile-find-result-info">
+          <p class="mobile-find-result-name">{{ inst.name }}</p>
+          <p class="mobile-find-result-domain">{{ inst.subdomain }}.classivo.in</p>
+        </div>
+        <span class="mobile-find-result-arrow">→</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .mobile-find-container {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    background: #0f172a;
+    position: relative;
+    overflow: hidden;
+  }
+  .mobile-find-bg { position: absolute; inset: 0; pointer-events: none; }
+  .mobile-find-orb-1 { position: absolute; top: 20%; left: -15%; width: 180px; height: 180px; background: rgba(var(--color-primary-500), 0.12); border-radius: 50%; filter: blur(80px); }
+  .mobile-find-orb-2 { position: absolute; bottom: 25%; right: -10%; width: 200px; height: 200px; background: rgba(59,130,246,0.08); border-radius: 50%; filter: blur(90px); }
+  .mobile-find-content { width: 100%; max-width: 400px; position: relative; z-index: 1; }
+  .mobile-find-brand { text-align: center; margin-bottom: 32px; }
+  .mobile-find-logo { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, rgb(var(--color-primary-500)), rgb(var(--color-primary-700))); color: white; font-size: 24px; font-weight: 900; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; box-shadow: 0 0 30px rgba(var(--color-primary-500), 0.3); }
+  .mobile-find-title { color: white; font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -0.02em; }
+  .mobile-find-subtitle { color: #64748b; font-size: 14px; font-weight: 600; margin: 8px 0 0; }
+  .mobile-find-search-wrap { position: relative; margin-bottom: 24px; }
+  .mobile-find-search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; }
+  .mobile-find-search-input { width: 100%; padding: 16px 16px 16px 48px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 16px; color: white; font-size: 15px; font-weight: 600; outline: none; box-shadow: none !important; -webkit-appearance: none; }
+  .mobile-find-search-input:focus { border-color: rgba(var(--color-primary-500), 0.4) !important; background: rgba(255,255,255,0.08); }
+  .mobile-find-search-input::placeholder { color: #475569; }
+  .mobile-find-loading { display: flex; align-items: center; justify-content: center; gap: 8px; color: #64748b; font-size: 13px; font-weight: 600; padding: 16px; }
+  .mobile-find-spinner { animation: spin 0.8s linear infinite; display: inline-block; }
+  .mobile-find-empty { text-align: center; padding: 32px 16px; color: #64748b; }
+  .mobile-find-empty span { font-size: 40px; display: block; margin-bottom: 12px; }
+  .mobile-find-empty p { margin: 0; font-size: 14px; font-weight: 700; }
+  .mobile-find-empty-sub { font-size: 12px !important; font-weight: 600 !important; margin-top: 4px !important; opacity: 0.7; }
+  .mobile-find-results { display: flex; flex-direction: column; gap: 8px; }
+  .mobile-find-result-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; cursor: pointer; -webkit-tap-highlight-color: transparent; width: 100%; text-align: left; color: inherit; transition: all 0.15s; }
+  .mobile-find-result-card:active { transform: scale(0.98); background: rgba(255,255,255,0.08); }
+  .mobile-find-result-avatar { width: 40px; height: 40px; border-radius: 12px; background: rgb(var(--color-primary-600)); color: white; font-size: 16px; font-weight: 900; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .mobile-find-result-info { flex: 1; min-width: 0; }
+  .mobile-find-result-name { color: white; font-size: 14px; font-weight: 800; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mobile-find-result-domain { color: #64748b; font-size: 11px; font-weight: 600; margin: 2px 0 0; }
+  .mobile-find-result-arrow { color: #475569; font-size: 18px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>

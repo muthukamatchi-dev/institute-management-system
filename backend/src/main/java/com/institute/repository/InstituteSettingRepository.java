@@ -16,4 +16,6 @@ public interface InstituteSettingRepository extends JpaRepository<InstituteSetti
     @Transactional
     @Query(value = "UPDATE institute_settings SET tenant_id = :tenantId WHERE tenant_id = 'default' OR tenant_id = 'DEFAULT'", nativeQuery = true)
     void fixLegacyTenants(@Param("tenantId") String tenantId);
+
+    java.util.Optional<InstituteSetting> findByTenantId(String tenantId);
 }

@@ -214,13 +214,9 @@ public class TenantInterceptor extends OncePerRequestFilter {
                 response.getWriter().write("{\"status\":\"error\",\"message\":\"Institute account is deactivated.\"}");
                 return;
             }
-            if (tenant.isTrialExpired()) {
-                response.setStatus(403);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"status\":\"error\",\"message\":\"Subscription expired. Please renew.\"}");
-                return;
-            }
         }
+
+        TenantContext.setReadOnly(tenant.isTrialExpired());
 
         TenantContext.setTenantId(tenantCode);
         TenantContext.setDatabaseMode(tenant.getDatabaseType());

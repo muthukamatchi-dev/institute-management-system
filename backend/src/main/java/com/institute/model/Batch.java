@@ -23,7 +23,7 @@ public class Batch {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "course_id", nullable = false)
+    @Column(name = "course_id")
     private Long courseId;
 
     @Column(name = "batch_name", nullable = false, length = 100)

@@ -56,6 +56,7 @@ import { HttpClient } from '@angular/common/http';
                 <th class="p-4">Subdomain</th>
                 <th class="p-4">Code</th>
                 <th class="p-4">Admin Email</th>
+                <th class="p-4">Plan</th>
                 <th class="p-4">DB Mode</th>
                 <th class="p-4">Status</th>
                 <th class="p-4">Trial Ends</th>
@@ -73,6 +74,15 @@ import { HttpClient } from '@angular/common/http';
                   <span class="px-3 py-1 bg-slate-100 dark:bg-slate-600 rounded-lg text-xs font-mono font-bold text-slate-700 dark:text-slate-200">{{ t.tenantCode }}</span>
                 </td>
                 <td class="p-4 text-slate-500 dark:text-slate-400">{{ t.adminEmail }}</td>
+                <td class="p-4">
+                  <span class="px-3 py-1 rounded-full text-xs font-bold"
+                    [class]="t.plan === 'enterprise' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                             t.plan === 'professional' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' :
+                             t.plan === 'growth' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                             'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'">
+                    {{ t.plan || 'basic' }}
+                  </span>
+                </td>
                 <td class="p-4">
                   <span class="px-3 py-1 rounded-full text-xs font-bold"
                     [class]="t.databaseType === 'dedicated' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'">
@@ -100,7 +110,7 @@ import { HttpClient } from '@angular/common/http';
                 </td>
               </tr>
               <tr *ngIf="filteredTenants.length === 0">
-                <td colspan="7" class="p-8 text-center text-slate-400">No institutes found.</td>
+                <td colspan="8" class="p-8 text-center text-slate-400">No institutes found.</td>
               </tr>
             </tbody>
           </table>
@@ -177,6 +187,17 @@ import { HttpClient } from '@angular/common/http';
               <input type="number" [(ngModel)]="form.trial_days"
                 class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50">
             </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">Plan <span class="text-rose-500">*</span></label>
+              <select [(ngModel)]="form.plan"
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50">
+                <option value="basic">🔷 Basic — Core features only</option>
+                <option value="growth">🟢 Growth — + Staff/Student Login &amp; Attendance</option>
+                <option value="professional">🟣 Professional — + Admin as Staff, Exams, Standard Courses</option>
+                <option value="enterprise">🟡 Enterprise — + Branches &amp; Study Material</option>
+              </select>
+              <p class="text-[10px] text-slate-400 mt-1 ml-1 font-medium">Determines which features are available to this institute's admin.</p>
+            </div>
           </div>
 
           <div *ngIf="formError" class="bg-rose-100 dark:bg-rose-900/30 text-rose-600 p-3 rounded-xl text-xs font-bold">{{ formError }}</div>
@@ -217,10 +238,11 @@ export class SuperAdminComponent implements OnInit {
     admin_username: '',
     admin_password: 'admin123',
     database_type: 'shared',
-    trial_days: 7
+    trial_days: 7,
+    plan: 'basic'
   };
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   ngOnInit() {
     this.loadTenants();
@@ -322,7 +344,7 @@ export class SuperAdminComponent implements OnInit {
     if (!this.editMode && this.form.tenant_name) {
       // Auto-generate code
       this.form.tenant_code = this.form.tenant_name.trim().toUpperCase().replace(/\s+/g, '_').substring(0, 20);
-      
+
       // Auto-generate subdomain
       this.form.subdomain = this.form.tenant_name.trim().toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
@@ -349,7 +371,8 @@ export class SuperAdminComponent implements OnInit {
       admin_phone: tenant.adminPhone || '',
       database_type: tenant.databaseType,
       trial_days: 7,
-      status: tenant.status
+      status: tenant.status,
+      plan: tenant.plan || 'basic'
     };
     this.formError = '';
     this.formSuccess = '';
@@ -371,7 +394,8 @@ export class SuperAdminComponent implements OnInit {
       admin_username: '',
       admin_password: 'admin123',
       database_type: 'shared',
-      trial_days: 7
+      trial_days: 7,
+      plan: 'basic'
     };
   }
 

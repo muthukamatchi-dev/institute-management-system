@@ -1,14 +1,16 @@
 import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
+import { PlanService } from '../../services/plan.service';
 import { User } from '../../models';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
   imports: [CommonModule, RouterModule],
+  styles: [':host { display: block; width: 16rem; flex-shrink: 0; }'],
   template: `
     <aside class="w-64 bg-slate-50/50 dark:bg-slate-900/80 backdrop-blur-xl h-screen border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ease-in-out shadow-2xl md:shadow-none">
       <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
@@ -33,7 +35,7 @@ import { User } from '../../models';
              [routerLinkActiveOptions]="{exact: item.path === '/staff' || item.path === '/attendance'}"
              routerLinkActive="bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-semibold shadow-sm shadow-primary-50 dark:shadow-none"
              class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all group">
-            <span class="text-xl" [innerHTML]="item.icon"></span>
+            <span class="text-xl">{{ item.icon }}</span>
             <span>{{ item.label }}</span>
           </a>
 
@@ -42,7 +44,7 @@ import { User } from '../../models';
             <button (click)="toggleDropdown(item)"
                     class="w-full flex items-center justify-between gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all group">
               <div class="flex items-center gap-3">
-                <span class="text-xl" [innerHTML]="item.icon"></span>
+                <span class="text-xl">{{ item.icon }}</span>
                 <span>{{ item.label }}</span>
               </div>
               <span class="text-[10px] transform transition-transform" [class.rotate-180]="item.isOpen">▼</span>
@@ -51,9 +53,9 @@ import { User } from '../../models';
               <a *ngFor="let child of item.children"
                  [routerLink]="child.path"
                  (click)="closeSidebar.emit()"
-                 routerLinkActive="text-primary-600 dark:text-primary-400 font-bold"
-                 class="block py-2 text-sm text-slate-500 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 transition-colors">
-                • {{ child.label }}
+                 routerLinkActive="!text-primary-600 dark:!text-primary-400 font-bold"
+                 class="block py-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors">
+               • {{ child.label }}
               </a>
             </div>
           </div>
@@ -78,72 +80,87 @@ export class SidebarComponent implements OnInit {
   @Input() isOpen = false;
   @Output() closeSidebar = new EventEmitter<void>();
   user: User | null = null;
-  navItems: any[] = [
-    { label: 'Dashboard', path: '/dashboard', icon: '📊' },
-    { label: 'Day Book', path: '/day-book', icon: '📓' },
-    { label: 'Students', path: '/students', icon: '👤' },
-    { label: 'Courses', path: '/courses', icon: '📚' },
-    { label: 'Batches', path: '/batches', icon: '⏱️' },
-    {
-      label: 'Exams', icon: '📝', isOpen: false,
-      children: [
-        { label: 'Questions', path: '/exams/questions' },
-        { label: 'Internal Exams', path: '/exams/internal' },
-        { label: 'External Exams', path: '/exams/external' },
-        { label: 'Exam Entries', path: '/exams/entries' }
-      ]
-    },
-    { label: 'Staff', path: '/staff', icon: '👥' },
-    { label: 'Fees', path: '/fees', icon: '💰' },
-    { label: 'Attendance', path: '/attendance', icon: '✅' },
-    { label: 'Reports', path: '/reports', icon: '📈' },
-    { label: 'Settings', path: '/settings', icon: '⚙️' }
-  ];
+  navItems: any[] = [];
 
-  adminAsStaff = false;
+  // Module visibility flags (from settings, default ON)
+  enableExams = true;
+  enableExpenses = true;
+  enableStudyMaterial = true;
+  enablePrograms = true;
+  adminAsStaffEnabled = false;
 
-  constructor(private authService: AuthService, private dataService: DataService) { }
+  constructor(
+    private authService: AuthService,
+    private dataService: DataService,
+    public planService: PlanService,
+    private router: Router
+  ) { }
 
   ngOnInit() {
     this.authService.currentUser.subscribe(u => {
       this.user = u;
-      if (this.isAdmin()) {
-        this.dataService.getSettings().subscribe(s => {
-          this.adminAsStaff = s?.admin_as_staff == 1;
-          this.updateNavItems();
-        });
-      } else {
-        this.updateNavItems();
+      const role = this.getNormalizedRole();
+
+      if (role === 'super admin' || role === 'super_admin') {
+        this.navItems = [
+          { label: 'Super Admin', path: '/super-admin', icon: '🏢' }
+        ];
+        return;
       }
+
+      // Student - no settings needed
+      if (role === 'student') {
+        this.navItems = [
+          { label: 'My Progress', path: '/my-progress', icon: '📈' }
+        ];
+        if (this.planService.canUse('studyMaterial')) {
+          this.navItems.push({ label: 'Study Material', path: '/my-study-material', icon: '📚' });
+        }
+        if (this.planService.canUse('exams')) {
+          this.navItems.push({ label: 'My Exams', path: '/my-exams', icon: '📝' });
+        }
+        this.navItems.push({ label: 'Profile', path: '/profile', icon: '👤' });
+        this.navItems.push({ label: 'Settings', path: '/settings', icon: '⚙️' });
+        return;
+      }
+
+      // Admin / Staff - fetch settings for module visibility
+      this.dataService.getSettings().subscribe((s: any) => {
+        const notOff = (v: any) => v !== 0 && v !== '0' && v !== false;
+        this.enableExams = s == null || notOff(s.enable_exams);
+        this.enableExpenses = s == null || notOff(s.enable_expenses);
+        this.enableStudyMaterial = s == null || notOff(s.enable_study_material);
+        this.enablePrograms = s == null || (notOff(s.enable_programs) && notOff(s.enablePrograms));
+        this.adminAsStaffEnabled = s != null && (s.admin_as_staff == 1 || s.admin_as_staff === true || s.adminAsStaff == 1 || s.adminAsStaff === true || s.admin_as_staff === '1');
+        this.updateNavItems();
+      });
+
+      // Re-build nav items when plan changes
+      this.planService.plan$.subscribe(() => {
+        this.updateNavItems();
+      });
     });
   }
 
   updateNavItems() {
     const role = this.getNormalizedRole();
 
-    if (role === 'super admin' || role === 'super_admin') {
-      this.navItems = [
-        { label: 'Super Admin', path: '/super-admin', icon: '🏢' }
-      ];
-      return;
-    }
+    if (role === 'staff') {
+      this.navItems = [];
 
-    if (role === 'student') {
-      this.navItems = [
-        { label: 'My Progress', path: '/my-progress', icon: '📈' },
-        { label: 'Study Material', path: '/my-study-material', icon: '📚' },
-        { label: 'My Exams', path: '/my-exams', icon: '📝' },
-        { label: 'Profile', path: '/profile', icon: '👤' },
-        { label: 'Settings', path: '/settings', icon: '⚙️' }
-      ];
-    } else if (role === 'staff') {
-      this.navItems = [
-        { label: 'My Attendance', path: '/staff/my-attendance', icon: '⏰' },
-        { label: 'Schedule Class', path: '/staff/schedule', icon: '📅' },
-        { label: 'My Students', path: '/staff/students', icon: '👤' },
-        { label: 'My Courses', path: '/staff/courses', icon: '📚' },
-        { label: 'My Batches', path: '/staff/batches', icon: '⏱️' },
-        {
+      if (this.planService.canUse('attendance')) {
+        this.navItems.push({ label: 'My Attendance', path: '/staff/my-attendance', icon: '⏰' });
+      }
+      if (this.planService.canUse('scheduleClass')) {
+        this.navItems.push({ label: 'Schedule Class', path: '/staff/schedule', icon: '📅' });
+      }
+
+      this.navItems.push({ label: 'My Students', path: '/staff/students', icon: '👤' });
+      this.navItems.push({ label: 'My Courses', path: '/staff/courses', icon: '📚' });
+      this.navItems.push({ label: 'My Batches', path: '/staff/batches', icon: '⏱️' });
+
+      if (this.planService.canUse('exams') && this.enableExams) {
+        this.navItems.push({
           label: 'Exams', icon: '📝', isOpen: false,
           children: [
             { label: 'Questions', path: '/exams/questions' },
@@ -151,19 +168,37 @@ export class SidebarComponent implements OnInit {
             { label: 'External Exams', path: '/exams/external' },
             { label: 'Exam Entries', path: '/exams/entries' }
           ]
-        },
-        { label: 'Attendance', path: '/staff/attendance', icon: '✅' },
-        { label: 'Study Material', path: '/study-material', icon: '📁' },
-        { label: 'Settings', path: '/settings', icon: '⚙️' }
-      ];
+        });
+      }
+
+      if (this.planService.canUse('attendance')) {
+        this.navItems.push({ label: 'Attendance', path: '/staff/attendance', icon: '✅' });
+      }
+
+      if (this.planService.canUse('studyMaterial') && this.enableStudyMaterial) {
+        this.navItems.push({ label: 'Study Material', path: '/study-material', icon: '📁' });
+      }
+
+      this.navItems.push({ label: 'Settings', path: '/settings', icon: '⚙️' });
+
     } else {
+      // Admin
       this.navItems = [
         { label: 'Dashboard', path: '/dashboard', icon: '📊' },
+        { label: 'Enquiries', path: '/enquiries', icon: '📞' },
         { label: 'Day Book', path: '/day-book', icon: '📓' },
         { label: 'Students', path: '/students', icon: '👤' },
         { label: 'Courses', path: '/courses', icon: '📚' },
-        { label: 'Batches', path: '/batches', icon: '⏱️' },
-        {
+      ];
+
+      if (this.planService.canUse('programs') && this.enablePrograms) {
+        this.navItems.push({ label: 'Programs', path: '/programs', icon: '🎓' });
+      }
+
+      this.navItems.push({ label: 'Batches', path: '/batches', icon: '⏱️' });
+
+      if (this.planService.canUse('exams') && this.enableExams) {
+        this.navItems.push({
           label: 'Exams', icon: '📝', isOpen: false,
           children: [
             { label: 'Questions', path: '/exams/questions' },
@@ -171,16 +206,43 @@ export class SidebarComponent implements OnInit {
             { label: 'External Exams', path: '/exams/external' },
             { label: 'Exam Entries', path: '/exams/entries' }
           ]
-        }
-      ];
+        });
+      }
 
       this.navItems.push({ label: 'Staff', path: '/staff', icon: '👥' });
       this.navItems.push({ label: 'Fees', path: '/fees', icon: '💰' });
-      this.navItems.push({ label: 'Expenses', path: '/expenses', icon: '💸' });
-      this.navItems.push({ label: 'Schedule Class', path: '/staff/schedule', icon: '📅' });
 
-      this.navItems.push({ label: 'Attendance', path: '/attendance', icon: '✅' });
-      this.navItems.push({ label: 'Study Material', path: '/study-material', icon: '📁' });
+      if (this.planService.canUse('expenses') && this.enableExpenses) {
+        this.navItems.push({ label: 'Expenses', path: '/expenses', icon: '💸' });
+      }
+
+      if (this.planService.canUse('scheduleClass')) {
+        this.navItems.push({ label: 'Schedule Class', path: '/staff/schedule', icon: '📅' });
+      }
+
+      if (this.planService.canUse('attendance')) {
+        const isAttendanceActive = this.router.url.includes('/attendance');
+        const attendanceChildren = [
+          { label: 'Student Attendance Dashboard', path: '/attendance/student-dashboard' },
+          { label: 'Staff Attendance Dashboard', path: '/attendance/staff-dashboard' }
+        ];
+
+        if (this.adminAsStaffEnabled) {
+          attendanceChildren.push({ label: 'File Attendance', path: '/attendance/file' });
+        }
+
+        this.navItems.push({
+          label: 'Attendance',
+          icon: '✅',
+          isOpen: isAttendanceActive,
+          children: attendanceChildren
+        });
+      }
+
+      if (this.planService.canUse('studyMaterial') && this.enableStudyMaterial) {
+        this.navItems.push({ label: 'Study Material', path: '/study-material', icon: '📁' });
+      }
+
       this.navItems.push({ label: 'Reports', path: '/reports', icon: '📈' });
       this.navItems.push({ label: 'Settings', path: '/settings', icon: '⚙️' });
     }

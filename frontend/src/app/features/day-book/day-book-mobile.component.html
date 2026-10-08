@@ -1,0 +1,203 @@
+<!-- Mobile Day Book Template -->
+<div class="m-day-book p-3 pb-24 space-y-4">
+  <!-- Date Selector Header -->
+  <div class="bg-white dark:bg-slate-800 p-3.5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
+    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">📅 Select Date:</span>
+    <input type="date" [(ngModel)]="selectedDate" (change)="loadDayBookData()" 
+           class="bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-white px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 outline-none">
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="text-center py-8 text-xs font-bold text-slate-400">
+    Loading day book logs...
+  </div>
+
+  <div *ngIf="!loading" class="space-y-4">
+    <!-- Summary KPI Cards -->
+    <div class="grid grid-cols-2 gap-2">
+      <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+        <span class="text-[10px] font-bold text-slate-400 uppercase">Revenue</span>
+        <p class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">₹{{ (dayBookData?.feesCollected?.totalCollected || 0) | number:'1.0-0' }}</p>
+      </div>
+      <div *ngIf="canShowExpenses" class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+        <span class="text-[10px] font-bold text-slate-400 uppercase">Expenses</span>
+        <p class="text-lg font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">₹{{ (dayBookData?.expenses?.totalExpense || 0) | number:'1.0-0' }}</p>
+      </div>
+      <div class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+        <span class="text-[10px] font-bold text-slate-400 uppercase">New Students</span>
+        <p class="text-lg font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">{{ dayBookData?.joinedStudents?.length || 0 }}</p>
+      </div>
+      <div *ngIf="canShowScheduleClass" class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+        <span class="text-[10px] font-bold text-slate-400 uppercase">Sessions</span>
+        <p class="text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">{{ dayBookData?.scheduledClasses?.length || 0 }}</p>
+      </div>
+    </div>
+
+    <!-- Student Attendance Card -->
+    <div *ngIf="canShowAttendance" class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60 space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white flex items-center gap-1.5">
+        <span>📊</span> Student Attendance
+      </h3>
+      <div class="flex items-center justify-around pt-2">
+        <div class="text-center">
+          <p class="text-xs font-bold text-slate-400">Rate</p>
+          <p class="text-base font-black text-primary-600 dark:text-primary-400">{{ (dayBookData?.studentAttendance?.percentage || 0) | number:'1.0-0' }}%</p>
+        </div>
+        <div class="text-center">
+          <p class="text-xs font-bold text-slate-400">Present</p>
+          <p class="text-base font-black text-emerald-600">{{ dayBookData?.studentAttendance?.present || 0 }}</p>
+        </div>
+        <div class="text-center">
+          <p class="text-xs font-bold text-slate-400">Absent</p>
+          <p class="text-base font-black text-rose-600">{{ dayBookData?.studentAttendance?.absent || 0 }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Staff Shifts Card -->
+    <div *ngIf="canShowStaff" class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60 space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white flex items-center gap-1.5">
+        <span>👥</span> Staff Shifts
+      </h3>
+      <div *ngIf="!dayBookData?.staffAttendance?.length" class="text-xs text-slate-400 py-2 text-center font-semibold">
+        No staff attended today.
+      </div>
+      <div *ngFor="let sa of dayBookData?.staffAttendance" class="p-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl text-xs flex justify-between items-center">
+        <div>
+          <p class="font-bold text-slate-800 dark:text-white">{{ sa.staffName }}</p>
+          <p class="text-[10px] text-slate-400">In: {{ formatTime12(sa.loginTime) }}</p>
+        </div>
+        <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded">Active</span>
+      </div>
+    </div>
+
+    <!-- Scheduled Classes -->
+    <div *ngIf="canShowScheduleClass" class="space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white px-1">Scheduled Classes</h3>
+      <div *ngFor="let item of dayBookData?.scheduledClasses" class="bg-white dark:bg-slate-800 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700/50 space-y-1">
+        <div class="flex justify-between items-start">
+          <h4 class="font-bold text-slate-800 dark:text-white text-xs">{{ item.topic || item.batchName }}</h4>
+          <span class="text-[10px] font-bold px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded">
+            {{ item.startTime }} - {{ item.endTime }}
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-500">Instructor: {{ item.staffName || 'Instructor' }}</p>
+      </div>
+      <div *ngIf="!dayBookData?.scheduledClasses?.length" class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl font-semibold">
+        No classes scheduled for this date.
+      </div>
+    </div>
+
+    <!-- Exams Conducted -->
+    <div *ngIf="canShowExams" class="space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white px-1">Exams Conducted</h3>
+      <div *ngFor="let ex of dayBookData?.exams" class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center text-xs">
+        <div>
+          <p class="font-bold text-slate-800 dark:text-white">{{ ex.title }}</p>
+          <p class="text-[10px] text-slate-400">{{ ex.examType }} • {{ ex.totalMarks }} Marks</p>
+        </div>
+        <span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 text-[10px] font-bold rounded">{{ ex.duration }}m</span>
+      </div>
+      <div *ngIf="!dayBookData?.exams?.length" class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl font-semibold">
+        No exams conducted today.
+      </div>
+    </div>
+
+    <!-- Fees Collected -->
+    <div class="space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white px-1">Fees Collected</h3>
+      <div *ngFor="let tx of dayBookData?.feesCollected?.transactions" class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center text-xs">
+        <div>
+          <p class="font-bold text-slate-800 dark:text-white">{{ tx.studentName }}</p>
+          <p class="text-[10px] text-slate-400">Receipt: {{ tx.receiptNo }} • {{ tx.paymentMethod }}</p>
+        </div>
+        <span class="font-black text-emerald-600 dark:text-emerald-400">₹{{ tx.amountPaid | number:'1.0-0' }}</span>
+      </div>
+      <div *ngIf="!dayBookData?.feesCollected?.transactions?.length" class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl font-semibold">
+        No fee collections today.
+      </div>
+    </div>
+
+    <!-- Expenses Ledger -->
+    <div *ngIf="canShowExpenses" class="space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white px-1">Expenses Ledger</h3>
+      <div *ngFor="let ex of dayBookData?.expenses?.items" class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 flex justify-between items-center text-xs">
+        <div>
+          <p class="font-bold text-slate-800 dark:text-white">{{ ex.title }}</p>
+          <p class="text-[10px] text-slate-400">{{ ex.category }}</p>
+        </div>
+        <span class="font-black text-rose-600">₹{{ ex.amount | number:'1.0-0' }}</span>
+      </div>
+      <div *ngIf="!dayBookData?.expenses?.items?.length" class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl font-semibold">
+        No expenses logged today.
+      </div>
+    </div>
+
+    <!-- Today Joined Students -->
+    <div class="space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white px-1">Today Joined Students</h3>
+      <div *ngFor="let std of dayBookData?.joinedStudents" class="bg-white dark:bg-slate-800 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700/50 space-y-1 text-xs">
+        <div class="flex justify-between items-start">
+          <h4 class="font-bold text-slate-800 dark:text-white text-xs">{{ std.name }}</h4>
+          <span class="text-[10px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded">
+            Reg: {{ std.regNumber }}
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-500">Course: <span class="font-medium text-slate-700 dark:text-slate-300">{{ std.courseName || 'N/A' }}</span></p>
+        <div *ngIf="std.mobile" class="text-[10px] font-bold text-primary-600 dark:text-primary-400 pt-0.5">
+          📞 {{ std.mobile }}
+        </div>
+      </div>
+      <div *ngIf="!dayBookData?.joinedStudents?.length" class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl font-semibold">
+        No students joined today.
+      </div>
+    </div>
+
+    <!-- Fee Reminders -->
+    <div class="space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white px-1">Fee Reminders</h3>
+      <div *ngFor="let al of dayBookData?.feeAlerts" class="bg-white dark:bg-slate-800 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700/50 space-y-1 text-xs">
+        <div class="flex justify-between items-start">
+          <div>
+            <h4 class="font-bold text-slate-800 dark:text-white text-xs">{{ al.studentName }}</h4>
+            <p class="text-[10px] text-slate-400">Reg: {{ al.regNumber }}</p>
+          </div>
+          <span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded">
+            Due Alerted
+          </span>
+        </div>
+        <div class="flex items-center justify-between pt-0.5">
+          <span class="font-bold text-rose-600 dark:text-rose-400">
+            Balance: ₹{{ al.balanceAmount | number:'1.0-0' }}
+          </span>
+          <span *ngIf="al.mobile" class="text-[10px] font-bold text-slate-500">
+            📞 {{ al.mobile }}
+          </span>
+        </div>
+      </div>
+      <div *ngIf="!dayBookData?.feeAlerts?.length" class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl font-semibold">
+        No fee reminders alerted today.
+      </div>
+    </div>
+
+    <!-- Batch Updates -->
+    <div class="space-y-2">
+      <h3 class="text-xs font-black uppercase text-slate-800 dark:text-white px-1">Batch Updates</h3>
+      <div *ngFor="let bt of dayBookData?.batches" class="bg-white dark:bg-slate-800 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700/50 space-y-1 text-xs">
+        <div class="flex justify-between items-center">
+          <h4 class="font-bold text-slate-800 dark:text-white text-xs">{{ bt.batchName }}</h4>
+          <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold rounded">
+            {{ bt.action }}
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-500">Course: <span class="font-medium text-slate-700 dark:text-slate-300">{{ bt.courseName || 'N/A' }}</span></p>
+        <div class="text-[10px] text-slate-400 uppercase font-bold pt-0.5">
+          Status: {{ bt.status }}
+        </div>
+      </div>
+      <div *ngIf="!dayBookData?.batches?.length" class="text-center py-4 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl font-semibold">
+        No batches created or started today.
+      </div>
+    </div>
+  </div>
+</div>

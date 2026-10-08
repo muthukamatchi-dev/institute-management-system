@@ -1,0 +1,21 @@
+<!-- Mobile My Progress Template -->
+<div class="m-my-progress p-3 pb-24 space-y-4">
+  <div>
+    <h2 class="text-xl font-bold text-slate-800 dark:text-white">My Progress</h2>
+    <p class="text-xs text-slate-500">Course attendance & consistency</p>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let courseName of getCourseKeys()" (click)="selectedCourse = courseName" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2 active:scale-[0.99] transition-transform">
+      <div class="flex justify-between items-start">
+        <h3 class="font-bold text-slate-800 dark:text-white text-base">{{ courseName }}</h3>
+        <span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
+          {{ getAttendanceForCourse(courseName) }}% Presence
+        </span>
+      </div>
+    </div>
+    <div *ngIf="getCourseKeys().length === 0" class="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No enrolled course records.
+    </div>
+  </div>
+</div>

@@ -768,19 +768,22 @@ public class ReportsService {
         feeRepo.findAll().stream()
             .filter(f -> f.getBalanceAmount() != null && f.getBalanceAmount().compareTo(BigDecimal.ZERO) > 0)
             .forEach(f -> studentRepo.findById(f.getStudentId()).ifPresent(s -> {
-                Map<String, Object> map = new LinkedHashMap<>();
-                map.put("type", "fee");
-                map.put("label", "Fee Due: " + s.getName());
-
-                // Compute period-aware payable amount
-                BigDecimal displayAmount = f.getBalanceAmount();
+                BigDecimal overdue = BigDecimal.ZERO;
+                BigDecimal currentPeriodDue = f.getBalanceAmount();
                 String periodLabel = "Pending Balance";
+
                 if (s.getCourseId() != null) {
                     var courseOpt = courseRepo.findById(s.getCourseId());
                     if (courseOpt.isPresent()) {
                         Course course = courseOpt.get();
-                        BigDecimal periodPayable = InstituteService.calculateThisPeriodPayable(s, course, f);
-                        displayAmount = periodPayable;
+                        overdue = InstituteService.calculateFeeOverdue(s, course, f);
+                        BigDecimal totalPayable = InstituteService.calculateThisPeriodPayable(s, course, f);
+                        // Current period due = totalPayable - overdue (just this period's amount)
+                        currentPeriodDue = totalPayable.subtract(overdue);
+                        if (currentPeriodDue.compareTo(BigDecimal.ZERO) < 0) {
+                            currentPeriodDue = BigDecimal.ZERO;
+                        }
+
                         String feePeriod = course.getFeePeriod() != null ? course.getFeePeriod().toLowerCase().trim() : "course";
                         if (feePeriod.contains("month")) periodLabel = "This Month Due";
                         else if (feePeriod.contains("week")) periodLabel = "This Week Due";
@@ -790,15 +793,24 @@ public class ReportsService {
                     }
                 }
 
-                // Skip if current period is fully paid
-                if (displayAmount.compareTo(BigDecimal.ZERO) <= 0) return;
+                // Skip if nothing is due
+                if (currentPeriodDue.compareTo(BigDecimal.ZERO) <= 0 && overdue.compareTo(BigDecimal.ZERO) <= 0) return;
 
-                map.put("detail", periodLabel + ": ₹" + displayAmount);
-                map.put("urgency", displayAmount.compareTo(new BigDecimal("5000")) > 0 ? "high" : "medium");
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("type", "fee");
+                map.put("label", "Fee Due: " + s.getName());
+                map.put("period_label", periodLabel);
+                map.put("current_period_due", currentPeriodDue);
+                map.put("overdue", overdue);
+                // detail kept for backward compat
+                map.put("detail", periodLabel + ": ₹" + currentPeriodDue);
+                map.put("urgency", (overdue.compareTo(BigDecimal.ZERO) > 0) ? "high"
+                        : (currentPeriodDue.compareTo(new BigDecimal("5000")) > 0 ? "high" : "medium"));
                 result.add(map);
             }));
         return result;
     }
+
 
     public Map<String, Object> getDayBookData(LocalDate date) {
         Map<String, Object> data = new LinkedHashMap<>();

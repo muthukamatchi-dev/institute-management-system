@@ -1,0 +1,30 @@
+<!-- Mobile Student Study Material Template -->
+<div class="m-student-study-material p-3 pb-24 space-y-4">
+  <div>
+    <h2 class="text-xl font-bold text-slate-800 dark:text-white">My Learning Material</h2>
+    <p class="text-xs text-slate-500">Access notes & course resources</p>
+  </div>
+
+  <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="processMaterials()" placeholder="Search notes..." 
+         class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white shadow-sm">
+
+  <div class="space-y-3">
+    <div *ngFor="let item of materials" class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 space-y-2">
+      <div class="flex items-start gap-3">
+        <span class="text-3xl">📚</span>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-bold text-slate-800 dark:text-white text-sm truncate">{{ item.title }}</h3>
+          <p class="text-xs text-slate-500 line-clamp-2">{{ item.description }}</p>
+        </div>
+      </div>
+      <div *ngIf="canDownload" class="pt-2 border-t border-slate-100 dark:border-slate-700/50 flex justify-end">
+        <a [href]="item.fileUrl" target="_blank" class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm">
+          Download PDF
+        </a>
+      </div>
+    </div>
+    <div *ngIf="materials.length === 0" class="text-center py-6 text-slate-400 text-xs bg-white dark:bg-slate-800 rounded-xl">
+      No study materials found.
+    </div>
+  </div>
+</div>

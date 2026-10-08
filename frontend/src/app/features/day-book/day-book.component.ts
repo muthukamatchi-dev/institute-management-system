@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { ToastService } from '../../services/toast.service';
+import { PlanService } from '../../services/plan.service';
 
 @Component({
   selector: 'app-day-book',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="p-4 sm:p-8 max-w-7xl mx-auto space-y-8">
+    <div class="p-4 sm:p-6 w-full space-y-6">
       <!-- Header banner -->
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden">
         <div class="absolute -right-10 -top-10 w-40 h-40 bg-primary-600/10 rounded-full blur-3xl"></div>
@@ -61,7 +62,7 @@ import { ToastService } from '../../services/toast.service';
           </div>
 
           <!-- Stat 2: Expenses -->
-          <div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+          <div *ngIf="canShowExpenses" class="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
             <div class="space-y-1">
               <span class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Today's Expenses</span>
               <p class="text-2xl font-black text-rose-600 dark:text-rose-400">
@@ -87,7 +88,7 @@ import { ToastService } from '../../services/toast.service';
           </div>
 
           <!-- Stat 4: Class Count -->
-          <div class="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+          <div *ngIf="canShowScheduleClass" class="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
             <div class="space-y-1">
               <span class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Scheduled Sessions</span>
               <p class="text-2xl font-black text-amber-600 dark:text-amber-400">
@@ -104,7 +105,7 @@ import { ToastService } from '../../services/toast.service';
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
           <!-- 1. Student Attendance widget -->
-          <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col justify-between">
+          <div *ngIf="canShowAttendance" class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col justify-between">
             <div>
               <h2 class="font-black text-lg text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                 <span>📊</span> Student Attendance
@@ -153,7 +154,7 @@ import { ToastService } from '../../services/toast.service';
           </div>
 
           <!-- 2. Staff Shifts Log -->
-          <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col h-[400px]">
+          <div *ngIf="canShowStaff" class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col h-[400px]">
             <div>
               <h2 class="font-black text-lg text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                 <span>👥</span> Staff Shifts
@@ -194,7 +195,7 @@ import { ToastService } from '../../services/toast.service';
           </div>
 
           <!-- 3. Scheduled Classes widget -->
-          <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col h-[400px]">
+          <div *ngIf="canShowScheduleClass" class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col h-[400px]">
             <div>
               <h2 class="font-black text-lg text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                 <span>📅</span> Scheduled Classes
@@ -235,7 +236,7 @@ import { ToastService } from '../../services/toast.service';
           </div>
 
           <!-- 4. Exams Conducted Today -->
-          <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col h-[400px]">
+          <div *ngIf="canShowExams" class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col h-[400px]">
             <div>
               <h2 class="font-black text-lg text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                 <span>📝</span> Exams Conducted
@@ -307,7 +308,7 @@ import { ToastService } from '../../services/toast.service';
           </div>
 
           <!-- 6. Today's Expenses widget -->
-          <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col h-[400px]">
+          <div *ngIf="canShowExpenses" class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-soft flex flex-col h-[400px]">
             <div>
               <h2 class="font-black text-lg text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                 <span>💸</span> Expenses Ledger
@@ -460,9 +461,27 @@ export class DayBookComponent implements OnInit {
   dayBookData: any = null;
   loading: boolean = false;
 
-  constructor(private dataService: DataService, private toastService: ToastService) { }
+  enableExams: boolean = true;
+  enableExpenses: boolean = true;
+  enableStudyMaterial: boolean = true;
+
+  constructor(
+    private dataService: DataService,
+    private toastService: ToastService,
+    public planService: PlanService
+  ) { }
 
   ngOnInit() {
+    this.dataService.getSettings().subscribe({
+      next: s => {
+        if (s) {
+          this.enableExams = s.enable_exams !== 0 && s.enable_exams !== '0';
+          this.enableExpenses = s.enable_expenses !== 0 && s.enable_expenses !== '0';
+          this.enableStudyMaterial = s.enable_study_material !== 0 && s.enable_study_material !== '0';
+        }
+      }
+    });
+
     // Default to today's date in local time YYYY-MM-DD
     const now = new Date();
     const year = now.getFullYear();
@@ -471,6 +490,26 @@ export class DayBookComponent implements OnInit {
     this.selectedDate = `${year}-${month}-${day}`;
 
     this.loadDayBookData();
+  }
+
+  get canShowExpenses(): boolean {
+    return this.planService.canUse('expenses') && this.enableExpenses;
+  }
+
+  get canShowExams(): boolean {
+    return this.planService.canUse('exams') && this.enableExams;
+  }
+
+  get canShowScheduleClass(): boolean {
+    return this.planService.canUse('scheduleClass');
+  }
+
+  get canShowAttendance(): boolean {
+    return this.planService.canUse('attendance');
+  }
+
+  get canShowStaff(): boolean {
+    return this.planService.canUse('staffLogin');
   }
 
   loadDayBookData() {
